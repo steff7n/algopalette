@@ -50,7 +50,18 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `PB.state.importTheme` → paleta 1:1, `lang` domyślnie `java`; `git status` PB przed == po („PB status unchanged”).
   Ścieżka wklejenia w oknie „Wczytaj…” PB (`index.html:8733`): parse(icls) → vscode → `motif()` → hexy.
   Policzone: pytest **216 passed**, ruff/ty zero uwag. **Etap 1 (rdzeń) zakończony.**
-- Następny: Task 8 (TUI — szkielet, Paleta, naruszenia).
+- **Task 8 ☑** (kontroler): TUI (Textual). `__main__.py` (`algopalette [PLIK] [--fresh]`, start: plik → autozapis →
+  `default_session` + nastrój „neutralny”; błędy → komunikat, nie wyjątek). `tui/app.py` (`AlgoPaletteApp`:
+  `set_session(new, coalesce=, structural=)`, historia z scalaniem zmian tego samego pola < 1.5 s,
+  `replace_session`, `refresh_views`, autozapis z opóźnieniem 0.5 s, `ViolationsPanel`, zapis/wczytanie przez
+  `PathScreen` + `ConfirmScreen`, F1 pomoc, F2–F6 zakładki), `tui/palette_tab.py` (`SlotTable` aktualizowana W MIEJSCU,
+  gdy zestaw slotów ten sam — inaczej `clear()` przestawia zaznaczenie i edytor traci fokus; `SlotEditor`: nazwa,
+  kłódka, ręczne L/C/H, warunki, zależności), `tui/conditions.py` (`ConditionsEditor(mode="slot"|"role")` — wspólny
+  z zakładką Globalne), `tui/relations.py`, `tui/widgets.py` (`ValueSlider`, `RangeSlider`, `_Bar`), `tui/dialogs.py`.
+  `History.replace_current` dodane do modelu. Zrzuty ekranu obejrzane (150×48).
+  Policzone: pytest **240 passed** (w tym 23 TUI), ruff/ty zero uwag.
+- Następny: Task 9 (Globalne, Propozycje, Źródło, eksport) — zakładki mają dziś `Static` zastępcze w `app.compose`;
+  akcje `generate`/`export` w `app.py` to zaślepki z komunikatem.
 
 ## 1. O co najłatwiej się potknąć
 
@@ -129,6 +140,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `mood_overrides`, `save_user_mood`/`delete_user_mood` (używa `io._enc_globals/_dec_globals`). Nastroje
   zależą od polaryzacji/metryki → po zmianie polaryzacji lub metryki w TUI trzeba nałożyć nastrój ponownie.
   „monochromatyczny z jednym akcentem” = custom (35°, 220°×13), bo reguła cykliczna rozsuwa krótsze listy.
+- **TUI — pułapki Textuala (sprawdzone):** `App._ready` to metoda Textuala (nie nadpisuj; flaga to `_ui_ready`);
+  `App.is_mounted` to metoda, nie właściwość; `[F2]` w tytule zakładki znika (markup) — używaj `(F2)`; `Select`
+  bez `compact=True` ma 3 linie; poziomy suwak bez `width: 1fr` rozjeżdża się poza widok; edytory składają dzieci
+  LENIWIE — `compose` musi sprawdzić, czy slot jeszcze istnieje (`alive()`); w testach przyciski poza widokiem
+  przewijanym naciskaj `Button.press()`, nie `pilot.click`. Zrzuty: `app.save_screenshot` + `rsvg-convert`.
 - `src/algopalette/color/fast.py` — numpy `(...,3)`: `oklch_to_oklab`, `oklab_to_linear_srgb`, `in_gamut`, `max_chroma`
   (bisekcja), `wcag21`, `apca(_signed)`, `contrast`, `delta_e(ok|hyab)`, `simulate_cvd(vienot|machado)`.
   + Brettel (Task 3). ΔE 2000/itp/cam16 → `NotImplementedError`.
@@ -139,7 +155,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Po Tasku 7: `uv run pytest -q` → 216 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po Tasku 8: `uv run pytest -q` → 240 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -156,3 +172,4 @@ Po Tasku 7: `uv run pytest -q` → 216 passed; `ruff check`, `ruff format --chec
 - 2026-11-14 — Task 5 ☑: hues + moods (9 + własne); wczesne wyjście silnika; default 1.5–1.7 s; 200 testów.
 - 2026-11-14 — Task 6 ☑: sources (parsowanie, uzupełnianie, charakter, przeniesienie); 212 testów.
 - 2026-11-14 — Task 7 ☑: eksport do PB, akceptacja sprawdzona na logice PB (motif + importTheme); 216 testów. Etap 1 koniec.
+- 2026-11-14 — Task 8 ☑: TUI szkielet + Paleta + naruszenia + historia + autozapis; 240 testów.

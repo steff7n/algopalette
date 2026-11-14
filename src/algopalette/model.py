@@ -441,6 +441,14 @@ class History:
             del self._states[0 : len(self._states) - self.limit]
         self._pos = len(self._states) - 1
 
+    def replace_current(self, s: Session) -> None:
+        """Podmienia bieżący stan (scalanie serii drobnych zmian w jeden krok cofania)."""
+        if self._pos < 0:
+            self.push(s)
+            return
+        del self._states[self._pos + 1 :]
+        self._states[self._pos] = s
+
     def undo(self) -> Session | None:
         if not self.can_undo:
             return None

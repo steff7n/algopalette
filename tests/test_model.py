@@ -229,3 +229,18 @@ def test_session_hashable_and_normalized():
     assert isinstance(s2.mood_snapshot, FrozenMap)
     assert isinstance(hash(s2), int)
     assert isinstance(Session(s.globals, list(s.slots)).slots, tuple)  # ty: ignore[invalid-argument-type]
+
+
+def test_history_replace_current():
+    from algopalette.model import History, add_accent, default_session
+
+    a = default_session()
+    b = add_accent(a)
+    c = add_accent(b)
+    h = History(a)
+    h.push(b)
+    h.replace_current(c)
+    assert h.current == c
+    assert h.undo() == a
+    assert h.redo() == c
+    assert not h.can_redo
