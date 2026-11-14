@@ -17,7 +17,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - **Task 1 ☑** (8e8bf4c, Sonnet): `pyproject.toml` (ruff line 100, reguły E,F,I,UP,B,SIM,RUF; E741/RUF001-003 off;
   pytest asyncio auto), `color/{__init__,apca,fast}.py`, `model.py` (na razie tylko `OKLCH` + aliasy Literal).
   Policzone: pytest **39 passed**, ruff/format/ty zero uwag.
-- Następny: Task 2 (model sesji, io).
+- **Task 2 ☑** (048d506, Sonnet): `model.py` (pełny kontrakt + `FrozenMap`, `default_role_defaults`, `snapshot_key`,
+  `History`), `io.py` (`algopalette.v1`, zapis atomowy, XDG). Policzone: pytest **114 passed**, ruff/format/ty zero uwag.
+- **Decyzja użytkownika 2026-11-14:** zadania tworzą łańcuch zależności → od Tasku 3 kontroler implementuje WSZYSTKO
+  sam, bez subagentów-implementatorów.
+- Następny: Task 3 (constraints).
 
 ## 1. O co najłatwiej się potknąć
 
@@ -39,7 +43,8 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - Wektor z planu `OKLCH(0.75, 0.25, 140)` jest tylko 0.009 poza gamutem (fit ΔE < 0.01) — zastąpiony `C=0.30`
   (plan Task 1 i Task 4 poprawione).
 - `simulate_cvd` nie przycina do sRGB (OK dla ΔE, nie dla hexa).
-- `ruff format` (lub hook) potrafi przeformatować bloki kodu w planie .md — nie commituj takiej zmiany przypadkiem.
+- `ruff format` formatował bloki kodu w `docs/*.md` — od Tasku 2 `extend-exclude = ["docs"]` w `pyproject.toml`.
+- `docs/superpowers/plans/*.tasks.json` trzyma statusy zadań; subagent cofnął je raz `git checkout -- docs/` — commituj je.
 
 ## 2. Decyzje użytkownika (WIĄŻĄCE — nie otwieraj ponownie)
 
@@ -64,6 +69,15 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 
 - `src/algopalette/model.py` — `OKLCH` (frozen), aliasy `Role/ContrastMetric/DeltaEMethod/CvdType/CvdMethod/FitMethod/ChromaMode`
   (Task 2 ROZSZERZA, nie redefiniuje).
+- `src/algopalette/model.py:239` `default_role_defaults(polarity, metric)` — dark: bg L .10–.25 C≤.04; fg L .85–.98,
+  kontrast ≥7 (WCAG)/75 (APCA); akcent L .60–.85, C abs .06–.20, kontrast ≥4.5/60, min ΔE .08 (miękki), CVD .04 (miękki).
+  `:313` `effective_conditions` (źródła slot/mood/global; klucz snapshotu `role_defaults.<rola>.<pole>`),
+  `:348` `broken_relations`, `:374` `add_accent` (≤14), `:387` `remove_slot` (≥1 akcent), `:397` `move_slot` (tylko
+  akcenty), `:409` `History` (limit = liczba stanów). Wartości `mood_snapshot` muszą być hashowalne.
+- `src/algopalette/io.py` — `SessionFormatError(ValueError)`, `save_session(s, path, overwrite=False)` (atomowo),
+  `load_session` (brak pliku → `FileNotFoundError`; OSError przy zapisie leci do TUI), `default_palettes_dir()`,
+  `autosave_path()`, `config_dir()` (nie tworzą katalogów). JSON slotu ma informacyjny `hex`.
+  `OptimizerSettings.max_evals = 20_000` (do strojenia w Tasku 4).
 - `src/algopalette/color/__init__.py` — API: `to_hex`, `fit_delta`, `from_css`, `in_gamut`, `max_chroma`, `contrast`,
   `delta_e`, `simulate_cvd`, `hue_diff` + `Color` (ColorAll+APCA), `to_color`, `apca_signed`, `contrast_hex`, `fast`.
   `to_hex` = fit(metoda) + clip; `fit_delta` = ΔE ok(c, po fit+clip). Gamut: kanały linear sRGB w [−1e-6, 1+1e-6].
@@ -79,7 +93,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Po Tasku 1: `uv run pytest -q` → 39 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po Tasku 2: `uv run pytest -q` → 114 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -90,3 +104,4 @@ Po Tasku 1: `uv run pytest -q` → 39 passed; `ruff check`, `ruff format --check
 - 2026-11-14 — spec zaakceptowany; plan 11 zadań + .tasks.json; natywne zadania #1–#11 z zależnościami.
 - 2026-11-14 — wykonanie: gałąź `feat/algopalette`; Task 1 wysłany (Sonnet). Zmiana zasad przeglądu (jeden, Opus high, na końcu).
 - 2026-11-14 — Task 1 ☑ (8e8bf4c): warstwa koloru; 39 testów; wektor gamutu w planie poprawiony na C=0.30.
+- 2026-11-14 — Task 2 ☑ (048d506): model + io; 114 testów; ruff wyłączony dla docs/; od Tasku 3 kontroler pracuje sam.
