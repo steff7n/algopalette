@@ -221,3 +221,15 @@ Struktura modułów, reprezentacja zmiennych i algorytm wewnątrz B, dokładne l
 rysowania wykresów, format pliku nastrojów, domyślna metoda `fit()`. Testy: pytest dla koloru/APCA/warunków/silnika/IO
 (w tym zgodność z PB), testy Textual `Pilot` dla podstawowych przepływów TUI. Instalacja komendy `algopalette`:
 `uv tool install --editable .`.
+
+## 11. Przełącznik widoku HSL / OKLCH (zmiana 2026-11-14, zaakceptowana: „tak, rób”)
+
+Prośba użytkownika: „koniecznie dodaj toggle HSL/OKLCH”. Zakres zatwierdzony:
+- przełącznik (F7 na każdej zakładce + pole wyboru na górze zakładki Paleta) zmienia **tylko pokazywanie i ręczną
+  edycję wartości koloru**: kolumny tabeli kolorów (L C H ↔ H S L) i suwaki „Wartość” w edytorze slotu
+  (HSL: H 0–360°, S i L 0–100 %); edycja w HSL jest od razu przeliczana do OKLCH i tak zapisywana;
+- warunki, zależności, nastroje, silnik i koło odcieni w Analizie zostają w OKLCH; w trybie HSL nad warunkami
+  widnieje podpis „warunki w OKLCH”;
+- kolor spoza sRGB pokazywany w HSL po ściągnięciu do gamutu (z ⚠ jak w tabeli);
+- tryb zapamiętany w sesji (autozapis, plik sesji: pole `view_model`, domyślnie `oklch`; starsze pliki bez pola
+  → `oklch`); przełączenie widoku nie jest krokiem cofania.
