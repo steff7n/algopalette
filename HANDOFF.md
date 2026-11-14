@@ -43,7 +43,14 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `apply_transfer` (każdy akcent: cel H ± 8° twardy, C względne ± 0.08, kontrast z nowym tłem = źródłowy ± tol;
   lightness wyłączone `Cond(..., enabled=False)`, bo wynika z kontrastu; liczba akcentów = źródła).
   Policzone: pytest **212 passed**, ruff/ty zero uwag.
-- Następny: Task 7 (pb_export).
+- **Task 7 ☑** (kontroler): `pb_export.py` — `pb_json(hexes, polarity)` (`palettebuilder.v3`, `polarity`, `palette`
+  `[{hex, role}]`; NIC więcej nie trzeba), `write_pb_file` (atomowo, bez nadpisania bez zgody), `default_pb_dir()` =
+  `~/Dokumenty/motifs`. **Dowód akceptacji przez PB** (node, `loadPB` z `/home/qrikk/palettebuilder/tests/headless.mjs`,
+  skrypt tylko w scratchpadzie): `detect` → `palette`, `parse` (icls) → null, `motif()` nie-null z tymi samymi hexami,
+  `PB.state.importTheme` → paleta 1:1, `lang` domyślnie `java`; `git status` PB przed == po („PB status unchanged”).
+  Ścieżka wklejenia w oknie „Wczytaj…” PB (`index.html:8733`): parse(icls) → vscode → `motif()` → hexy.
+  Policzone: pytest **216 passed**, ruff/ty zero uwag. **Etap 1 (rdzeń) zakończony.**
+- Następny: Task 8 (TUI — szkielet, Paleta, naruszenia).
 
 ## 1. O co najłatwiej się potknąć
 
@@ -132,7 +139,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Po Tasku 6: `uv run pytest -q` → 212 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po Tasku 7: `uv run pytest -q` → 216 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -148,3 +155,4 @@ Po Tasku 6: `uv run pytest -q` → 212 passed; `ruff check`, `ruff format --chec
 - 2026-11-14 — Task 4 ☑: silnik B (L,u,H; L-BFGS-B wsadowo); default 2.07 s / 6 ok; time_cap 30 s; 155 testów.
 - 2026-11-14 — Task 5 ☑: hues + moods (9 + własne); wczesne wyjście silnika; default 1.5–1.7 s; 200 testów.
 - 2026-11-14 — Task 6 ☑: sources (parsowanie, uzupełnianie, charakter, przeniesienie); 212 testów.
+- 2026-11-14 — Task 7 ☑: eksport do PB, akceptacja sprawdzona na logice PB (motif + importTheme); 216 testów. Etap 1 koniec.

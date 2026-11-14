@@ -1,0 +1,22 @@
+{
+ "format": "palettebuilder.v3",
+ "polarity": "dark",
+ "palette": [
+  {
+   "hex": "#1e1e2e",
+   "role": "bg"
+  },
+  {
+   "hex": "#e0e0e0",
+   "role": "fg"
+  },
+  {
+   "hex": "#ff8080",
+   "role": null
+  },
+  {
+   "hex": "#80c0ff",
+   "role": null
+  }
+ ]
+}
