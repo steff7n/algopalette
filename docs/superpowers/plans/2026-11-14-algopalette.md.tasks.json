@@ -1,0 +1,107 @@
+{
+ "planPath": "docs/superpowers/plans/2026-11-14-algopalette.md",
+ "tasks": [
+  {
+   "id": 1,
+   "subject": "Task 1: Szkielet + warstwa koloru",
+   "status": "pending",
+   "blockedBy": [],
+   "description": "**Goal:** Projekt uv z zależnościami i moduł `algopalette.color` z API z Shared Interfaces oraz zgodną z nim szybką\nścieżką numpy.\n\n**Files:**\n- Create: `pyproject.toml`, `src/algopalette/__init__.py`, `src/algopalette/color/{__init__,apca,fast}.py`, `.gitignore`\n- Test: `tests/test_color.py`, `tests/test_fast.py`\n\n**Acceptance Criteria:**\n- [ ] `uv sync` instaluje textual, coloraide, numpy, scipy, pytest, pytest-asyncio. `uv run pytest` działa.\n- [ ] APCA spełnia 4 wektory ze speca §3 (tol 0.1).\n- [ ] `to_hex` / `max_chroma` / `fit_delta` / `from_css` / `hue_diff` spełniają testy niżej.\n- [ ] `fast.py` zgadza się z coloraide do 1e-6 na 1000 losowych par (seed 0) dla OKLab→linear sRGB, WCAG, APCA,\n      ΔE ok, ΔE hyab, CVD vienot i machado (severity 0.5 i 1.0).\n- [ ] ruff + ty zero uwag.\n\n**Verify:** `uv run pytest tests/test_color.py tests/test_fast.py -q` → wszystkie PASS\n\n```json:metadata\n{\"files\": [\"pyproject.toml\", \"src/algopalette/color/__init__.py\", \"src/algopalette/color/apca.py\", \"src/algopalette/color/fast.py\", \"tests/test_color.py\", \"tests/test_fast.py\"], \"verifyCommand\": \"uv run pytest tests/test_color.py tests/test_fast.py -q\", \"acceptanceCriteria\": [\"APCA 4 wektory tol 0.1\", \"to_hex red == #ff0000\", \"max_chroma granica gamutu\", \"fast == coloraide do 1e-6\", \"ruff+ty zero uwag\"], \"modelTier\": \"standard\"}\n```"
+  },
+  {
+   "id": 2,
+   "subject": "Task 2: Model sesji, historia, zapis",
+   "status": "pending",
+   "blockedBy": [
+    1
+   ],
+   "description": "**Goal:** Dataclassy z Shared Interfaces, rozstrzyganie dziedziczenia ze źródłem wartości, undo/redo i trwały zapis\nsesji z autozapisem.\n\n**Files:**\n- Create: `src/algopalette/model.py`, `src/algopalette/io.py`\n- Test: `tests/test_model.py`, `tests/test_io.py`\n\n**Acceptance Criteria:**\n- [ ] `default_session()`: 10 slotów (bg, fg, 8 akcentów), polaryzacja dark, pełne `role_defaults` dla 3 ról.\n- [ ] `effective_conditions` scala pole po polu (slot > globalne). Źródło = `\"slot\"`, `\"mood\"` (wartość globalna\n      równa `mood_snapshot`) albo `\"global\"`.\n- [ ] `add_accent` powyżej 14 akcentów → `ValueError(\"Najwyżej 14 akcentów\")`. `remove_slot` na bg/fg → `ValueError`.\n      Usunięcie slotu zostawia relacje, które `broken_relations` wtedy zgłasza.\n- [ ] Zapis i odczyt sesji to tożsamość (`load(save(s)) == s`), łącznie z relacjami, `Cond`, `frozenset`.\n- [ ] Obcy/uszkodzony JSON → `SessionFormatError` z polskim komunikatem. Istniejący plik bez `overwrite=True` →\n      `FileExistsError`, plik nietknięty.\n- [ ] Ścieżki respektują `XDG_DATA_HOME`/`XDG_STATE_HOME`/`XDG_CONFIG_HOME`.\n\n**Verify:** `uv run pytest tests/test_model.py tests/test_io.py -q` → PASS\n\n```json:metadata\n{\"files\": [\"src/algopalette/model.py\", \"src/algopalette/io.py\", \"tests/test_model.py\", \"tests/test_io.py\"], \"verifyCommand\": \"uv run pytest tests/test_model.py tests/test_io.py -q\", \"acceptanceCriteria\": [\"default_session 10 slotów\", \"dziedziczenie ze źródłem\", \"limit 14 akcentów\", \"broken_relations\", \"roundtrip\", \"SessionFormatError\", \"brak nadpisania\", \"XDG\"], \"modelTier\": \"standard\"}\n```"
+  },
+  {
+   "id": 3,
+   "subject": "Task 3: Kompilacja warunków do kary",
+   "status": "pending",
+   "blockedBy": [
+    2
+   ],
+   "description": "**Goal:** `compile_terms(session)` zamienia warunki slotów, relacje i ustawienia globalne na listę `Term`.\n`evaluate`/`objective` liczą naruszenia z polskimi opisami.\n\n**Files:**\n- Create: `src/algopalette/constraints.py`\n- Test: `tests/test_constraints.py`\n\n**Acceptance Criteria:**\n- [ ] Term dla każdego włączonego warunku §5.2, relacji §5.3 i globalnych: rozrzut L, układ odcieni (cele z\n      `hues.scheme_targets` dopiero w Task 5; tutaj interfejs `hue_targets: Mapping[str, float] | None` w\n      `compile_terms(session, hue_targets=None)`), daltonizm (każdy włączony typ × każda para akcentów), gamut\n      (`fit_delta` na kolorach wolnych), unikanie kolorów źródła.\n- [ ] Wyłączone warunki (`enabled=False`), relacje zerwane i sloty z kłódką nie dają termów zależnych wyłącznie od\n      zablokowanych slotów.\n- [ ] Odcień: zawijanie zakresu. Waga termów odcienia skalowana do 0 płynnie, gdy C < 0.02 (szarość nie ma odcienia).\n- [ ] Skale normalizacji: L 0.01, C 0.01 (abs) / 0.02 (rel), H 1°, WCAG 0.1, APCA 1 Lc, ΔE ok 0.01 (inne ΔE: 1.0).\n- [ ] `Violation.label` i `required`/`achieved` po polsku, np. `\"kontrast z tłem\"`, `\"≥ 4.50\"`, `\"3.12\"`.\n\n**Verify:** `uv run pytest tests/test_constraints.py -q` → PASS\n\n```json:metadata\n{\"files\": [\"src/algopalette/constraints.py\", \"tests/test_constraints.py\"], \"verifyCommand\": \"uv run pytest tests/test_constraints.py -q\", \"acceptanceCriteria\": [\"wszystkie warunki §5.2/§5.3/§5.4 mają termy\", \"zawijanie odcienia\", \"szarość bez naruszeń odcienia\", \"pominięte wyłączone/zerwane/zablokowane\", \"polskie opisy\"], \"modelTier\": \"frontier\"}\n```"
+  },
+  {
+   "id": 4,
+   "subject": "Task 4: Silnik optymalizacji (B)",
+   "status": "pending",
+   "blockedBy": [
+    3
+   ],
+   "description": "**Goal:** `engine.generate()` zwraca N deterministycznych, zróżnicowanych propozycji minimalizujących `objective`\nz uczciwą listą naruszeń.\n\n**Files:**\n- Create: `src/algopalette/engine.py`\n- Modify: `src/algopalette/constraints.py` (opcjonalnie wektorowe ewaluatory przez `color.fast`)\n- Test: `tests/test_engine.py`\n\n**Acceptance Criteria:**\n- [ ] Tło `#1e1e2e` z kłódką, 4 akcenty, WCAG ≥ 4.5, ΔE ok ≥ 0.08 → każda z 6 propozycji `ok`. Kontrast i ΔE\n      sprawdzone niezależnie przez coloraide na hexach.\n- [ ] Te same ustawienia + seed → identyczne `hexes`. Inny seed → różne.\n- [ ] Sprzeczność (tło `oklch(0.5 0 0)` z kłódką, akcent WCAG ≥ 15) → propozycje zwrócone, `ok == False`, naruszenie\n      `contrast_bg` twarde z `amount > 0`, bez wyjątku.\n- [ ] Sloty z kłódką mają dokładnie wartość wejściową. `slot_ids={X}` zmienia tylko X.\n- [ ] Propozycje różnią się średnio o ≥ `min_diversity` (ΔE ok, średnia po wolnych slotach).\n      Gdy to niemożliwe, propozycja ma naruszenie miękkie `\"różnorodność\"`.\n- [ ] `cancel()` → zwrot w ≤ 1 s z listą ≤ N. `time_cap_s=0.001` → `timed_out == True`.\n- [ ] Wydajność: `default_session()`, 6 propozycji → < 6 s na maszynie testowej (cel speca ~3 s). Zmierzony czas\n      wpisany do handoffu.\n- [ ] `hexes` = `to_hex(value, fit_method)`, `fit_deltas` = `fit_delta`. Slot z kłódką na `OKLCH(0.75, 0.25, 140)`\n      (spoza sRGB) → poprawny hex, `fit_deltas[id] > 0.01`, bez wyjątku (`test_locked_out_of_gamut`).\n\n**Verify:** `uv run pytest tests/test_engine.py -q` → PASS (z czasem testu wydajności w wyjściu `-s` lub w handoffie)\n\n```json:metadata\n{\"files\": [\"src/algopalette/engine.py\", \"src/algopalette/constraints.py\", \"tests/test_engine.py\"], \"verifyCommand\": \"uv run pytest tests/test_engine.py -q\", \"acceptanceCriteria\": [\"feasible → ok\", \"determinizm\", \"sprzeczność raportowana\", \"kłódki nietknięte\", \"różnorodność\", \"cancel/time cap\", \"perf < 6 s\"], \"modelTier\": \"frontier\"}\n```"
+  },
+  {
+   "id": 5,
+   "subject": "Task 5: Układy odcieni i nastroje",
+   "status": "pending",
+   "blockedBy": [
+    4
+   ],
+   "description": "**Goal:** `hues.scheme_targets` wytwarza cele odcieni dla akcentów, a `moods` daje wbudowane i własne nastroje\nnakładane jawnie na ustawienia globalne.\n\n**Files:**\n- Create: `src/algopalette/hues.py`, `src/algopalette/moods.py`\n- Modify: `src/algopalette/engine.py` (przekazanie `hue_targets` do `compile_terms` dla akcentów bez własnego H)\n- Test: `tests/test_hues.py`, `tests/test_moods.py`\n\n**Acceptance Criteria:**\n- [ ] `scheme_targets(scheme, n, seed) -> list[float]`:\n  - `equal` n=4, rotation=10 → `[10, 100, 190, 280]`;\n  - `triad` rotation=0, n=3 → `[0, 120, 240]`;\n  - `complementary` rotation=30, n=2 → `[30, 210]`;\n  - `analogous` center=200, spread=60, n=3 → `[170, 200, 230]`;\n  - `custom (30, 200)` n=2 → `[30, 200]`;\n  - `none` → `[]`.\n- [ ] Reguła cykliczna dla n > liczby bazowych odcieni k: akcent i dostaje `base[i % k] + c·360/(k·⌈n/k⌉)`, gdzie\n      `c = i // k`. `jitter` daje deterministyczne przesunięcia ±jitter z seeda.\n- [ ] 9 wbudowanych nastrojów: neutralny, chłodny mglisty, neon, ziemisty, pastel, nocny wysoki kontrast,\n      monochromatyczny z jednym akcentem, retro terminal, jesienny. Każdy to częściowe nadpisanie `GlobalSettings`.\n      Wygenerowana z nastroju paleta „neon” ma medianę C względnego akcentów > „pastel”, a „pastel” ma medianę L\n      akcentów > „nocny wysoki kontrast” (test przez engine, 1 propozycja).\n- [ ] `apply_mood(session, name)` ustawia `mood`, `mood_snapshot` i nie zmienia slotów. Nastroje użytkownika:\n      `save_user_mood(name, session)`, `delete_user_mood`, `list_moods()` w `config_dir()/moods.json`. Nazwa\n      wbudowana → `ValueError`.\n\n**Verify:** `uv run pytest tests/test_hues.py tests/test_moods.py -q` → PASS\n\n```json:metadata\n{\"files\": [\"src/algopalette/hues.py\", \"src/algopalette/moods.py\", \"src/algopalette/engine.py\", \"tests/test_hues.py\", \"tests/test_moods.py\"], \"verifyCommand\": \"uv run pytest tests/test_hues.py tests/test_moods.py -q\", \"acceptanceCriteria\": [\"scheme_targets wartości\", \"reguła cykliczna\", \"9 nastrojów zgodnych z nazwą\", \"apply_mood jawny\", \"nastroje użytkownika w moods.json\"], \"modelTier\": \"standard\"}\n```"
+  },
+  {
+   "id": 6,
+   "subject": "Task 6: Paleta wyjściowa — 3 tryby",
+   "status": "pending",
+   "blockedBy": [
+    4
+   ],
+   "description": "**Goal:** `sources.py` parsuje wklejone kolory i zamienia je na warunki sesji w trybach uzupełnianie, charakter i\nprzeniesienie (spec §6).\n\n**Files:**\n- Create: `src/algopalette/sources.py`\n- Test: `tests/test_sources.py`\n\n**Acceptance Criteria:**\n- [ ] `parse_colors(\"#fff, #000000;oklch(0.7 0.1 200)\\n oklch(70% 0.1 200deg)\")` → 4 kolory.\n      `\"#fff zielony\"` → `ParseError` wskazujące `\"zielony\"`. Ponad 16 kolorów → `ParseError(\"Najwyżej 16 kolorów\")`.\n- [ ] `apply_complete(session, colors, bg_index=0, fg_index=1)` daje pierwsze sloty z kłódką w kolejności\n      bg, fg, akcenty. Brakujące akcenty są dokładane do 14, a nadmiar wolnych slotów zostaje.\n- [ ] `extract_profile(colors, bg_index, fg_index) -> Profile` (odcienie dominujące, klastrowanie H ważone C;\n      `rel_chroma: Interval`, `lightness: Interval` jako p10–p90; `bg: OKLCH`; `contrasts: tuple[float, ...]`).\n      Paleta z akcentami wokół 30° i 200° → `profile.hues` zawiera wartości w ±10° od obu.\n- [ ] `apply_character(session, profile, avoid_source: bool, avoid_distance: float)` ustawia `hue_scheme` custom,\n      zakresy globalne i `avoid_colors`. Po `generate` żaden akcent nie jest bliżej niż `avoid_distance` od koloru\n      źródła (gdy `ok`).\n- [ ] `apply_transfer(session, colors, bg_index, fg_index, polarity)`: ciemna paleta → jasna. Po `generate`\n      (propozycja `ok`):\n  - L tła ≥ 0.9;\n  - odcień każdego akcentu w ±10° od źródła;\n  - |kontrast − kontrast źródła| ≤ tolerancja ustawiona przez tryb (domyślnie WCAG 0.5 / APCA 5).\n- [ ] Wczytanie sesji AlgoPalette jako źródła: kolory slotów w kolejności (bg = 0, fg = 1).\n\n**Verify:** `uv run pytest tests/test_sources.py -q` → PASS\n\n```json:metadata\n{\"files\": [\"src/algopalette/sources.py\", \"tests/test_sources.py\"], \"verifyCommand\": \"uv run pytest tests/test_sources.py -q\", \"acceptanceCriteria\": [\"parse_colors + ParseError\", \"uzupełnianie z kłódkami\", \"profil odcieni ±10°\", \"charakter unika źródła\", \"przeniesienie dark→light\"], \"modelTier\": \"frontier\"}\n```"
+  },
+  {
+   "id": 7,
+   "subject": "Task 7: Eksport do PaletteBuildera",
+   "status": "pending",
+   "blockedBy": [
+    2
+   ],
+   "description": "**Goal:** `pb_export.py` wytwarza JSON, który okno „Wczytaj…” PaletteBuildera przyjmuje, sprawdzone na prawdziwej\nlogice PB.\n\n**Files:**\n- Create: `src/algopalette/pb_export.py`, `tests/fixtures/pb_export_expected.json`\n- Test: `tests/test_pb_export.py`\n\n**Acceptance Criteria:**\n- [ ] `pb_json(session_or_proposal_hexes, polarity) -> str` daje\n      `{\"format\": \"palettebuilder.v3\", \"polarity\": …, \"palette\": [{\"hex\": \"#rrggbb\", \"role\": \"bg\"|\"fg\"|null}, …]}`\n      w kolejności slotów, plus minimalne pola, jeśli PB ich wymaga.\n- [ ] `write_pb_file(text, path, overwrite=False)`: bez nadpisywania bez zgody (jak `save_session`).\n- [ ] **Dowód akceptacji przez PB:** jednorazowy skrypt node w scratchpadzie wywołuje funkcję `motif()`\n      z `/home/qrikk/palettebuilder/index.html` (sposób ładowania podejrzany w testach PB `tests/*.mjs`) na wyniku\n      `pb_json` i dostaje nie-null z tymi samymi hexami. Wynik (wyjście konsoli) trafia do handoffu. Skrypt NIE trafia\n      do repo PB, a PB pozostaje niezmieniony (`git -C /home/qrikk/palettebuilder status` przed i po identyczny).\n- [ ] Test złotego pliku w tym repo pilnuje kształtu.\n\n**Verify:** `uv run pytest tests/test_pb_export.py -q` → PASS + wyjście skryptu node w handoffie\n\n```json:metadata\n{\"files\": [\"src/algopalette/pb_export.py\", \"tests/test_pb_export.py\", \"tests/fixtures/pb_export_expected.json\"], \"verifyCommand\": \"uv run pytest tests/test_pb_export.py -q\", \"acceptanceCriteria\": [\"kształt palettebuilder.v3\", \"brak nadpisania\", \"motif() PB zwraca nie-null z tymi samymi hexami\", \"PB niezmieniony\"], \"modelTier\": \"mechanical\"}\n```"
+  },
+  {
+   "id": 8,
+   "subject": "Task 8: TUI — szkielet, Paleta, naruszenia",
+   "status": "pending",
+   "blockedBy": [
+    4,
+    5,
+    6,
+    7
+   ],
+   "description": "**Goal:** Działające `algopalette` z zakładką Paleta (lista slotów + edytor warunków i relacji), stałym panelem naruszeń,\nhistorią i autozapisem.\n\n**Files:**\n- Create: `src/algopalette/__main__.py` (pełny), `src/algopalette/tui/{__init__,app,widgets,palette_tab,dialogs}.py`\n- Test: `tests/tui/test_app.py`, `tests/tui/test_widgets.py`\n\n**Acceptance Criteria:**\n- [ ] `algopalette [PLIK] [--fresh]`. Bez pliku program przywraca autozapis (jeśli jest), inaczej startuje\n      z `default_session()`. Uszkodzony autozapis → start od domyślnej sesji + komunikat, bez wyjątku.\n- [ ] Lista slotów: próbka truecolor (tło próbki = hex), nazwa, hex, `L C H`, kłódka, kontrast z tłem (metryka\n      globalna), ΔE do najbliższego sąsiada. Dodawanie, usuwanie i przesuwanie slotów działa (limity z Task 2 jako\n      komunikat).\n- [ ] Edytor slotu: wszystkie pola `SlotConditions` (włącz/wyłącz, twardy/miękki, waga) ze źródłem wartości\n      (`mood`/`global`/`slot`) i akcją „wróć do dziedziczenia”. Lista relacji z dodawaniem, edycją, usuwaniem\n      i oznaczeniem zerwanych.\n- [ ] `RangeSlider`/`ValueSlider`: ←/→ krok, z modyfikatorem krok drobny/gruby, przeciąganie myszą, wpisanie\n      dokładnej liczby. Zakres przez 0° dla odcienia.\n- [ ] Panel naruszeń widoczny na każdej zakładce, przeliczany po każdej zmianie (`evaluate` na bieżących wartościach).\n- [ ] Undo/redo całej sesji. Autozapis po każdej zmianie (z debounce) do `autosave_path()`.\n- [ ] Ekran pomocy z pełną listą skrótów.\n\n**Verify:** `uv run pytest tests/tui -q` → PASS\n\n```json:metadata\n{\"files\": [\"src/algopalette/__main__.py\", \"src/algopalette/tui/app.py\", \"src/algopalette/tui/widgets.py\", \"src/algopalette/tui/palette_tab.py\", \"src/algopalette/tui/dialogs.py\", \"tests/tui/test_app.py\", \"tests/tui/test_widgets.py\"], \"verifyCommand\": \"uv run pytest tests/tui -q\", \"acceptanceCriteria\": [\"CLI + autozapis\", \"lista slotów z danymi\", \"edytor warunków i relacji ze źródłem\", \"suwaki klawiatura/mysz/wpis\", \"panel naruszeń\", \"undo/redo\", \"pomoc\"], \"modelTier\": \"frontier\"}\n```"
+  },
+  {
+   "id": 9,
+   "subject": "Task 9: TUI — Globalne, Propozycje, Źródło",
+   "status": "pending",
+   "blockedBy": [
+    8
+   ],
+   "description": "**Goal:** Pełne sterowanie globalne i nastrojami, generowanie w workerze z przeglądaniem propozycji, tryby źródła,\nzapis i wczytanie sesji oraz „Przenieś do PaletteBuildera”.\n\n**Files:**\n- Create: `src/algopalette/tui/{globals_tab,proposals_tab,source_tab}.py`\n- Modify: `src/algopalette/tui/app.py`, `src/algopalette/tui/dialogs.py`\n- Test: `tests/tui/test_flows.py`\n\n**Acceptance Criteria:**\n- [ ] Globalne: każde pole `GlobalSettings` (w tym metryki, daltonizm, fit, optymalizator i ziarno), wybór nastroju,\n      zapis i usuwanie własnego nastroju.\n- [ ] Generowanie w workerze: UI responsywne, pasek postępu, przerwanie, generowanie całości lub zaznaczonych slotów.\n- [ ] Propozycje: N wierszy próbek, wynik, liczba naruszeń, znacznik `timed_out`/„niepowtarzalne”. Akcje „przejmij\n      całą” i „przejmij kolor do slotu” (z undo). Propozycja z twardymi naruszeniami wyraźnie oznaczona.\n- [ ] Źródło: pole wklejania (błąd `ParseError` pokazany przy polu), wczytanie pliku sesji jako źródła, wybór\n      bg/fg, tryb (uzupełnianie/charakter/przeniesienie) z parametrami.\n- [ ] Zapis i wczytanie sesji (domyślny katalog `default_palettes_dir()`, potwierdzenie nadpisania). Brak prawa\n      zapisu → polski komunikat.\n- [ ] Eksport do PB: `App.copy_to_clipboard(pb_json(...))` + opcjonalny zapis pliku (domyślnie `~/Dokumenty/motifs`,\n      potwierdzenie nadpisania), komunikat o sukcesie.\n\n**Verify:** `uv run pytest tests/tui -q` → PASS\n\n```json:metadata\n{\"files\": [\"src/algopalette/tui/globals_tab.py\", \"src/algopalette/tui/proposals_tab.py\", \"src/algopalette/tui/source_tab.py\", \"src/algopalette/tui/app.py\", \"src/algopalette/tui/dialogs.py\", \"tests/tui/test_flows.py\"], \"verifyCommand\": \"uv run pytest tests/tui -q\", \"acceptanceCriteria\": [\"globalne + nastroje\", \"worker z postępem i przerwaniem\", \"propozycje i przejmowanie\", \"źródło 3 tryby\", \"zapis/wczytanie\", \"eksport do schowka/pliku\"], \"modelTier\": \"standard\"}\n```"
+  },
+  {
+   "id": 10,
+   "subject": "Task 10: TUI — zakładka Analiza",
+   "status": "pending",
+   "blockedBy": [
+    8
+   ],
+   "description": "**Goal:** Wizualna analiza palety w terminalu: koło odcieni z zakresami, wykres L–C, macierze ΔE i kontrastu (także po\nsymulacji daltonizmu) z zaznaczeniem naruszeń, próbki „Aa” na tle.\n\n**Files:**\n- Create: `src/algopalette/tui/analysis_tab.py`\n- Modify: `src/algopalette/tui/app.py`\n- Test: `tests/tui/test_analysis.py`\n\n**Acceptance Criteria:**\n- [ ] Koło odcieni (braille lub półbloki) z punktem na kolor (kolor truecolor) i łukami zakresów H zaznaczonego slotu.\n- [ ] Wykres L (oś pionowa) × C względne/bezwzględne (przełącznik).\n- [ ] Macierz par akcentów: ΔE (metoda globalna) i kontrast. Przełącznik normalnie/protan/deutan/tritan. Komórki\n      łamiące `min_distance`/`cvd_min_distance` wyróżnione.\n- [ ] Próbki „Aa” i bloki każdego koloru na tle.\n- [ ] Renderuje się bez wyjątku przy 80×24 i 200×60 oraz przy 1 i 14 akcentach.\n\n**Verify:** `uv run pytest tests/tui/test_analysis.py -q` → PASS\n\n```json:metadata\n{\"files\": [\"src/algopalette/tui/analysis_tab.py\", \"src/algopalette/tui/app.py\", \"tests/tui/test_analysis.py\"], \"verifyCommand\": \"uv run pytest tests/tui/test_analysis.py -q\", \"acceptanceCriteria\": [\"koło odcieni z zakresami\", \"wykres L–C\", \"macierze ΔE/kontrastu z CVD\", \"próbki Aa\", \"render 80x24 i 200x60, 1 i 14 akcentów\"], \"modelTier\": \"standard\"}\n```"
+  },
+  {
+   "id": 11,
+   "subject": "Task 11: Instalacja, README, weryfikacja",
+   "status": "pending",
+   "blockedBy": [
+    9,
+    10
+   ],
+   "description": "**Goal:** Komenda `algopalette` zainstalowana dla użytkownika, README po polsku i policzony stan weryfikacji\nw handoffie.\n\n**Files:**\n- Create: `README.md`\n- Modify: `HANDOFF.md`\n\n**Acceptance Criteria:**\n- [ ] `uv tool install --editable .` → `which algopalette` wskazuje `~/.local/bin/algopalette`. Uruchomienie\n      w trybie headless (`--help` albo test Pilot na zainstalowanym module) działa.\n- [ ] README: uruchamianie, zakładki, warunki i relacje z przykładami, nastroje, tryby źródła, eksport do PB (tylko\n      w jedną stronę), pliki i katalogi, sekcja „czego nie robić”.\n- [ ] Pełny `uv run pytest -q`, `ruff check`, `ruff format --check`, `ty check`. Liczby wpisane do handoffu.\n      „Czego NIE zweryfikowano” oddzielone.\n\n**Verify:** `uv run pytest -q && uv run ruff check && uv run ruff format --check && uv run ty check && which algopalette`\n\n```json:metadata\n{\"files\": [\"README.md\", \"HANDOFF.md\"], \"verifyCommand\": \"uv run pytest -q && uv run ruff check && uv run ruff format --check && uv run ty check && which algopalette\", \"acceptanceCriteria\": [\"algopalette w ~/.local/bin\", \"README z sekcją czego nie robić\", \"pełna weryfikacja policzona w handoffie\"], \"modelTier\": \"mechanical\"}\n```"
+  }
+ ],
+ "lastUpdated": "2026-11-14T15:21:16"
+}

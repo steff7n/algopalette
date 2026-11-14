@@ -2,13 +2,16 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0. STAN NA TERAZ — 2026-11-14: faza projektu (brainstorming), kod NIE istnieje
+## 0. STAN NA TERAZ — 2026-11-14: spec ZAAKCEPTOWANY, plan napisany, implementacja NIE rozpoczęta
 
-- Repo założone (`git init`, gałąź domyślna), jedyna treść to spec + ten plik.
-- Spec: `docs/superpowers/specs/2026-11-14-algopalette-design.md`. Status: napisany, po builder-check, poprawiony po
-  decyzji „dwa niezależne programy”, **czeka na akceptację użytkownika**. Po akceptacji → skill `writing-plans` → plan w `docs/superpowers/plans/`.
-- Nic nie zainstalowano w projekcie (brak `pyproject.toml`). Zależności sprawdzone tylko w jednorazowym środowisku
-  `uv run --no-project --with …` w scratchpadzie.
+- Spec `docs/superpowers/specs/2026-11-14-algopalette-design.md` — zaakceptowany słowami „a, to oks. tak, pisz plan”
+  (po wyjaśnieniu, że PaletteBuildera nie ruszano; przycisk eksportu do PB ZOSTAJE).
+- Plan: `docs/superpowers/plans/2026-11-14-algopalette.md` + `.tasks.json` (11 zadań, natywne zadania #1–#11 z
+  zależnościami). Etap 1 = Taski 1–7 (rdzeń), Etap 2 = Taski 8–11 (TUI). Przegląd Opus xhigh tylko na koniec etapu.
+- Kolejność: 1 → 2 → 3 → 4 → {5, 6}; 2 → 7; {4,5,6,7} → 8 → {9, 10} → 11.
+- Nic nie zainstalowano w projekcie (brak `pyproject.toml` — powstaje w Tasku 1). Zależności sprawdzone tylko w
+  jednorazowym `uv run --no-project --with …` (coloraide 8.15, coloraide-extras 1.13, textual 8.2.8, scipy 1.18.1).
+- Następny krok: wybór sposobu wykonania przez użytkownika, potem Task 1.
 
 ## 1. O co najłatwiej się potknąć
 
@@ -60,3 +63,4 @@ Nic do weryfikacji (brak kodu).
 - 2026-11-14 — builder-check (3 pytania): determinizm = budżet w ewaluacjach (decyzja agenta); nastroje tylko wg ról
   strukturalnych (decyzja agenta); pytanie o zachowanie danych PB → użytkownik odrzucił cały kierunek PB→AlgoPalette;
   spec oczyszczony z ról PB, czytania motifs; dodana akcja „Przenieś do PaletteBuildera”, max 14 akcentów (PB ≤ 16).
+- 2026-11-14 — spec zaakceptowany; plan 11 zadań + .tasks.json; natywne zadania #1–#11 z zależnościami.
