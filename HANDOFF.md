@@ -2,7 +2,7 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0. STAN NA TERAZ — 2026-11-14: plan WYKONANY (11/11), przegląd całości zrobiony i wszystkie znaleziska naprawione; czeka na ręczne testy użytkownika i decyzję o scaleniu gałęzi `feat/algopalette`
+## 0. STAN NA TERAZ — 2026-11-14: plan WYKONANY (11/11), przegląd całości zrobiony, znaleziska naprawione, SCALONE do `master` (fast-forward, gałąź `feat/algopalette` usunięta); czeka na ręczne testy użytkownika
 
 - Spec `docs/superpowers/specs/2026-11-14-algopalette-design.md` — zaakceptowany słowami „a, to oks. tak, pisz plan”
   (po wyjaśnieniu, że PaletteBuildera nie ruszano; przycisk eksportu do PB ZOSTAJE).
@@ -12,8 +12,8 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - Kolejność: 1 → 2 → 3 → 4 → {5, 6}; 2 → 7; {4,5,6,7} → 8 → {9, 10} → 11.
 - Nic nie zainstalowano w projekcie (brak `pyproject.toml` — powstaje w Tasku 1). Zależności sprawdzone tylko w
   jednorazowym `uv run --no-project --with …` (coloraide 8.15, coloraide-extras 1.13, textual 8.2.8, scipy 1.18.1).
-- Wykonanie: Subagent-Driven w tej sesji, gałąź `feat/algopalette`. Dziennik kontrolera (git-ignored):
-  `.superpowers/sdd/2026-11-14-algopalette/progress.md`.
+- Wykonanie: Subagent-Driven w tej sesji, gałąź `feat/algopalette` → scalona do `master` (decyzja użytkownika „możesz
+  scalać”). Dziennik kontrolera i raport przeglądu (git-ignored) usunięte po zakończeniu — treść napraw jest niżej.
 - **Task 1 ☑** (8e8bf4c, Sonnet): `pyproject.toml` (ruff line 100, reguły E,F,I,UP,B,SIM,RUF; E741/RUF001-003 off;
   pytest asyncio auto), `color/{__init__,apca,fast}.py`, `model.py` (na razie tylko `OKLCH` + aliasy Literal).
   Policzone: pytest **39 passed**, ruff/format/ty zero uwag.
@@ -143,6 +143,10 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - Silnik: optymalizacja całej palety naraz (podejście B) — „idziemy w B”.
 - Brak podglądu kodu (cytat w §1).
 - Preferencja ogólna: „wole cos trudniejszego w obsludze niz cos dla 10latka”.
+- **Komenda zawsze gotowa do uruchomienia** (2026-11-14): „binarka. zawsze. :) czy tam launcher - na jedno wychodzi.”
+  Stan: `~/.local/bin/algopalette` → uv tool (instalacja EDYTOWALNA z tego repo; zmiany w `src/` działają od razu).
+  Po zmianie zależności w `pyproject.toml` albo przeniesieniu repo: `uv tool install --editable . --force`.
+  Po każdej zmianie sprawdź `algopalette --help` spoza repo. Jedna kopia, bez aliasów.
 - Przegląd (2026-11-14, nadpisuje CLAUDE.md dla tego projektu): „przeglad calosci kodu robi opus high (nie xhigh) na
   samym koncu. bugi, ktore wylapie, naprawiasz samodzielnie ty. gdy to dobiegnie konca, nie wlaczasz re-review tylko
   dajesz mi znac”.
@@ -233,3 +237,4 @@ Po przeglądzie i naprawach: `uv run pytest -q` → **293 passed** (w tle, ~130 
 - 2026-11-14 — Task 10 ☑: zakładka Analiza; 264 testy.
 - 2026-11-14 — Task 11 ☑: README, instalacja komendy; plan wykonany w całości.
 - 2026-11-14 — przegląd całości Opus high: 5C/8I/14M, wszystko naprawione bez re-review; testy dopisane.
+- 2026-11-14 — scalono do master (fast-forward 316e210); launcher `algopalette` sprawdzony spoza repo.
