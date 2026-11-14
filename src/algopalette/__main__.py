@@ -1,6 +1,7 @@
 """Punkt wejścia: ``algopalette [PLIK_SESJI] [--fresh]``."""
 
 import argparse
+import sys
 import time
 from pathlib import Path
 
@@ -62,16 +63,23 @@ def startup_session(file: Path | None, fresh: bool) -> tuple[Session, str | None
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
-        prog="algopalette", description="Generator palet kolorów pod motywy IDE (OKLCH, TUI)."
+        prog="algopalette", description="Generator palet kolorów pod motywy IDE (OKLCH)."
     )
     parser.add_argument("plik", nargs="?", type=Path, help="plik sesji AlgoPalette (.json)")
     parser.add_argument("--fresh", action="store_true", help="ignoruj autozapis, zacznij od nowa")
+    parser.add_argument("--tui", action="store_true", help="stary interfejs w terminalu (Textual)")
     args = parser.parse_args(argv)
     session, notice, path = startup_session(args.plik, args.fresh)
 
-    from algopalette.tui.app import AlgoPaletteApp
+    if args.tui:
+        from algopalette.tui.app import AlgoPaletteApp
 
-    AlgoPaletteApp(session, notice=notice, file_path=path).run()
+        AlgoPaletteApp(session, notice=notice, file_path=path).run()
+        return
+
+    from algopalette.gui.app import run
+
+    sys.exit(run(session, notice=notice, file_path=path))
 
 
 if __name__ == "__main__":

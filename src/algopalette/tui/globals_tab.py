@@ -13,6 +13,7 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Button, Checkbox, Collapsible, Input, Select, Static
 
+from algopalette.forms import CVD, DELTA_E, FITS, SCHEMES
 from algopalette.globals_logic import change_delta_e, change_polarity_or_metric
 from algopalette.model import (
     Cond,
@@ -28,26 +29,6 @@ from algopalette.tui.widgets import Field, RangeSlider, ValueSlider, parse_finit
 
 if TYPE_CHECKING:
     from algopalette.tui.app import AlgoPaletteApp
-
-SCHEMES = [
-    ("równo po kole", "equal"),
-    ("analogiczny", "analogous"),
-    ("dopełniający", "complementary"),
-    ("rozszczepiony dopełniający", "split"),
-    ("triada", "triad"),
-    ("tetrada", "tetrad"),
-    ("własna lista", "custom"),
-    ("brak (bez celów)", "none"),
-]
-DELTA_E = [
-    ("ok (OKLab, 0–1)", "ok"),
-    ("hyab (OKLab)", "hyab"),
-    ("2000 (CIE, ~0–100)", "2000"),
-    ("itp (ICtCp)", "itp"),
-    ("cam16 (CAM16-UCS)", "cam16"),
-]
-FITS = [(m, m) for m in ("oklch-chroma", "raytrace", "minde-chroma", "lch-chroma", "scale", "clip")]
-CVD = [("protanopia", "protan"), ("deuteranopia", "deutan"), ("tritanopia", "tritan")]
 
 
 def _num(text: str) -> float | None:

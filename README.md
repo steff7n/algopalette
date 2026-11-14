@@ -1,7 +1,7 @@
 # AlgoPalette
 
-Generator palet kolorów pod motywy IDE, z interfejsem w terminalu (TUI). Cały rachunek odbywa się w **OKLCH /
-OKLab**; na hex sRGB program przelicza dopiero na końcu. Paletę opisujesz warunkami — dla całej palety, dla
+Generator palet kolorów pod motywy IDE, z interfejsem graficznym (Qt / PySide6). Cały rachunek odbywa się w
+**OKLCH / OKLab**; na hex sRGB program przelicza dopiero na końcu. Paletę opisujesz warunkami — dla całej palety, dla
 każdego koloru z osobna i jako zależności między kolorami — a silnik optymalizacji szuka kolorów, które spełniają
 je wszystkie naraz. Gdy warunki się wykluczają, program pokazuje, które są złamane i o ile.
 
@@ -14,24 +14,26 @@ PaletteBuildera** (w jedną stronę).
 algopalette                  # przywraca ostatnią sesję (autozapis) albo zaczyna od nowej palety
 algopalette moja.json        # otwiera zapisany plik sesji
 algopalette --fresh          # ignoruje autozapis
+algopalette --tui            # stary interfejs w terminalu (Textual)
 ```
 
-Z kodu źródłowego: `uv run algopalette`. Instalacja komendy: `uv tool install --editable .`.
+Z kodu źródłowego: `uv run algopalette`. Instalacja komendy: `uv tool install --editable .` (po zmianie
+zależności: `uv tool install --editable . --force`).
 
-Terminal powinien obsługiwać 24-bitowy kolor (np. Ghostty, `COLORTERM=truecolor`) — próbki pokazują wtedy
-dokładnie te hexy, które trafią do pliku.
+Motyw okna idzie za motywem systemu (jasny/ciemny); gdy wykrywanie zawodzi: `ALGOPALETTE_THEME=dark algopalette`.
 
 ## Zakładki
 
 | Klawisz | Zakładka | Co tam jest |
 |---|---|---|
-| F2 | **Paleta** | lista kolorów (tło, tekst, akcenty) i edytor zaznaczonego koloru: wartość L/C/H, warunki, zależności |
+| F2 | **Paleta** | lista kolorów (tło, tekst, akcenty) i edytor zaznaczonego koloru: wartość L/C/H (suwaki z gradientem koloru), warunki, zależności |
 | F3 | **Globalne** | nastrój, polaryzacja, metryki, układ odcieni, rozrzut jasności, daltonizm, gamut, optymalizator, domyślne warunki ról |
 | F4 | **Propozycje** | generowanie, przegląd propozycji, przejmowanie całej palety albo pojedynczego koloru |
 | F5 | **Źródło** | paleta wyjściowa (wklejona lub z pliku) i trzy tryby startu |
-| F6 | **Analiza** | koło odcieni, wykres jasność–nasycenie, macierz odległości ΔE i kontrastu (także przy daltonizmie), próbki „Aa” |
+| F6 | **Analiza** | koło odcieni, przekrój gamutu jasność–nasycenie, macierz odległości ΔE i kontrastu (także przy daltonizmie), próbki „Aa” |
 
-Na dole zawsze widać **panel naruszeń bieżącej palety** (✗ twarde, ~ miękkie). F1 pokazuje wszystkie skróty.
+Na dole zawsze widać **panel naruszeń bieżącej palety** (✗ twarde, ~ miękkie; granicę z zakładkami można
+przeciągać). F1 pokazuje wszystkie skróty.
 
 **F7 (albo pole „widok wartości” nad listą kolorów) przełącza widok OKLCH ↔ HSL.** W HSL tabela pokazuje H°, S%,
 L%, a suwaki „Wartość” w edytorze edytują kolor w HSL (zapis i tak trafia do sesji jako OKLCH). Warunki,
@@ -39,10 +41,12 @@ zależności, nastroje, silnik i koło odcieni w Analizie zostają w OKLCH — o
 koloru potrafią różnić się o kilkadziesiąt stopni. Przełączenie widoku nie jest krokiem cofania; zapamiętuje się
 w sesji.
 
-Najważniejsze skróty: `g` generuj, `Ctrl+Z` / `Ctrl+Y` cofnij / ponów, `Ctrl+S` zapisz, `Ctrl+O` wczytaj,
-`Ctrl+E` przenieś do PaletteBuildera, `Ctrl+Q` wyjście. Na liście kolorów: `a` dodaj akcent, `x` usuń,
-`l` kłódka, `Shift+↑/↓` przesuń. Suwaki: `←/→` krok, `Shift` ×10, `Ctrl` ×0.1, `Home/End`, spacja przełącza
-uchwyt zakresu, mysz działa; w polach liczbowych Enter zatwierdza, puste pole = bez ograniczenia.
+Najważniejsze skróty: `Ctrl+G` generuj, `Ctrl+Z` / `Ctrl+Y` cofnij / ponów, `Ctrl+S` zapisz
+(`Ctrl+Shift+S` jako…), `Ctrl+O` wczytaj, `Ctrl+N` nowa paleta, `Ctrl+E` paleta do schowka dla PaletteBuildera
+(`Ctrl+Shift+E` — do pliku), `Ctrl+Q` wyjście. Na liście kolorów (gdy ma fokus): `Ins`/`A` dodaj akcent,
+`Del` usuń, `L` kłódka, `Alt+↑/↓` przesuń — te same akcje są pod listą jako przyciski. Suwaki: przeciąganie
+myszą, `←/→` krok, `Shift` ×10, `Ctrl` ×0.1, `Home/End`, spacja przełącza uchwyt zakresu, kółko myszy (gdy suwak
+ma fokus); w polach liczbowych Enter zatwierdza, `↑/↓` krok, puste pole = bez ograniczenia.
 
 ## Jak opisujesz paletę
 
@@ -76,11 +80,12 @@ ustawiły, widać i można zmienić. Bieżące ustawienia zapiszesz jako własny
 
 ## Generowanie
 
-`g` (albo przycisk na zakładce Propozycje) liczy kilka propozycji dla wszystkich kolorów bez kłódki; można też
+`Ctrl+G` (albo przycisk na zakładce Paleta / Propozycje) liczy kilka propozycji dla wszystkich kolorów bez kłódki; można też
 generować tylko zaznaczony kolor. Te same ustawienia i to samo ziarno dają zawsze te same propozycje — budżet
 liczony jest w krokach, nie w sekundach (limit czasu to tylko bezpiecznik; propozycja przerwana limitem jest
 oznaczona jako niepowtarzalna). Propozycja „✗ łamie twarde” nie spełnia warunków — lista pod nią mówi, które
-i o ile. `Enter`/`t` przejmuje całą propozycję, `Enter`/`c` na kolorze — tylko ten kolor. `Ctrl+Z` cofa.
+i o ile. Dwuklik (albo przycisk) na propozycji przejmuje całą, dwuklik na kolorze — tylko ten kolor. `Ctrl+Z`
+cofa.
 
 ## Paleta wyjściowa (zakładka Źródło)
 
@@ -103,7 +108,8 @@ wskaż numer tła i tekstu, wybierz tryb:
 | plik dla PaletteBuildera (opcjonalny) | domyślnie `~/Dokumenty/motifs/` |
 
 **Przeniesienie do PaletteBuildera** (`Ctrl+E`): paleta trafia do schowka w formacie, który PaletteBuilder
-przyjmuje w oknie „Wczytaj…” (wklej tam). Program pyta też, czy zapisać plik — Esc = tylko schowek.
+przyjmuje w oknie „Wczytaj…” (wklej tam). `Ctrl+Shift+E` zapisuje to samo do pliku (domyślnie
+`~/Dokumenty/motifs/`).
 
 ## Czego nie robić
 
@@ -119,7 +125,7 @@ przyjmuje w oknie „Wczytaj…” (wklej tam). Program pyta też, czy zapisać 
 ## Rozwój
 
 ```sh
-uv run pytest -q          # testy (pełny zestaw ok. 100 s)
+uv run pytest -q          # testy (pełny zestaw ok. 2 min; GUI w trybie offscreen)
 uv run ruff check && uv run ruff format --check && uv run ty check
 ```
 

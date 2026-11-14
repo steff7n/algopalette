@@ -13,9 +13,9 @@ from textual.containers import Vertical
 from textual.widgets import DataTable, Footer, Header, Static, TabbedContent, TabPane
 
 from algopalette import io as aio
-from algopalette.color import fitted, to_hex
-from algopalette.constraints import Violation, compile_terms, evaluate
-from algopalette.hues import targets_for_session
+from algopalette.color import to_hex
+from algopalette.constraints import Violation
+from algopalette.forms import current_violations
 from algopalette.model import History, Session, ViewModel
 from algopalette.pb_export import default_pb_dir, pb_json, write_pb_file
 from algopalette.tui.analysis_tab import AnalysisTab
@@ -27,13 +27,6 @@ from algopalette.tui.source_tab import SourceTab
 
 COALESCE_S = 1.5
 AUTOSAVE_DELAY_S = 0.5
-
-
-def current_violations(session: Session) -> list[Violation]:
-    """Naruszenia bieżącej palety — na kolorach po fit, czyli takich, jakie trafią do hexa (I8)."""
-    terms = compile_terms(session, hue_targets=targets_for_session(session))
-    fit = session.globals.fit_method
-    return evaluate(terms, {s.id: fitted(s.value, fit) for s in session.slots})
 
 
 class ViolationsPanel(Vertical):

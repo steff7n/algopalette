@@ -18,17 +18,13 @@ from textual.widget import Widget
 from textual.widgets import Button, Checkbox, Input, Select, Static
 
 from algopalette.model import (
-    CONDITION_FIELDS,
     ChromaMode,
     ChromaRange,
     Cond,
     ContrastBound,
     ContrastMetric,
     HueRange,
-    HueTarget,
-    Interval,
     Role,
-    Session,
     SlotConditions,
     effective_conditions,
     role_of,
@@ -37,69 +33,17 @@ from algopalette.model import (
     with_slot,
 )
 from algopalette.tui.widgets import RangeSlider, ValueSlider, parse_finite, source_badge
-from algopalette.units import default_distance
 
 if TYPE_CHECKING:
     from algopalette.tui.app import AlgoPaletteApp
 
-LABELS = {
-    "lightness": "jasność L",
-    "chroma": "nasycenie C",
-    "hue_range": "zakres odcienia",
-    "hue_target": "cel odcienia",
-    "contrast_bg": "kontrast z tłem",
-    "min_distance": "odległość od akcentów",
-    "cvd_min_distance": "odróżnialność (daltonizm)",
-    "extreme": "skrajny kontrast",
-}
-
-DEFAULTS: dict[str, Any] = {
-    "lightness": Interval(0.5, 0.8),
-    "chroma": ChromaRange("abs", 0.05, 0.15),
-    "hue_range": HueRange(0.0, 60.0),
-    "hue_target": HueTarget(0.0, 15.0),
-    "contrast_bg": ContrastBound(None, 4.5, None),
-    "min_distance": 0.08,
-    "cvd_min_distance": 0.04,
-    "extreme": "weakest",
-}
-
-
-def default_for(field: str, session: Session) -> Any:
-    """Wartość nowego warunku w jednostkach bieżącej metryki / metody ΔE (przegląd I1)."""
-    g = session.globals
-    if field == "contrast_bg":
-        return ContrastBound(None, 4.5 if g.contrast_metric == "wcag21" else 60.0, None)
-    if field in ("min_distance", "cvd_min_distance"):
-        return default_distance(g.delta_e, float(DEFAULTS[field]))
-    return DEFAULTS[field]
-
-
-ACCENT_ONLY = {"min_distance", "cvd_min_distance", "extreme"}
-
-
-DISPLAY_ORDER = (
-    "lightness",
-    "chroma",
-    "hue_range",
-    "hue_target",
-    "contrast_bg",
-    "min_distance",
-    "cvd_min_distance",
-    "extreme",
+from algopalette.forms import (
+    DEFAULTS,
+    LABELS,
+    default_for,
+    fields_for,
 )
-assert set(DISPLAY_ORDER) == set(CONDITION_FIELDS)
-
-
-def fields_for(role: Role) -> list[str]:
-    out = []
-    for f in DISPLAY_ORDER:
-        if role != "accent" and f in ACCENT_ONLY:
-            continue
-        if role == "bg" and f == "contrast_bg":
-            continue
-        out.append(f)
-    return out
+from algopalette.forms import range_spec as _range_spec
 
 
 class ConditionsEditor(Vertical):
@@ -159,29 +103,6 @@ class ConditionsEditor(Vertical):
             rd[role] = replace(rd[role], **{field: cond})
             new = replace(s, globals=replace(s.globals, role_defaults=rd))
         self.pal_app.set_session(new, coalesce=f"{self.mode}:{self.key}:{field}")
-
-
-def _range_spec(field: str, cond_value: Any, session: Session) -> dict[str, Any]:
-    g = session.globals
-    if field == "lightness":
-        return {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "fmt": ".3f", "allow_none": True}
-    if field == "chroma":
-        if cond_value.mode == "rel":
-            return {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "fmt": ".2f", "allow_none": True}
-        return {"minimum": 0.0, "maximum": 0.37, "step": 0.005, "fmt": ".3f", "allow_none": True}
-    if field == "hue_range":
-        return {"minimum": 0.0, "maximum": 360.0, "step": 1.0, "fmt": ".0f", "wrap": True}
-    if field == "hue_target":
-        return {"minimum": 0.0, "maximum": 360.0, "step": 1.0, "fmt": ".0f", "wrap": True}
-    if field == "contrast_bg":
-        metric = cond_value.metric or g.contrast_metric
-        if metric == "wcag21":
-            return {"minimum": 1.0, "maximum": 21.0, "step": 0.1, "fmt": ".2f", "allow_none": True}
-        return {"minimum": 0.0, "maximum": 108.0, "step": 1.0, "fmt": ".1f", "allow_none": True}
-    # min_distance / cvd_min_distance
-    if g.delta_e in ("ok", "hyab"):
-        return {"minimum": 0.0, "maximum": 0.5, "step": 0.005, "fmt": ".3f"}
-    return {"minimum": 0.0, "maximum": 100.0, "step": 0.5, "fmt": ".1f"}
 
 
 class ConditionRow(Widget):

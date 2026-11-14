@@ -12,30 +12,16 @@ from textual.widget import Widget
 from textual.widgets import Button, Checkbox, Input, Select, Static
 
 from algopalette.constraints import slot_label
+from algopalette.forms import REL_DEFAULT_VALUE, REL_KINDS, REL_OPS, relation_default_value
 from algopalette.model import Relation, broken_relations, slot_index, with_slot
 from algopalette.tui.widgets import parse_finite
-from algopalette.units import default_distance
 
 if TYPE_CHECKING:
     from algopalette.tui.app import AlgoPaletteApp
 
-KINDS = [
-    ("odcień (różnica °)", "hue"),
-    ("jasność (różnica)", "lightness"),
-    ("nasycenie", "chroma"),
-    ("kontrast (ten → cel jako tło)", "contrast"),
-    ("odległość ΔE", "distance"),
-    ("mieszanka dwóch", "mix"),
-]
-OPS = [("= (± tol)", "eq"), ("≥", "ge"), ("≤", "le")]
-DEFAULT_VALUE = {
-    "hue": 180.0,
-    "lightness": 0.0,
-    "chroma": 1.0,
-    "contrast": 4.5,
-    "distance": 0.08,
-    "mix": 0.0,
-}
+KINDS = REL_KINDS
+OPS = REL_OPS
+DEFAULT_VALUE = REL_DEFAULT_VALUE
 
 
 class RelationsEditor(Vertical):
@@ -229,12 +215,7 @@ class RelationRow(Widget):
             return
         if sid == "kind":
             if val != self.rel.kind:
-                g = self.editor.pal_app.session.globals
-                value = DEFAULT_VALUE[str(val)]
-                if val == "contrast" and g.contrast_metric == "apca":
-                    value = 60.0
-                elif val == "distance":
-                    value = default_distance(g.delta_e, value)
+                value = relation_default_value(str(val), self.editor.pal_app.session)
                 self._update(
                     rebuild=True,
                     kind=val,

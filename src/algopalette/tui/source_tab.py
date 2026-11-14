@@ -13,6 +13,7 @@ from textual.widgets import Button, Checkbox, Input, Select, Static, TextArea
 
 from algopalette import color as col
 from algopalette import io as aio
+from algopalette.forms import SOURCE_MODES
 from algopalette.model import OKLCH
 from algopalette.sources import (
     ParseError,
@@ -29,11 +30,7 @@ from algopalette.tui.widgets import Field, parse_finite, swatch
 if TYPE_CHECKING:
     from algopalette.tui.app import AlgoPaletteApp
 
-MODES = [
-    ("uzupełnianie — podane kolory z kłódką, reszta generowana", "complete"),
-    ("charakter — profil palety ustawia ustawienia globalne", "character"),
-    ("przeniesienie — ta sama paleta na innym tle", "transfer"),
-]
+MODES = SOURCE_MODES
 
 
 class SourceTab(VerticalScroll):

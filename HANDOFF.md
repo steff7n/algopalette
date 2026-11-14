@@ -2,6 +2,33 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
+## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
+
+- **Domyślny interfejs to GUI w PySide6** (`pyside6-essentials`), pakiet `src/algopalette/gui/`. Stare TUI zostaje
+  pod `algopalette --tui` (decyzja agenta: nie kasować działającego TUI, zanim użytkownik sprawdzi GUI ręcznie —
+  do usunięcia na jego słowo, razem z zależnością `textual` i `tests/tui`).
+- Rdzeń (model, silnik, io, warunki) BEZ zmian. Wspólna, niezależna od biblioteki UI logika formularzy
+  (etykiety, domyślne warunki, zakresy suwaków, opcje list, `current_violations`) przeniesiona do
+  `src/algopalette/forms.py`; moduły TUI re-eksportują stare nazwy (testy TUI bez zmian).
+- Mapa GUI: `gui/app.py` (`MainWindow`: historia + scalanie zmian < 1.5 s, autozapis QTimer 0.5 s + zapis przy
+  zamknięciu, menu/pasek, skróty, panel naruszeń w `QSplitter`, `run()` + motyw Fusion; ciemny wg systemu lub
+  `ALGOPALETTE_THEME=dark|light`), `gui/widgets.py` (`NumEdit` — Enter/wyjście zatwierdza, puste = brak;
+  `Bar` — pasek z 1–2 uchwytami i gradientem koloru liczonym numpy; `ValueSlider`, `RangeSlider`),
+  `gui/conditions.py`, `gui/relations.py`, `gui/palette_tab.py`, `gui/globals_tab.py`, `gui/proposals_tab.py`
+  (silnik w `threading.Thread`, wyniki sygnałami Qt), `gui/source_tab.py`, `gui/analysis_tab.py` (koło odcieni
+  i przekrój L–C rysowane QPainterem na prawdziwych kolorach OKLCH, macierze w `QTableWidget`).
+- Skróty zmienione względem TUI: generowanie `Ctrl+G` (nie `g` — litera kolidowałaby z polami tekstowymi);
+  lista kolorów `Ins`/`A`, `Del`, `L`, `Alt+↑/↓` (tylko gdy lista ma fokus); `Ctrl+S` zapisuje do bieżącego
+  pliku, `Ctrl+Shift+S` jako…; eksport do PB: `Ctrl+E` schowek, `Ctrl+Shift+E` plik; nowe `Ctrl+N` (cofalne).
+- **Pułapki Qt (sprawdzone):** stare widżety przy przebudowie idą przez `deleteLater` — w testach
+  `QCoreApplication.sendPostedEvents(None, QEvent.DeferredDelete)` przed `findChild`; widżet dodany do widocznego
+  rodzica jest pokazywany dopiero w kolejnym obiegu pętli → w testach `isHidden()`, nie `isVisible()`;
+  nie nadpisuj `QWidget.move` (stąd `PaletteTab.move_selected`); przebudowy wywoływane z sygnału dziecka
+  odkładaj `QTimer.singleShot(0, …)`. W kontenerze bez GUI potrzebne `libegl1` (apt) i `QT_QPA_PLATFORM=offscreen`.
+- Weryfikacja: `tests/gui` (pytest-qt, offscreen) 40 testów; zrzuty wszystkich zakładek obejrzane (jasny i ciemny).
+  **NIE sprawdzone:** prawdziwy pulpit użytkownika (Wayland/X11, skalowanie HiDPI, schowek po zamknięciu programu),
+  launcher `~/.local/bin/algopalette` po dodaniu zależności — wymaga `uv tool install --editable . --force`.
+
 ## 0. STAN NA TERAZ — 2026-11-14: plan WYKONANY (11/11), przegląd całości zrobiony, znaleziska naprawione, SCALONE do `master` (fast-forward, gałąź `feat/algopalette` usunięta); czeka na ręczne testy użytkownika
 
 - Spec `docs/superpowers/specs/2026-11-14-algopalette-design.md` — zaakceptowany słowami „a, to oks. tak, pisz plan”
@@ -246,3 +273,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-14 — przegląd całości Opus high: 5C/8I/14M, wszystko naprawione bez re-review; testy dopisane.
 - 2026-11-14 — scalono do master (fast-forward 316e210); launcher `algopalette` sprawdzony spoza repo.
 - 2026-11-14 — przełącznik widoku HSL/OKLCH (F7); bez przeglądu na życzenie użytkownika.
+- 2026-11-14 — GUI w PySide6 (domyślne), TUI pod `--tui`; `forms.py` wspólne; testy GUI (pytest-qt).
