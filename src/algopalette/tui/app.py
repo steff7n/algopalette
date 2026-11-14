@@ -12,7 +12,7 @@ from textual.containers import Vertical
 from textual.widgets import DataTable, Footer, Header, Static, TabbedContent, TabPane
 
 from algopalette import io as aio
-from algopalette.color import to_hex
+from algopalette.color import fitted, to_hex
 from algopalette.constraints import Violation, compile_terms, evaluate
 from algopalette.hues import targets_for_session
 from algopalette.model import History, Session
@@ -29,8 +29,10 @@ AUTOSAVE_DELAY_S = 0.5
 
 
 def current_violations(session: Session) -> list[Violation]:
+    """Naruszenia bieżącej palety — na kolorach po fit, czyli takich, jakie trafią do hexa (I8)."""
     terms = compile_terms(session, hue_targets=targets_for_session(session))
-    return evaluate(terms, {s.id: s.value for s in session.slots})
+    fit = session.globals.fit_method
+    return evaluate(terms, {s.id: fitted(s.value, fit) for s in session.slots})
 
 
 class ViolationsPanel(Vertical):
@@ -86,7 +88,7 @@ class AlgoPaletteApp(App[None]):
         Binding("ctrl+s", "save", "Zapisz"),
         Binding("ctrl+o", "open", "Wczytaj"),
         Binding("g", "generate", "Generuj"),
-        Binding("ctrl+e", "export", "→ PaletteBuilder"),
+        Binding("ctrl+e", "export", "→ PaletteBuilder", priority=True),
         Binding("f1", "help", "Pomoc"),
         Binding("f2", "tab('paleta')", "Paleta", show=False),
         Binding("f3", "tab('globalne')", "Globalne", show=False),
@@ -114,6 +116,7 @@ class AlgoPaletteApp(App[None]):
         self._autosave_timer = None
         self.violations: list[Violation] = []
         self._ui_ready = False
+        self._autosave_pending = False
 
     # --- stan ---
     @property
@@ -177,15 +180,25 @@ class AlgoPaletteApp(App[None]):
     def _schedule_autosave(self) -> None:
         if not self.autosave_enabled or not self._ui_ready:
             return
+        self._autosave_pending = True
         if self._autosave_timer is not None:
             self._autosave_timer.stop()
         self._autosave_timer = self.set_timer(AUTOSAVE_DELAY_S, self.autosave_now)
 
     def autosave_now(self) -> None:
+        self._autosave_pending = False
         try:
             aio.save_session(self.session, aio.autosave_path(), overwrite=True)
-        except OSError as e:
+        except (OSError, ValueError) as e:
             self.notify(f"Autozapis nie powiódł się: {e}", severity="error")
+
+    async def action_quit(self) -> None:
+        """Wyjście zapisuje zaległą zmianę (autozapis ma opóźnienie 0.5 s; przegląd C5)."""
+        if self._autosave_timer is not None:
+            self._autosave_timer.stop()
+        if self.autosave_enabled and self._autosave_pending:
+            self.autosave_now()
+        self.exit()
 
     # --- widok ---
     def compose(self) -> ComposeResult:
@@ -295,8 +308,9 @@ class AlgoPaletteApp(App[None]):
 
             self.push_screen(ConfirmScreen(f"Plik {path} istnieje. Nadpisać?"), answer)
             return
-        except OSError as e:
-            self.notify(f"Nie udało się zapisać {path}: {e.strerror or e}", severity="error")
+        except (OSError, ValueError) as e:
+            msg = e.strerror if isinstance(e, OSError) and e.strerror else e
+            self.notify(f"Nie udało się zapisać {path}: {msg}", severity="error")
             return
         self.file_path = path
         self.notify(f"Zapisano {path}")

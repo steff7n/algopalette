@@ -165,14 +165,49 @@ def test_apply_proposal_respects_locks_and_subset():
     assert s2.slots[0].value == s.slots[0].value
 
 
-def test_soft_condition_does_not_fail_ok():
+def test_soft_only_violations_keep_ok():
     s = basic(n_proposals=1)
+    # niemożliwy MIĘKKI cel jasności (L ≥ 0.99 przy wymaganym kontraście) — propozycja nadal ok
     a = replace(
-        s.slots[2], conditions=SlotConditions(lightness=Cond(Interval(0.95, 1.0), hard=False))
+        s.slots[2],
+        conditions=SlotConditions(lightness=Cond(Interval(0.99, 1.0), hard=False)),
     )
     s = replace(s, slots=(*s.slots[:2], a, *s.slots[3:]))
     p = generate(s)[0]
-    assert all(not v.hard for v in p.violations) == p.ok
+    assert any(not v.hard for v in p.violations)
+    assert p.ok
+
+
+def test_negative_seed_works():
+    s = basic(n_proposals=1, seed=-3)
+    assert generate(s)[0].hexes  # bez ValueError z numpy (przegląd C3)
+
+
+def test_proposal_records_free_slots():
+    s = basic(n_proposals=1)
+    p = generate(s, slot_ids={"a1"})[0]
+    assert p.slot_ids == ("a1",)
+
+
+def test_distance_relation_to_fg_with_slow_metric_is_optimized():
+    from algopalette.model import Relation
+
+    s = basic(n_proposals=1)
+    a = replace(s.slots[2], relations=(Relation("distance", "fg", "le", 60.0, metric="2000"),))
+    s = replace(s, slots=(*s.slots[:2], a, *s.slots[3:]))
+    p = generate(s)[0]
+    assert not [v for v in p.violations if ":rel:" in v.key], p.violations  # przegląd I2
+
+
+def test_locked_out_of_gamut_is_evaluated_fitted():
+    from algopalette import color as col
+
+    s = basic(n_proposals=1)
+    wild = replace(s.slots[2], locked=True, value=OKLCH(0.75, 0.30, 140))
+    s = replace(s, slots=(*s.slots[:2], wild, *s.slots[3:]))
+    p = generate(s)[0]
+    fitted = col.fitted(wild.value, s.globals.fit_method)
+    assert col.to_hex(fitted, "clip") == p.hexes[wild.id]  # ocena = kolor z hexa (przegląd I8)
 
 
 @pytest.mark.slow

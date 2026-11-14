@@ -95,3 +95,15 @@ async def test_mouse_click_moves_nearest_handle():
         await pilot.pause()
         assert s.lo == pytest.approx(0.0)
         assert s.hi is not None and 0.85 < s.hi < 1.0
+
+
+async def test_wrap_range_keeps_full_circle():
+    s = RangeSlider(0.0, 90.0, minimum=0.0, maximum=360.0, step=1.0, fmt=".0f", wrap=True)
+    app = Harness(s)
+    async with app.run_test(size=(60, 5)) as pilot:
+        hi = list(s.query(Input))[1]
+        hi.focus()
+        hi.value = "360"
+        await pilot.press("enter")
+        await pilot.pause()
+        assert s.hi == 360.0  # nie 0 (przegląd M10)

@@ -92,7 +92,7 @@ wskaż numer tła i tekstu, wybierz tryb:
 | Co | Gdzie |
 |---|---|
 | sesje AlgoPalette (`algopalette.v1`, pełny stan) | domyślnie `~/.local/share/algopalette/palettes/` |
-| autozapis ostatniej sesji | `~/.local/state/algopalette/last.json` |
+| autozapis ostatniej sesji | `~/.local/state/algopalette/last.json` (start z innego pliku albo `--fresh` przenosi go do `last.prev.json`, uszkodzony — do `last.corrupt-<czas>.json`) |
 | własne nastroje | `~/.config/algopalette/moods.json` |
 | plik dla PaletteBuildera (opcjonalny) | domyślnie `~/Dokumenty/motifs/` |
 
@@ -103,11 +103,12 @@ przyjmuje w oknie „Wczytaj…” (wklej tam). Program pyta też, czy zapisać 
 
 - Nie zapisuj palety z PaletteBuildera z powrotem do pliku sesji AlgoPalette — przepływ jest jednokierunkowy;
   AlgoPalette nie czyta plików PaletteBuildera.
-- Nie porównuj progów odległości między metodami ΔE: 0.08 w `ok` to coś zupełnie innego niż 0.08 w `2000`.
-  Po zmianie metody ustaw progi na nowo.
+- Progi odległości zależą od metody ΔE (0.08 w `ok` ≈ 12.5 w `2000`). Zmiana metody w zakładce Globalne
+  przelicza progi przybliżonym przelicznikiem — sprawdź je potem, jeśli zależy Ci na dokładnych wartościach.
 - Nie traktuj propozycji oznaczonej „✗ łamie twarde” ani „⏱ niepowtarzalna” jak gotowego wyniku.
-- Zmiana polaryzacji albo metryki kontrastu przelicza domyślne zakresy (albo nakłada nastrój ponownie) —
-  ręczne zmiany domyślnych warunków ról z tej chwili przepadają (`Ctrl+Z` je przywraca).
+- Zmiana polaryzacji albo metryki kontrastu przelicza domyślne zakresy (nastrój wbudowany nakłada ponownie,
+  własny nastrój zdejmuje — jego liczby dotyczą polaryzacji, w której go zapisano) — ręczne zmiany domyślnych
+  warunków ról przepadają (`Ctrl+Z` je przywraca).
 
 ## Rozwój
 

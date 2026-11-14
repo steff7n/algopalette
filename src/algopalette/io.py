@@ -201,7 +201,10 @@ def _enc_oklch(c: OKLCH) -> dict[str, Any]:
 
 def _dec_oklch(v: Any, path: str) -> OKLCH:
     d = _dict(v, path)
-    return OKLCH(_num(d, "l", path), _nonneg(d, "c", path), _num(d, "h", path))
+    l_ = _num(d, "l", path)
+    if not 0.0 <= l_ <= 1.0:
+        raise _err(_join(path, "l"), "jasność L musi być w zakresie 0–1")
+    return OKLCH(l_, _nonneg(d, "c", path), _num(d, "h", path) % 360.0)
 
 
 # Warunki: dla każdego pola SlotConditions osobny koder/dekoder wartości Cond.value.
@@ -285,6 +288,18 @@ def _enc_relation(r: Relation) -> dict[str, Any]:
 
 def _dec_relation(v: Any, path: str) -> Relation:
     d = _dict(v, path)
+    rel = _dec_relation_raw(d, path)
+    allowed = {"contrast": ("wcag21", "apca"), "distance": ("ok", "2000", "hyab", "itp", "cam16")}
+    if rel.metric is not None and rel.metric not in allowed.get(rel.kind, ()):
+        raise _err(
+            _join(path, "metric"), f"metryka „{rel.metric}” nie pasuje do relacji „{rel.kind}”"
+        )
+    if not 0.0 <= rel.t <= 1.0:
+        raise _err(_join(path, "t"), "t mieszanki musi być w zakresie 0–1")
+    return rel
+
+
+def _dec_relation_raw(d: dict[str, Any], path: str) -> Relation:
     return Relation(
         kind=_lit(d, "kind", path, _REL_KINDS),
         target=_str(d, "target", path),
@@ -379,7 +394,7 @@ def _dec_optimizer(v: Any, path: str) -> OptimizerSettings:
     d = _dict(v, path)
     return OptimizerSettings(
         n_proposals=_int(d, "n_proposals", path, minimum=1),
-        seed=_int(d, "seed", path),
+        seed=_int(d, "seed", path, minimum=0),
         max_evals=_int(d, "max_evals", path, minimum=1),
         time_cap_s=_nonneg(d, "time_cap_s", path),
         min_diversity=_nonneg(d, "min_diversity", path),

@@ -117,3 +117,29 @@ def test_mooded_session_roundtrip(tmp_path, name):
     assert back == s
     _, src = effective_conditions(back, back.slots[2].id)
     assert set(src.values()) == {"mood"}
+
+
+def test_user_mood_restores_polarity_and_metric():
+    from algopalette.globals_logic import change_polarity_or_metric
+
+    s = default_session()
+    s = replace(s, globals=replace(s.globals, contrast_metric="apca"))
+    s = apply_mood(s, "neutralny")
+    save_user_mood("apca-mood", s)
+    w = apply_mood(default_session(), "apca-mood")  # sesja WCAG
+    assert w.globals.contrast_metric == "apca"
+    acc = w.globals.role_defaults["accent"].contrast_bg
+    assert acc is not None and acc.value.lo == 60.0
+    # zmiana polaryzacji przy nastroju użytkownika: domyślne zakresy, nastrój zdjęty
+    light = change_polarity_or_metric(w, polarity="light")
+    assert light.mood is None
+    bg_l = light.globals.role_defaults["bg"].lightness
+    assert bg_l is not None and bg_l.value.lo is not None and bg_l.value.lo > 0.9
+
+
+def test_corrupt_mood_entry(tmp_path):
+    p = tmp_path / "cfg" / "algopalette"
+    p.mkdir(parents=True)
+    (p / "moods.json").write_text('{"moods": {"x": "oops"}}', encoding="utf-8")
+    with pytest.raises(ValueError, match="zły format"):
+        list_moods()

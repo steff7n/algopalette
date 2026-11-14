@@ -28,6 +28,7 @@ __all__ = [
     "delta_e",
     "fast",
     "fit_delta",
+    "fitted",
     "from_css",
     "hue_diff",
     "in_gamut",
@@ -79,6 +80,12 @@ def to_hex(c: OKLCH, fit: FitMethod) -> str:
     """Hex #rrggbb; kolor spoza sRGB jest wpierw sprowadzany metodą ``fit``."""
     col = _fitted(c, fit) or to_color(c).convert("srgb").clip()
     return col.to_string(hex=True, fit=False, upper=False)
+
+
+def fitted(c: OKLCH, fit: FitMethod) -> OKLCH:
+    """Kolor, który naprawdę trafi do hexa: ``c`` w gamucie, inaczej wynik ``fit`` + obcięcia."""
+    col = _fitted(c, fit)
+    return c if col is None else _from_color(col)
 
 
 def fit_delta(c: OKLCH, fit: FitMethod) -> float:

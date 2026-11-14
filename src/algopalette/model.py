@@ -186,7 +186,7 @@ class OptimizerSettings:
     seed: int = 0
     # Budżet w ewaluacjach funkcji celu na jedną propozycję (nie czas). Wartość startowa; Task 4
     # (engine) dostroi ją po pomiarach jakości/czasu.
-    max_evals: int = 20_000
+    max_evals: int = 8_000  # pomiar 2026-11-14: ~3.8 s / 6 propozycji dla najwolniejszych nastrojów
     time_cap_s: float = 30.0  # tylko bezpiecznik (timed_out); budżet to max_evals
     min_diversity: float = 0.05
     hard_weight: float = 1000.0

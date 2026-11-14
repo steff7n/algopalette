@@ -49,7 +49,8 @@ def slot_rows(session: Session) -> list[tuple[str, tuple[object, ...]]]:
             dmin = min(col.delta_e(v, session.slots[j].value, g.delta_e) for j in accents if j != i)
             de = f"{dmin:.3f}"
         fit = col.fit_delta(v, g.fit_method)
-        hex_cell = Text(hx + (" ⚠" if fit > 0 else ""), style="yellow" if fit > 0 else "")
+        # Kolor spoza sRGB: ⚠ + o ile ΔE ok ściągnięto go do gamutu (spec §5.4, przegląd M6).
+        hex_cell = Text(hx + (f" ⚠{fit:.3f}" if fit > 0 else ""), style="yellow" if fit > 0 else "")
         rows.append(
             (
                 s.id,
@@ -141,7 +142,9 @@ class SlotTable(DataTable):
             return
         s = self.pal_app.session
         slot = s.slots[slot_index(s, sid)]
-        self.pal_app.set_session(with_slot(s, replace(slot, locked=not slot.locked)))
+        self.pal_app.set_session(
+            with_slot(s, replace(slot, locked=not slot.locked)), structural=True
+        )
 
     def action_move(self, delta: int) -> None:
         sid = self.selected_id()

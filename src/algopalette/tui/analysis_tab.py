@@ -104,8 +104,8 @@ def lc_plot(
     for i, s in enumerate(session.slots):
         v = view_value(session, s.value, view)
         c = rel_chroma(v) if mode == "rel" else min(v.c / 0.37, 1.0)
-        x = 1 + round(c * (width - 2))
-        y = round((1.0 - v.l) * (height - 2))
+        x = min(max(1 + round(c * (width - 2)), 1), width - 1)
+        y = min(max(round((1.0 - min(max(v.l, 0.0), 1.0)) * (height - 2)), 0), height - 2)
         label = str(i)
         grid[y][min(x, width - 1)] = ("●", f"bold {_hex(session, v)}")
         if x + 1 < width:
@@ -120,6 +120,8 @@ def lc_plot(
 
 
 def pair_requirement(session: Session, i: int, j: int, view: View) -> float | None:
+    if view != "normal" and view not in session.globals.cvd.types:
+        return None  # ten typ daltonizmu nie jest włączony — warunek nie działa (przegląd M4)
     field = "min_distance" if view == "normal" else "cvd_min_distance"
     reqs = []
     for k in (i, j):
@@ -161,6 +163,28 @@ def de_matrix(session: Session, view: View = "normal") -> tuple[Text, set[tuple[
     return t, bad
 
 
+def contrast_matrix(session: Session, view: View = "normal") -> Text:
+    """Kontrast każdej pary akcentów (wiersz = tekst, kolumna = tło), metryka globalna."""
+    g = session.globals
+    acc = list(range(2, len(session.slots)))
+    vals = {i: view_value(session, session.slots[i].value, view) for i in acc}
+    t = Text()
+    t.append(f"{'tekst \\ tło':>12}", style="bold")
+    for j in acc:
+        t.append(f"{j:>7}", style="bold")
+    t.append("\n")
+    for i in acc:
+        t.append(f"{slot_label(session, i)[:10]:>10} ", style="bold")
+        t.append(" ", style=f"on {_hex(session, vals[i])}")
+        for j in acc:
+            if i == j:
+                t.append(f"{'—':>7}", style="dim")
+            else:
+                t.append(f"{col.contrast(vals[i], vals[j], g.contrast_metric):>7.2f}")
+        t.append("\n")
+    return t
+
+
 def samples(session: Session, view: View = "normal") -> Text:
     bg = _hex(session, view_value(session, session.slots[0].value, view))
     t = Text()
@@ -187,6 +211,7 @@ class AnalysisTab(VerticalScroll):
         super().__init__(**kw)
         self.view: View = "normal"
         self.mode = "rel"
+        self.matrix = "de"
 
     @property
     def pal_app(self) -> AlgoPaletteApp:
@@ -207,6 +232,13 @@ class AnalysisTab(VerticalScroll):
                 compact=True,
             )
             yield Select(
+                [("macierz: ΔE", "de"), ("macierz: kontrast par", "contrast")],
+                value=self.matrix,
+                allow_blank=False,
+                id="matrix-kind",
+                compact=True,
+            )
+            yield Select(
                 [("C względne", "rel"), ("C bezwzględne", "abs")],
                 value=self.mode,
                 allow_blank=False,
@@ -217,7 +249,8 @@ class AnalysisTab(VerticalScroll):
             yield Static(id="wheel", classes="plot")
             yield Static(id="lc", classes="plot")
         yield Static(
-            "Odległości ΔE między akcentami (czerwone = poniżej wymaganej)", classes="section"
+            "Macierz akcentów (ΔE: czerwone = poniżej wymaganej; kontrast: wiersz na tle kolumny)",
+            classes="section",
         )
         yield Static(id="matrix")
         yield Static("Próbki na tle", classes="section")
@@ -237,8 +270,10 @@ class AnalysisTab(VerticalScroll):
             sel = None
         self.query_one("#wheel", Static).update(hue_wheel(s, selected=sel, view=self.view))
         self.query_one("#lc", Static).update(lc_plot(s, mode=self.mode, view=self.view))
-        matrix, _ = de_matrix(s, self.view)
-        self.query_one("#matrix", Static).update(matrix)
+        if self.matrix == "contrast":
+            self.query_one("#matrix", Static).update(contrast_matrix(s, self.view))
+        else:
+            self.query_one("#matrix", Static).update(de_matrix(s, self.view)[0])
         self.query_one("#samples", Static).update(samples(s, self.view))
 
     @on(Select.Changed)
@@ -248,4 +283,6 @@ class AnalysisTab(VerticalScroll):
             self.view = cast(View, event.value)
         elif event.select.id == "axis" and event.value is not Select.NULL:
             self.mode = str(event.value)
+        elif event.select.id == "matrix-kind" and event.value is not Select.NULL:
+            self.matrix = str(event.value)
         self.redraw()

@@ -13,6 +13,8 @@ from textual.widgets import Button, Checkbox, Input, Select, Static
 
 from algopalette.constraints import slot_label
 from algopalette.model import Relation, broken_relations, slot_index, with_slot
+from algopalette.tui.widgets import parse_finite
+from algopalette.units import default_distance
 
 if TYPE_CHECKING:
     from algopalette.tui.app import AlgoPaletteApp
@@ -227,10 +229,16 @@ class RelationRow(Widget):
             return
         if sid == "kind":
             if val != self.rel.kind:
+                g = self.editor.pal_app.session.globals
+                value = DEFAULT_VALUE[str(val)]
+                if val == "contrast" and g.contrast_metric == "apca":
+                    value = 60.0
+                elif val == "distance":
+                    value = default_distance(g.delta_e, value)
                 self._update(
                     rebuild=True,
                     kind=val,
-                    value=DEFAULT_VALUE[str(val)],
+                    value=value,
                     metric=None,
                     other=self.rel.other if val == "mix" else None,
                 )
@@ -253,7 +261,7 @@ class RelationRow(Widget):
         if key not in ("value", "tol", "t", "weight"):
             return
         try:
-            v = float(event.input.value.replace(",", "."))
+            v = parse_finite(event.input.value)
         except ValueError:
             event.input.add_class("-bad")
             return

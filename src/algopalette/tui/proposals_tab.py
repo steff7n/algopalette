@@ -116,7 +116,7 @@ class ProposalsTab(Vertical):
     @work(thread=True, exclusive=True, group="generate")
     def _run(self, session: Session, slot_ids: set[str] | None) -> None:
         def progress(x: float) -> None:
-            self.app.call_from_thread(self.query_one(ProgressBar).update, progress=x)
+            self.app.call_from_thread(self._set_progress, x)
 
         try:
             result = generate(
@@ -126,6 +126,9 @@ class ProposalsTab(Vertical):
             self.app.call_from_thread(self._failed, str(e))
             return
         self.app.call_from_thread(self._done, result)
+
+    def _set_progress(self, x: float) -> None:
+        self.query_one(ProgressBar).update(progress=x)
 
     def _failed(self, msg: str) -> None:
         self.running = False
@@ -220,7 +223,9 @@ class ProposalsTab(Vertical):
         i = self._current()
         if i is None:
             return
-        self.pal_app.replace_session(apply_proposal(self.pal_app.session, self.proposals[i]))
+        p = self.proposals[i]
+        # Tylko sloty, które propozycja zmieniała — reszta zostaje z bieżącej sesji (przegląd I6).
+        self.pal_app.replace_session(apply_proposal(self.pal_app.session, p, slot_ids=p.slot_ids))
         self.notify(f"Przejęto propozycję {i + 1} (kłódki bez zmian).")
         self._detail(i)
 

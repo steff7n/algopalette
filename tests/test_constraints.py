@@ -312,3 +312,36 @@ def test_batched_ctx_matches_scalar():
         got = t.vfn(ctx, 0.0)
         assert got.shape == (2,)
         assert got[0] == pytest.approx(t.fn(values(s)), abs=1e-9)
+
+
+@pytest.mark.parametrize(
+    ("b_h", "op", "value", "amount"),
+    [
+        (280, "ge", 90, 200.0),  # różnica −110° → ≥ 90 złamane o 200 (przegląd C1)
+        (200, "ge", 90, 0.0),  # różnica 170°
+        (300, "ge", 90, 180.0),  # różnica −90°
+        (60, "le", -90, 120.0),  # różnica 30° → ≤ −90 złamane o 120
+        (300, "le", -50, 0.0),  # różnica −90°
+    ],
+)
+def test_relation_hue_ge_le_not_wrapped(b_h, op, value, amount):
+    a = Slot(id="a", value=OKLCH(0.7, 0.1, 30))
+    b = Slot(id="b", value=OKLCH(0.7, 0.1, b_h), relations=(Relation("hue", "a", op, value),))
+    got = sum(x.amount for x in viol(make(a, b)) if ":rel:" in x.key)
+    assert got == pytest.approx(amount)
+
+
+def test_hue_fade_respects_hard_chroma_floor():
+    gray = OKLCH(0.7, 0.0, 100)
+    soft_floor = make(acc("a", gray, hue_range=Cond(HueRange(200, 220))))
+    assert viol(soft_floor) == []  # szarość bez warunku nasycenia: odcień nie liczy się
+    hard_floor = make(
+        acc(
+            "a",
+            gray,
+            hue_range=Cond(HueRange(200, 220)),
+            chroma=Cond(ChromaRange("abs", 0.05, None)),
+        )
+    )
+    keys = {x.key.rsplit(":", 1)[-1] for x in viol(hard_floor)}
+    assert "hue_range" in keys  # twarde C ≥ 0.05 → odcień liczy się w pełni

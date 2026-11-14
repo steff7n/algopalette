@@ -111,10 +111,19 @@ class Ctx:
         m = self.maxc[:, i]
         return np.where(m > 1e-9, self.lch[:, i, 1] / np.maximum(m, 1e-9), 0.0)
 
-    def hue_weight(self, *idx: int) -> Array:
+    def hue_weight(
+        self, *idx: int, floors: Mapping[int, tuple[float, float]] | None = None
+    ) -> Array:
+        """Wygaszanie odcienia przy C → 0. ``floors[i] = (twarde C min, twarde C względne min)``:
+        poniżej twardej dolnej granicy nasycenia wygaszanie nie działa — optymalizator nie może
+        „uciec” od warunku odcienia przez odbarwienie koloru (przegląd I3)."""
         w = np.ones(self.batch)
         for i in idx:
-            w = w * np.clip(self.lch[:, i, 1] / HUE_FADE_C, 0.0, 1.0) ** 2
+            c = self.lch[:, i, 1]
+            if floors and i in floors:
+                fa, fr = floors[i]
+                c = np.maximum(c, np.maximum(fa, fr * self.maxc[:, i]))
+            w = w * np.clip(c / HUE_FADE_C, 0.0, 1.0) ** 2
         return w
 
     def contrast(self, text: int, bg: int, metric: ContrastMetric) -> Array:
@@ -323,6 +332,7 @@ def compile_terms(session: Session, hue_targets: Mapping[str, float] | None = No
 
     accents = [i for i in range(len(ids)) if i >= 2]
     eff = {sid: effective_conditions(session, sid)[0] for sid in ids}
+    floors = _chroma_floors(eff, ids)
 
     for i, sid in enumerate(ids):
         c = eff[sid]
@@ -366,7 +376,9 @@ def compile_terms(session: Session, hue_targets: Mapping[str, float] | None = No
                 c.hue_range.hard,
                 c.hue_range.weight,
                 SCALE_H,
-                lambda x, m, i=i, hr=hr: _hue_outside(x.H(i), hr.lo, hr.hi, m) * x.hue_weight(i),
+                lambda x, m, i=i, hr=hr: (
+                    _hue_outside(x.H(i), hr.lo, hr.hi, m) * x.hue_weight(i, floors=floors)
+                ),
                 lambda x, i=i, hr=hr: (f"{hr.lo:.0f}°–{hr.hi:.0f}°", f"{x.H(i)[0]:.1f}°"),
             )
         if c.hue_target is not None and c.hue_target.enabled:
@@ -379,7 +391,8 @@ def compile_terms(session: Session, hue_targets: Mapping[str, float] | None = No
                 c.hue_target.weight,
                 SCALE_H,
                 lambda x, m, i=i, ht=ht: (
-                    _relu(np.abs(_angle_diff(x.H(i), ht.target)) - ht.tol + m) * x.hue_weight(i)
+                    _relu(np.abs(_angle_diff(x.H(i), ht.target)) - ht.tol + m)
+                    * x.hue_weight(i, floors=floors)
                 ),
                 lambda x, i=i, ht=ht: (f"{ht.target:.0f}° ± {ht.tol:.0f}°", f"{x.H(i)[0]:.1f}°"),
             )
@@ -432,7 +445,7 @@ def compile_terms(session: Session, hue_targets: Mapping[str, float] | None = No
                 continue
             if rel.kind == "mix" and (rel.other is None or rel.other not in idx):
                 continue
-            _relation_term(add, session, i, r_i, rel, idx, metric_g, de_g)
+            _relation_term(add, session, i, r_i, rel, idx, metric_g, de_g, floors)
 
     # Rozrzut jasności akcentów.
     sp = g.lightness_spread
@@ -467,7 +480,8 @@ def compile_terms(session: Session, hue_targets: Mapping[str, float] | None = No
             scheme.weight,
             SCALE_H,
             lambda x, m, i=i, t=target: (
-                _relu(np.abs(_angle_diff(x.H(i), t)) - scheme.tol + m) * x.hue_weight(i)
+                _relu(np.abs(_angle_diff(x.H(i), t)) - scheme.tol + m)
+                * x.hue_weight(i, floors=floors)
             ),
             lambda x, i=i, t=target: (f"{t:.0f}° ± {scheme.tol:.0f}°", f"{x.H(i)[0]:.1f}°"),
         )
@@ -569,8 +583,19 @@ def _pair_term(
     add(key, (si, sj), label, hard, weight, scale_de(method), vfn, desc, (i, j, req, kind, method))
 
 
+def _chroma_floors(eff, ids) -> dict[int, tuple[float, float]]:
+    """Twarde dolne granice nasycenia slotów: (bezwzględna, względna)."""
+    out: dict[int, tuple[float, float]] = {}
+    for i, sid in enumerate(ids):
+        c = eff[sid].chroma
+        if c is None or not c.enabled or not c.hard or c.value.lo is None or c.value.lo <= 0:
+            continue
+        out[i] = (c.value.lo, 0.0) if c.value.mode == "abs" else (0.0, c.value.lo)
+    return out
+
+
 def _relation_term(
-    add, session: Session, i: int, r_i: int, rel: Relation, idx, metric_g, de_g
+    add, session: Session, i: int, r_i: int, rel: Relation, idx, metric_g, de_g, floors=None
 ) -> None:
     sid = session.slots[i].id
     j = idx[rel.target]
@@ -586,14 +611,14 @@ def _relation_term(
             return _angle_diff(x.H(j), x.H(i))
 
         def vfn(x: Ctx, m: float) -> Array:
-            e = _angle_diff(np.full(x.batch, val), measure(x))
+            d = measure(x)  # już najkrótszy łuk w (−180, 180]
             if op == "eq":
-                v = _relu(np.abs(e) - tol + m)
-            elif op == "ge":
-                v = _relu(m - e)
+                v = _relu(np.abs(_angle_diff(np.full(x.batch, val), d)) - tol + m)
+            elif op == "ge":  # liniowo na łuku — drugie zawijanie odwracało znak (przegląd C1)
+                v = _relu(val + m - d)
             else:
-                v = _relu(e + m)
-            return v * x.hue_weight(i, j)
+                v = _relu(d - (val - m))
+            return v * x.hue_weight(i, j, floors=floors)
 
         fmt, unit = ".0f", "°"
     elif rel.kind == "lightness":

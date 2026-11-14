@@ -294,3 +294,49 @@ def test_xdg_fallbacks(monkeypatch, tmp_path):
     assert default_palettes_dir() == Path(tmp_path, ".local/share/algopalette/palettes")
     assert autosave_path() == Path(tmp_path, ".local/state/algopalette/last.json")
     assert config_dir() == Path(tmp_path, ".config/algopalette")
+
+
+def _mutate(tmp_path, fn):
+    import json
+
+    from algopalette.io import load_session, save_session
+    from algopalette.model import default_session
+
+    p = tmp_path / "s.json"
+    save_session(default_session(), p)
+    d = json.loads(p.read_text())
+    fn(d)
+    p.write_text(json.dumps(d))
+    return lambda: load_session(p)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda d: d["slots"][2]["value"].update(l=-0.5),
+        lambda d: d["globals"]["optimizer"].update(seed=-3),
+        lambda d: d["slots"][2]["relations"].append(
+            {
+                "kind": "contrast",
+                "target": d["slots"][3]["id"],
+                "op": "ge",
+                "value": 1,
+                "tol": 0,
+                "chroma_op": "add",
+                "chroma_mode": "abs",
+                "metric": "ok",
+                "other": None,
+                "t": 0.5,
+                "enabled": True,
+                "hard": True,
+                "weight": 1,
+            }
+        ),
+    ],
+)
+def test_rejects_out_of_range_values(tmp_path, mutation):
+    from algopalette.io import SessionFormatError
+
+    load = _mutate(tmp_path, mutation)
+    with pytest.raises(SessionFormatError):
+        load()

@@ -13,18 +13,18 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, VerticalScroll
 from textual.widgets import Button, Checkbox, Collapsible, Input, Select, Static
 
+from algopalette.globals_logic import change_delta_e, change_polarity_or_metric
 from algopalette.model import (
     Cond,
     CvdSettings,
     CvdType,
+    DeltaEMethod,
     GlobalSettings,
     Interval,
-    Session,
-    default_role_defaults,
 )
 from algopalette.moods import apply_mood, delete_user_mood, list_moods, save_user_mood
 from algopalette.tui.conditions import ConditionsEditor
-from algopalette.tui.widgets import Field, RangeSlider, ValueSlider, source_badge
+from algopalette.tui.widgets import Field, RangeSlider, ValueSlider, parse_finite, source_badge
 
 if TYPE_CHECKING:
     from algopalette.tui.app import AlgoPaletteApp
@@ -52,23 +52,9 @@ CVD = [("protanopia", "protan"), ("deuteranopia", "deutan"), ("tritanopia", "tri
 
 def _num(text: str) -> float | None:
     try:
-        return float(text.replace(",", "."))
+        return parse_finite(text)
     except ValueError:
         return None
-
-
-def change_polarity_or_metric(session: Session, **changes: Any) -> Session:
-    """Polaryzacja i metryka kontrastu zmieniają liczby domyślnych zakresów → przelicz je
-    (ponownie nałóż nastrój, jeśli jest; inaczej domyślne warunki ról)."""
-    g = replace(session.globals, **changes)
-    s = replace(session, globals=g)
-    if s.mood is not None:
-        try:
-            return apply_mood(s, s.mood)
-        except ValueError:
-            pass
-    g = replace(g, role_defaults=default_role_defaults(g.polarity, g.contrast_metric))
-    return replace(s, globals=g, mood=None, mood_snapshot=None)
 
 
 class GlobalsTab(VerticalScroll):
@@ -293,12 +279,24 @@ class GlobalsTab(VerticalScroll):
                 self.pal_app.set_session(
                     change_polarity_or_metric(self.pal_app.session, **{sid: val}), structural=True
                 )
-                self.notify("Domyślne zakresy przeliczone dla nowych ustawień.")
+                note = (
+                    "nastrój nałożony ponownie"
+                    if self.pal_app.session.mood
+                    else "domyślne zakresy ról (nastrój użytkownika zdjęty)"
+                )
+                self.notify(f"Przeliczono: {note}; własne progi kontrastu przeliczone.")
                 self.refresh(recompose=True)
-        elif sid in ("delta_e", "fit_method"):
-            if getattr(g, sid) != val:
+        elif sid == "delta_e":
+            if g.delta_e != val:
+                self.pal_app.set_session(
+                    change_delta_e(self.pal_app.session, cast(DeltaEMethod, val)), structural=True
+                )
+                self.notify("Progi odległości przeliczone na skalę nowej metody ΔE.")
+                self.refresh(recompose=True)
+        elif sid == "fit_method":
+            if g.fit_method != val:
                 changes: dict[str, Any] = {sid: val}
-                self._set(structural=sid == "delta_e", **changes)
+                self._set(**changes)
         elif sid == "hs-kind":
             if g.hue_scheme.kind != val:
                 self._set(hue_scheme=replace(g.hue_scheme, kind=val))
@@ -388,7 +386,7 @@ class GlobalsTab(VerticalScroll):
             field = sid[4:]
             v = _num(raw)
             o = g.optimizer
-            ints = {"n_proposals": 1, "seed": None, "max_evals": 100}
+            ints = {"n_proposals": 1, "seed": 0, "max_evals": 100}  # ziarno ≥ 0 (C3)
             if v is None or (field in ints and v != int(v)):
                 event.input.add_class("-bad")
                 return

@@ -48,7 +48,7 @@ def scheme_targets(scheme: HueScheme, n: int, seed: int) -> list[float]:
     cycles = math.ceil(n / k)
     out = [(base[i % k] + (i // k) * 360.0 / (k * cycles)) for i in range(n)]
     if scheme.jitter > 0:
-        rng = np.random.default_rng([seed, 7919])
+        rng = np.random.default_rng([seed & 0xFFFFFFFFFFFFFFFF, 7919])  # ujemne ziarno OK
         out = [
             h + float(d)
             for h, d in zip(out, rng.uniform(-scheme.jitter, scheme.jitter, n), strict=True)

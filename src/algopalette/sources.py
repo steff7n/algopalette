@@ -193,11 +193,18 @@ def apply_character(
     g = session.globals
     polarity = "dark" if profile.bg.l < 0.5 else "light"
     rd = dict(default_role_defaults(polarity, g.contrast_metric))
+    metric = g.contrast_metric
+    contrasts = [col.contrast(a, profile.bg, metric) for a in profile.accents]
     rd["accent"] = replace(
         rd["accent"],
         lightness=Cond(_widen(profile.lightness, 0.03)),
         chroma=Cond(ChromaRange("rel", *_bounds(_widen(profile.rel_chroma, 0.05)))),
+        # poziom kontrastu akcentów jak w źródle (p10), w metryce sesji (przegląd M7)
+        contrast_bg=Cond(ContrastBound(None, float(np.percentile(contrasts, 10)), None)),
     )
+    if profile.fg is not None:
+        fg_c = col.contrast(profile.fg, profile.bg, metric)
+        rd["fg"] = replace(rd["fg"], contrast_bg=Cond(ContrastBound(None, fg_c, None)))
     bg = profile.bg
     rd["bg"] = replace(
         rd["bg"],

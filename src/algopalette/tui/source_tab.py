@@ -24,7 +24,7 @@ from algopalette.sources import (
     parse_colors,
 )
 from algopalette.tui.dialogs import PathScreen
-from algopalette.tui.widgets import Field, swatch
+from algopalette.tui.widgets import Field, parse_finite, swatch
 
 if TYPE_CHECKING:
     from algopalette.tui.app import AlgoPaletteApp
@@ -53,6 +53,7 @@ class SourceTab(VerticalScroll):
     def __init__(self, **kw) -> None:
         super().__init__(**kw)
         self.source_colors: list[OKLCH] = []
+        self._colors_text: str | None = None  # tekst, z którego powstały source_colors
 
     @property
     def pal_app(self) -> AlgoPaletteApp:
@@ -97,6 +98,7 @@ class SourceTab(VerticalScroll):
     # --- źródło ---
     def set_colors(self, colors: list[OKLCH]) -> None:
         self.source_colors = colors
+        self._colors_text = self.query_one("#paste", TextArea).text
         res = self.query_one("#parse-result", Static)
         res.remove_class("-error")
         t = Text(f"{len(colors)} kolorów: ")
@@ -129,7 +131,8 @@ class SourceTab(VerticalScroll):
         return bg, fg
 
     def apply(self) -> None:
-        if not self.source_colors and not self.parse():
+        stale = self.query_one("#paste", TextArea).text != self._colors_text
+        if (stale or not self.source_colors) and not self.parse():  # tekst zmieniony → czytaj (I5)
             return
         idx = self._indices()
         if idx is None:
@@ -143,7 +146,7 @@ class SourceTab(VerticalScroll):
             elif mode == "character":
                 avoid = self.query_one("#avoid", Checkbox).value
                 try:
-                    dist = float(self.query_one("#avoid-distance", Input).value.replace(",", "."))
+                    dist = parse_finite(self.query_one("#avoid-distance", Input).value)
                 except ValueError:
                     dist = 0.05
                 new = apply_character(
@@ -154,8 +157,8 @@ class SourceTab(VerticalScroll):
                 )
             else:
                 pol = str(self.query_one("#polarity", Select).value)
-                raw = self.query_one("#tol", Input).value.strip().replace(",", ".")
-                tol = float(raw) if raw else None
+                raw = self.query_one("#tol", Input).value.strip()
+                tol = parse_finite(raw) if raw else None
                 new = apply_transfer(s, self.source_colors, bg, fg, pol, tol)
         except (ParseError, ValueError) as e:
             self.notify(str(e), severity="error")

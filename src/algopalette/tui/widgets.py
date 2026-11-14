@@ -8,6 +8,8 @@ w zakresie = brak ograniczenia z tej strony (gdy ``allow_none``).
 
 from __future__ import annotations
 
+import math
+
 from rich.text import Text
 from textual import events, on
 from textual.app import ComposeResult
@@ -30,6 +32,14 @@ def source_badge(src: str | None) -> Text:
         return Text("")
     style = {"mood": "magenta", "global": "cyan", "slot": "bold yellow"}.get(src, "")
     return Text(f"[{SOURCE_LABELS.get(src, src)}]", style=style)
+
+
+def parse_finite(text: str) -> float:
+    """Liczba z pola tekstowego (przecinek OK). ``inf``/``nan`` → ``ValueError`` (przegląd C2)."""
+    v = float(text.strip().replace(",", "."))
+    if not math.isfinite(v):
+        raise ValueError(f"Wartość musi być skończoną liczbą: {text!r}")
+    return v
 
 
 def _fmt(v: float | None, fmt: str) -> str:
@@ -161,8 +171,14 @@ class _SliderBase(Widget):
             v = round(v / self.step) * self.step
         return float(f"{v:.6g}") if v else 0.0
 
-    def clamp(self, v: float) -> float:
+    def keeps_maximum(self, k: int) -> bool:
+        """Czy uchwyt ``k`` może mieć wartość równą maksimum przy zawijaniu (pełne koło)."""
+        return False
+
+    def clamp(self, v: float, k: int | None = None) -> float:
         if self.wrap:
+            if v == self.maximum and k is not None and self.keeps_maximum(k):
+                return v  # 360 = pełne koło, nie 0 (przegląd M10)
             span = self.maximum - self.minimum
             return self.minimum + (v - self.minimum) % span
         return min(max(v, self.minimum), self.maximum)
@@ -174,7 +190,7 @@ class _SliderBase(Widget):
         self.set_active(cur + self.step * mult)
 
     def set_active(self, v: float) -> None:
-        v = float(f"{self.clamp(v):.6g}")
+        v = float(f"{self.clamp(v, self.active):.6g}")
         self._store(self.active, v)
         self._sync_inputs()
         self.query_one(_Bar).refresh()
@@ -205,7 +221,7 @@ class _SliderBase(Widget):
             v: float | None = None
         else:
             try:
-                v = self.clamp(float(raw))
+                v = self.clamp(parse_finite(raw), k)
             except ValueError:
                 inp.add_class("-bad")
                 return
@@ -282,6 +298,9 @@ class RangeSlider(_SliderBase):
 
     def handle_values(self) -> list[float | None]:
         return [self.lo, self.hi]
+
+    def keeps_maximum(self, k: int) -> bool:
+        return k == 1
 
     def _store(self, k: int, v: float | None) -> None:
         if k == 0:

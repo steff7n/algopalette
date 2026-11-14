@@ -73,6 +73,9 @@ class ConfirmScreen(ModalScreen[bool]):
                 yield Button("Tak", id="yes", variant="warning", compact=True)
                 yield Button("Nie", id="no", compact=True)
 
+    def on_mount(self) -> None:
+        self.query_one("#no", Button).focus()  # domyślnie „Nie” — Enter nie nadpisze pliku (M13)
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(event.button.id == "yes")
 

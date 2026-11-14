@@ -36,7 +36,8 @@ from algopalette.model import (
     snapshot_key,
     with_slot,
 )
-from algopalette.tui.widgets import RangeSlider, ValueSlider, source_badge
+from algopalette.tui.widgets import RangeSlider, ValueSlider, parse_finite, source_badge
+from algopalette.units import default_distance
 
 if TYPE_CHECKING:
     from algopalette.tui.app import AlgoPaletteApp
@@ -62,6 +63,17 @@ DEFAULTS: dict[str, Any] = {
     "cvd_min_distance": 0.04,
     "extreme": "weakest",
 }
+
+
+def default_for(field: str, session: Session) -> Any:
+    """Wartość nowego warunku w jednostkach bieżącej metryki / metody ΔE (przegląd I1)."""
+    g = session.globals
+    if field == "contrast_bg":
+        return ContrastBound(None, 4.5 if g.contrast_metric == "wcag21" else 60.0, None)
+    if field in ("min_distance", "cvd_min_distance"):
+        return default_distance(g.delta_e, float(DEFAULTS[field]))
+    return DEFAULTS[field]
+
 
 ACCENT_ONLY = {"min_distance", "cvd_min_distance", "extreme"}
 
@@ -277,7 +289,7 @@ class ConditionRow(Widget):
     @on(Button.Pressed, "#add")
     def _add(self, event: Button.Pressed) -> None:
         event.stop()
-        self._commit(Cond(DEFAULTS[self.field]), rebuild=True)
+        self._commit(Cond(default_for(self.field, self.editor.pal_app.session)), rebuild=True)
 
     @on(Button.Pressed, "#reset")
     def _reset(self, event: Button.Pressed) -> None:
@@ -301,7 +313,7 @@ class ConditionRow(Widget):
     def _weight(self, event: Input.Submitted | Input.Blurred) -> None:
         event.stop()
         try:
-            w = max(0.0, float(event.input.value.replace(",", ".")))
+            w = max(0.0, parse_finite(event.input.value))
         except ValueError:
             event.input.add_class("-bad")
             return
@@ -313,9 +325,11 @@ class ConditionRow(Widget):
     def _tol(self, event: Input.Submitted | Input.Blurred) -> None:
         event.stop()
         try:
-            tol = max(0.0, float(event.input.value.replace(",", ".")))
+            tol = max(0.0, parse_finite(event.input.value))
         except ValueError:
+            event.input.add_class("-bad")
             return
+        event.input.remove_class("-bad")
         if self.cond is not None and tol != self.cond.value.tol:
             self._set_value(replace(self.cond.value, tol=tol))
 

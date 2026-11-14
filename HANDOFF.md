@@ -2,7 +2,7 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0. STAN NA TERAZ — 2026-11-14: spec ZAAKCEPTOWANY, plan napisany, implementacja NIE rozpoczęta
+## 0. STAN NA TERAZ — 2026-11-14: plan WYKONANY (11/11), przegląd całości zrobiony i wszystkie znaleziska naprawione; czeka na ręczne testy użytkownika i decyzję o scaleniu gałęzi `feat/algopalette`
 
 - Spec `docs/superpowers/specs/2026-11-14-algopalette-design.md` — zaakceptowany słowami „a, to oks. tak, pisz plan”
   (po wyjaśnieniu, że PaletteBuildera nie ruszano; przycisk eksportu do PB ZOSTAJE).
@@ -77,7 +77,33 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - **Task 11 ☑**: `README.md` (po polsku, z „czego nie robić”), `uv tool install --editable .` → jedyna kopia
   `~/.local/bin/algopalette` (edytowalna: zmiany w `src/` działają bez reinstalacji; nowa zależność → reinstalacja).
   `algopalette --help` działa. **Wszystkie 11 zadań planu ☑.**
-- Następny: JEDEN przegląd całości (Opus effort high), naprawy przez kontrolera BEZ re-review, raport do użytkownika.
+- **Przegląd całości (Opus effort high) ☑ — 5 Critical / 8 Important / 14 Minor; WSZYSTKIE naprawione przez
+  kontrolera, BEZ re-review (decyzja użytkownika).** Raport (git-ignored, zniknie):
+  `.superpowers/sdd/2026-11-14-algopalette/final-review.md`. Naprawy:
+  C1 relacja odcienia ≥/≤ liniowo na łuku (było podwójne zawijanie → połowa koła „spełniona”);
+  C2 `widgets.parse_finite` (inf/nan/1e999 odrzucane wszędzie, `-bad`), zapis łapie też ValueError;
+  C3 ziarno ≥ 0 w TUI i io, `engine.seed_entropy`/`hues` maskują ujemne (stare pliki nie wywracają);
+  C4 nastrój użytkownika przywraca SWOJĄ polaryzację i metrykę; `globals_logic.change_polarity_or_metric`
+  nakłada ponownie tylko nastroje wbudowane (użytkownika → zdjęty, domyślne zakresy);
+  C5 `action_quit` zapisuje zaległy autozapis;
+  I1 `units.py` (skale ΔE względem ok: hyab 1.3, 2000 156, itp 426, cam16 156 — zmierzone; WCAG↔APCA tabela) —
+  zmiana metody ΔE / metryki przelicza progi ról, slotów i relacji; nowe warunki/relacje mają domyślne w bieżących
+  jednostkach; I2 kalibracja przybliżenia ΔE dla WSZYSTKICH par slotów; I3 twardy układ odcieni = granice H,
+  starty losowane przy celu układu, wygaszanie odcienia nie działa poniżej twardej dolnej granicy C
+  (`constraints._chroma_floors`) → wszystkie 9 nastrojów 6/6 ok (było „monochromatyczny” 1/6); I4 kryterium
+  stagnacji (`STALL_FRAC`), domyślny `max_evals` 20 000 → 8 000 (najwolniejsze nastroje ~3.8 s, 24/24 ok);
+  I5 Źródło czyta tekst ponownie, gdy go zmieniono; I6 `Proposal.slot_ids` — „przejmij całą” tylko te sloty;
+  I7 start nie z autozapisu → stary autozapis przeniesiony do `last.prev.json` (uszkodzony: `last.corrupt-*.json`);
+  I8 ocena (panel, silnik) na kolorach po fit (`color.fitted`); M1 kłódka klawiszem odświeża edytor; M2 walidacja
+  `moods.json`; M3 io: L∈[0,1], h mod 360, metryka relacji zgodna z rodzajem, t∈[0,1], ziarno ≥ 0; wykres L–C
+  przycięty; M4 widok CVD bez włączonego typu niczego nie oznacza; M5 macierz kontrastu par (przełącznik);
+  M6 `⚠0.042` = o ile ΔE ściągnięto do gamutu; M7 charakter przejmuje poziom kontrastu źródła (p10, fg);
+  M8 mały budżet respektowany; M9 Ctrl+E `priority=True`; M10 360 w górnym uchwycie zakresu = pełne koło;
+  M11 `encode` rozwija odcień przed przycięciem; M12 postęp przez `call_from_thread(self._set_progress)`;
+  M13 potwierdzenie nadpisania domyślnie „Nie”; M14 testy tautologiczne zastąpione, dopisane testy do C1–C5, I1, I2,
+  I5, I6, I8, M4, M10, M13.
+  **NIE zrobione (spec, nie błędy):** suwaki dla wag/tolerancji/pól optymalizatora (są zwykłe pola liczbowe);
+  opcjonalny fallback schowka `wl-copy`.
 
 ## 1. O co najłatwiej się potknąć
 
@@ -166,6 +192,9 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   kompaktowego. W testach po programowej zmianie `Select.value` daj `await pilot.pause()` przed akcją.
   Przełączanie zakładek w testach/zrzutach: klawisze F2–F6 (`action_tab` + jedna pauza nie zawsze wystarcza).
 - **Polecenia na pierwszym planie ≤ 20 s (decyzja użytkownika „timeouty max 20s”)** — pełne pytest (~100 s) TYLKO w tle.
+- `src/algopalette/units.py` — `DE_SCALE`, `convert_de`, `convert_contrast`, `rescale_delta_e`,
+  `rescale_contrast_metric`, `default_distance`; `src/algopalette/globals_logic.py` — `change_polarity_or_metric`,
+  `change_delta_e` (używane przez zakładkę Globalne).
 - `src/algopalette/color/fast.py` — numpy `(...,3)`: `oklch_to_oklab`, `oklab_to_linear_srgb`, `in_gamut`, `max_chroma`
   (bisekcja), `wcag21`, `apca(_signed)`, `contrast`, `delta_e(ok|hyab)`, `simulate_cvd(vienot|machado)`.
   + Brettel (Task 3). ΔE 2000/itp/cam16 → `NotImplementedError`.
@@ -182,7 +211,7 @@ działającego PaletteBuildera w przeglądarce (sprawdzone tylko `motif()` + `im
 innej maszynie; metod ΔE 2000/itp/cam16 w optymalizacji poza testem jednostkowym (przybliżenie kalibrowane).
 
 
-Po Tasku 10: `uv run pytest -q` → 264 passed (w tle); `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po przeglądzie i naprawach: `uv run pytest -q` → **293 passed** (w tle, ~130 s); perf default 0.39 s; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -203,3 +232,4 @@ Po Tasku 10: `uv run pytest -q` → 264 passed (w tle); `ruff check`, `ruff form
 - 2026-11-14 — Task 9 ☑: Globalne, Propozycje, Źródło, eksport; 254 testy. Użytkownik: timeouty ≤ 20 s.
 - 2026-11-14 — Task 10 ☑: zakładka Analiza; 264 testy.
 - 2026-11-14 — Task 11 ☑: README, instalacja komendy; plan wykonany w całości.
+- 2026-11-14 — przegląd całości Opus high: 5C/8I/14M, wszystko naprawione bez re-review; testy dopisane.

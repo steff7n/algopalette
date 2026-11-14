@@ -37,6 +37,7 @@ Array = np.ndarray
 MARGIN_FRAC = 0.5  # zaostrzenie twardych warunków przy optymalizacji (× skala termu)
 DIVERSITY_SCALE = 0.01
 N_STARTS = 4
+STALL_FRAC = 0.05
 FTOL = 1e-6  # względna tolerancja L-BFGS-B
 SOLVED = 1e-12  # funkcja celu ≈ 0: kolejne starty niczego nie poprawią
 REFINE_ROUNDS = 2  # rundy kalibracji przybliżenia ΔE 2000/itp/cam16
@@ -51,6 +52,7 @@ class Proposal:
     violations: tuple[Violation, ...]
     timed_out: bool
     seed: int
+    slot_ids: tuple[str, ...] = ()  # sloty, które ta propozycja zmieniała (wolne)
 
     @property
     def ok(self) -> bool:
@@ -83,6 +85,8 @@ class _Space:
     hi: Array  # (D,)
     hue_bounded: Array  # (F,) bool — odcień z twardym zakresem (granice), inaczej zawijany
     base_maxc: Array  # (n,) maxC wartości startowych
+    sample_lo: Array  # (D,) zakres losowania startów (odcień zawężony do celu układu)
+    sample_hi: Array
 
     @property
     def dim(self) -> int:
@@ -116,18 +120,28 @@ class _Space:
         rows = lch[self.free]
         maxc = fast.max_chroma(rows[:, 0], rows[:, 2])
         u = np.where(maxc > 1e-9, np.minimum(rows[:, 1] / np.maximum(maxc, 1e-9), 1.0), 0.0)
-        out = np.stack([rows[:, 0], u, rows[:, 2]], axis=1)
+        h = rows[:, 2].copy()
+        h_lo = self.lo[2::3]
+        # Odcień z granicami (np. 330–380): rozwiń do [lo, lo + 360), dopiero potem przytnij.
+        h = np.where(self.hue_bounded, h_lo + (h - h_lo) % 360.0, h)
+        out = np.stack([rows[:, 0], u, h], axis=1)
         return np.clip(out.reshape(-1), self.lo, self.hi)
 
     def sample(self, rng: np.random.Generator, count: int) -> Array:
-        return rng.uniform(self.lo, self.hi, size=(count, self.dim))
+        return rng.uniform(self.sample_lo, self.sample_hi, size=(count, self.dim))
 
 
-def _space(session: Session, free_ids: Collection[str]) -> _Space:
+def _space(
+    session: Session, free_ids: Collection[str], targets: Mapping[str, float] | None = None
+) -> _Space:
     ids = [s.id for s in session.slots]
-    base = np.array([[s.value.l, s.value.c, s.value.h] for s in session.slots], dtype=np.float64)
+    fit = session.globals.fit_method
+    # Sloty stałe liczymy w wartości po fit — taki kolor naprawdę trafi do hexa (przegląd I8).
+    rows = [s.value if s.id in free_ids else col.fitted(s.value, fit) for s in session.slots]
+    base = np.array([[v.l, v.c, v.h] for v in rows], dtype=np.float64)
     free = [i for i, s in enumerate(session.slots) if s.id in free_ids]
-    lo, hi, bounded = [], [], []
+    scheme = session.globals.hue_scheme
+    lo, hi, bounded, s_lo, s_hi = [], [], [], [], []
     for i in free:
         c, _ = effective_conditions(session, ids[i])
         l_lo, l_hi = 0.0, 1.0
@@ -152,12 +166,29 @@ def _space(session: Session, free_ids: Collection[str]) -> _Space:
         elif c.hue_target is not None and c.hue_target.enabled and c.hue_target.hard:
             ht = c.hue_target.value
             h_lo, h_hi, hb = ht.target - ht.tol, ht.target + ht.tol, True
+        smp_lo, smp_hi = h_lo, h_hi
+        own_hue = c.hue_range is not None or c.hue_target is not None
+        if not own_hue and targets is not None and ids[i] in targets:
+            t = targets[ids[i]]
+            smp_lo, smp_hi = t - scheme.tol, t + scheme.tol  # starty przy celu układu
+            if scheme.hard:  # twardy układ odcieni = granice (jak twardy cel odcienia)
+                h_lo, h_hi, hb = smp_lo, smp_hi, True
         lo += [l_lo, u_lo, h_lo]
         hi += [l_hi, u_hi, h_hi]
+        s_lo += [l_lo, u_lo, smp_lo]
+        s_hi += [l_hi, u_hi, smp_hi]
         bounded.append(hb)
     base_maxc = fast.max_chroma(base[:, 0], base[:, 2])
     return _Space(
-        ids, base, free, np.array(lo), np.array(hi), np.array(bounded, dtype=bool), base_maxc
+        ids,
+        base,
+        free,
+        np.array(lo),
+        np.array(hi),
+        np.array(bounded, dtype=bool),
+        base_maxc,
+        np.array(s_lo),
+        np.array(s_hi),
     )
 
 
@@ -253,7 +284,8 @@ def _uses_slow_de(session: Session) -> set[str]:
 def _calibrate(
     lch: Array, methods: set[str], accents: list[int]
 ) -> dict[tuple[int, int, str], float]:
-    """Stosunek ΔE metody do ΔE ok dla każdej pary akcentów (dla przybliżenia w optymalizacji)."""
+    """Stosunek ΔE metody do ΔE ok dla każdej pary slotów z ``accents`` (wszystkie sloty, także tło
+    i tekst — relacje odległości mogą ich dotyczyć; przegląd I2)."""
     out: dict[tuple[int, int, str], float] = {}
     rows = [OKLCH(float(r[0]), float(r[1]), float(r[2])) for r in lch]
     for m in methods:
@@ -279,10 +311,10 @@ def generate(
     free_ids = {
         s.id for s in session.slots if not s.locked and (slot_ids is None or s.id in slot_ids)
     }
-    space = _space(session, free_ids)
+    space = _space(session, free_ids, targets)
     n = max(1, opt.n_proposals) if space.free else 1
     deadline = time.monotonic() + opt.time_cap_s
-    accents = list(range(2, len(session.slots)))
+    accents = list(range(len(session.slots)))  # pary do kalibracji: wszystkie sloty
     slow = _uses_slow_de(session)
     calib = _calibrate(space.base, slow, accents) if slow else {}
 
@@ -306,7 +338,7 @@ def generate(
         )
         timed_out = False
         try:
-            x = _optimize(run, np.random.default_rng([opt.seed, k]), slow, accents)
+            x = _optimize(run, np.random.default_rng([seed_entropy(opt.seed), k]), slow, accents)
         except _Stop as stop:
             if stop.reason == "cancel":
                 break
@@ -322,16 +354,30 @@ def generate(
     return proposals
 
 
+def seed_entropy(seed: int) -> int:
+    """numpy nie przyjmuje ujemnych ziaren → deterministyczne mapowanie na nieujemne (C3)."""
+    return seed & 0xFFFFFFFFFFFFFFFF
+
+
+def _hard_ok(run: _Run, x: Array) -> bool:
+    lch, maxc = run.space.decode_with_maxc(x[None])
+    ctx = Ctx(lch, run.space.ids, run.session.globals, calib=run.calib, maxc=maxc)
+    hard = [t for t in run.terms if t.hard]
+    return not hard or float(objective_batch(hard, ctx, 1.0, MARGIN_FRAC)[0]) <= SOLVED
+
+
 def _optimize(run: _Run, rng: np.random.Generator, slow: set[str], accents: list[int]) -> Array:
     space = run.space
     if not space.free:
         return np.zeros((0,))
     d = space.dim
-    n_samples = int(min(4096, max(256, run.budget // 4)))
+    n_samples = int(min(4096, max(16, run.budget // 4), max(2, run.budget // 2)))
     pool = space.sample(rng, n_samples)
     pool[0] = space.encode(space.base)  # bieżące wartości też są kandydatem
     f = run.f_batch(pool)
     order = np.argsort(f)
+    if run.budget - run.used < d + 1:  # budżet nie starcza na lokalne kroki (przegląd M8)
+        return pool[order[0]]
     starts: list[Array] = []
     for idx in order:
         cand = pool[idx]
@@ -343,11 +389,18 @@ def _optimize(run: _Run, rng: np.random.Generator, slow: set[str], accents: list
     per_start = max(remaining // (len(starts) * (d + 1) * (1 + (REFINE_ROUNDS if slow else 0))), 2)
     best_x, best_f = starts[0], np.inf
     for s in starts:
+        if run.budget - run.used < d + 1:
+            break
         x = _local(run, s, per_start)
         fx = float(run.f_batch(x[None])[0])
+        improved = best_f - fx
+        prev = best_f
         if fx < best_f:
             best_x, best_f = x, fx
         if best_f <= SOLVED:
+            break
+        # Stagnacja (I4): twarde spełnione, a kolejny start poprawił < 5 % → koniec startów.
+        if np.isfinite(prev) and improved < STALL_FRAC * prev and _hard_ok(run, best_x):
             break
     if slow:
         for _ in range(REFINE_ROUNDS):
@@ -370,11 +423,14 @@ def _finish(
         sid: OKLCH(float(lch[i, 0]), float(lch[i, 1]), float(lch[i, 2]) % 360.0)
         for i, sid in enumerate(space.ids)
     }
-    # Kłódki dokładnie jak na wejściu (bez szumu przeliczeń).
+    free_ids = {space.ids[i] for i in space.free}
+    fit = session.globals.fit_method
+    # Kłódki dokładnie jak na wejściu (bez szumu przeliczeń); ocena — na kolorach po fit (I8).
     for s in session.slots:
-        if s.id not in {space.ids[i] for i in space.free}:
+        if s.id not in free_ids:
             values[s.id] = s.value
-    violations = evaluate(terms, values)
+    shown = {sid: col.fitted(v, fit) for sid, v in values.items()}
+    violations = evaluate(terms, shown)
     if previous and space.free:
         free_lch = lch[space.free][None]
         dmin = min(float(fast.delta_e(free_lch, p[None], "ok").mean()) for p in previous)
@@ -390,15 +446,15 @@ def _finish(
                     opt.min_diversity - dmin,
                 )
             )
-    fit = session.globals.fit_method
     return Proposal(
         values=values,
         hexes={sid: col.to_hex(v, fit) for sid, v in values.items()},
         fit_deltas={sid: col.fit_delta(v, fit) for sid, v in values.items()},
-        score=objective(terms, values, opt.hard_weight),
+        score=objective(terms, shown, opt.hard_weight),
         violations=tuple(violations),
         timed_out=timed_out,
         seed=opt.seed,
+        slot_ids=tuple(sid for sid in space.ids if sid in free_ids),
     )
 
 

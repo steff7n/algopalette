@@ -250,3 +250,31 @@ async def test_save_and_open(tmp_path):
         app.open_path(path)
         await pilot.pause()
         assert app.file_path == path
+
+
+def test_failed_file_arg_keeps_previous_autosave(tmp_path):
+    prev = replace(fresh_session(), mood=None, mood_snapshot=None)
+    aio.save_session(prev, aio.autosave_path())
+    _, notice, _ = startup_session(tmp_path / "literowka.jsn", fresh=False)
+    kept = aio.autosave_path().with_name("last.prev.json")
+    assert notice and "last.prev.json" in notice
+    assert not aio.autosave_path().exists() and aio.load_session(kept) == prev
+
+
+def test_corrupt_autosave_is_kept_aside():
+    p = aio.autosave_path()
+    p.parent.mkdir(parents=True)
+    p.write_text("{zepsute", encoding="utf-8")
+    _, notice, _ = startup_session(None, fresh=False)
+    assert notice and "corrupt" in notice
+    assert list(p.parent.glob("last.corrupt-*.json"))
+
+
+async def test_quit_flushes_pending_autosave():
+    app = app_for(autosave=True)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await select_row(pilot, app, 3)
+        await pilot.press("l")
+        await pilot.press("ctrl+q")  # natychmiast, przed upływem 0.5 s
+        await pilot.pause()
+    assert aio.load_session(aio.autosave_path()).slots[3].locked

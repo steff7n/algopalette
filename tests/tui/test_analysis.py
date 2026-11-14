@@ -95,3 +95,18 @@ async def test_view_select_redraws():
         assert (
             str(tab.query_one("#samples", Static).render()) == before
         )  # tekst ten sam, kolory inne
+
+
+def test_cvd_view_without_enabled_type_flags_nothing():
+    s = accents(3)
+    same = OKLCH(0.7, 0.1, 100)
+    s = with_slot(s, replace(s.slots[2], value=same))
+    s = with_slot(s, replace(s.slots[3], value=same))
+    _, bad = de_matrix(s, "deutan")  # deutan nie jest włączony w ustawieniach
+    assert bad == set()  # przegląd M4
+
+
+def test_contrast_matrix_renders():
+    from algopalette.tui.analysis_tab import contrast_matrix
+
+    assert "—" in contrast_matrix(accents(3)).plain

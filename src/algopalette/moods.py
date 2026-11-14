@@ -209,6 +209,9 @@ def _load_user() -> dict[str, dict[str, Any]]:
         raise ValueError(f"Nie można odczytać pliku nastrojów {path}: {e}") from None
     if not isinstance(data, dict) or not isinstance(data.get("moods"), dict):
         raise ValueError(f"Plik nastrojów {path} ma zły format.")
+    for name, entry in data["moods"].items():
+        if not isinstance(entry, dict) or not isinstance(entry.get("globals"), dict):
+            raise ValueError(f"Plik nastrojów {path}: wpis „{name}” ma zły format.")
     return data["moods"]
 
 
@@ -260,8 +263,18 @@ def delete_user_mood(name: str) -> None:
 
 
 def _user_overrides(entry: Mapping[str, Any]) -> Overrides:
-    g: GlobalSettings = aio._dec_globals(entry["globals"], "nastrój")
-    out: Overrides = {"hue_scheme": g.hue_scheme, "lightness_spread": g.lightness_spread}
+    """Nastrój użytkownika = zapisane liczby, ważne dla jego polaryzacji i metryki kontrastu —
+    dlatego przywraca też obie (przegląd C4)."""
+    try:
+        g: GlobalSettings = aio._dec_globals(entry["globals"], "nastrój")
+    except (aio.SessionFormatError, KeyError, TypeError) as e:
+        raise ValueError(f"Nastrój ma zły format: {e}") from None
+    out: Overrides = {
+        "polarity": g.polarity,
+        "contrast_metric": g.contrast_metric,
+        "hue_scheme": g.hue_scheme,
+        "lightness_spread": g.lightness_spread,
+    }
     for role, sc in g.role_defaults.items():
         for field in SlotConditions.__dataclass_fields__:
             out[snapshot_key(role, field)] = getattr(sc, field)
@@ -282,6 +295,11 @@ def apply_mood(session: Session, name: str) -> Session:
     """Nakłada nastrój na ustawienia globalne (jawnie, z ``mood_snapshot``); sloty bez zmian."""
     ov = mood_overrides(name, session)
     g = session.globals
+    g = replace(
+        g,
+        polarity=ov.get("polarity", g.polarity),
+        contrast_metric=ov.get("contrast_metric", g.contrast_metric),
+    )
     roles: dict[str, SlotConditions] = dict(default_role_defaults(g.polarity, g.contrast_metric))
     hue_scheme = HueScheme("equal")
     spread = None
@@ -291,6 +309,8 @@ def apply_mood(session: Session, name: str) -> Session:
             hue_scheme = value
         elif key == "lightness_spread":
             spread = value
+        elif key in ("polarity", "contrast_metric"):
+            pass  # ustawione wyżej
         elif key.startswith("role_defaults."):
             _, role, field = key.split(".")
             roles[role] = replace(roles[role], **{field: value})
