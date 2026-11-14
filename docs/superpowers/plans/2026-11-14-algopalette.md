@@ -35,8 +35,10 @@ ze speca.
 - Każdy `.py`: `uv run ruff check --fix`, `uv run ruff format`, `uv run ty check` bez uwag (AGENTS.md użytkownika).
 - Po każdym zadaniu: testy + ruff + ty, aktualizacja `HANDOFF.md` (sekcja 0, mapa z numerami linii, policzony stan
   testów, dziennik) PRZED commitem. Commit tylko własnych plików (pathspec), nigdy `git add -A`.
-- Przegląd kodu (Opus xhigh) **tylko na koniec etapu**: Etap 1 = Taski 1–7 (rdzeń), Etap 2 = Taski 8–11 (TUI).
-  Brak przeglądu per task (CLAUDE.md użytkownika ma pierwszeństwo przed skillem).
+- **Przegląd kodu: JEDEN, całego kodu, na samym końcu (po Tasku 11), Opus effort HIGH.** Znalezione błędy naprawia
+  kontroler sam, BEZ re-review, potem informuje użytkownika. Decyzja użytkownika 2026-11-14: „przeglad calosci kodu
+  robi opus high (nie xhigh) na samym koncu. bugi, ktore wylapie, naprawiasz samodzielnie ty. gdy to dobiegnie konca,
+  nie wlaczasz re-review tylko dajesz mi znac”. Brak przeglądów per task i per etap.
 - Nowa zależność spoza Tech Stack: dozwolona, jeśli poprawia jakość, ale trzeba ją wymienić w raporcie zadania i w
   handoffie.
 
@@ -505,7 +507,7 @@ logice PB.
 {"files": ["src/algopalette/pb_export.py", "tests/test_pb_export.py", "tests/fixtures/pb_export_expected.json"], "verifyCommand": "uv run pytest tests/test_pb_export.py -q", "acceptanceCriteria": ["kształt palettebuilder.v3", "brak nadpisania", "motif() PB zwraca nie-null z tymi samymi hexami", "PB niezmieniony"], "modelTier": "mechanical"}
 ```
 
-**Koniec Etapu 1 → przegląd Opus xhigh całego rdzenia (Taski 1–7), pętla napraw wg CLAUDE.md.**
+**Koniec Etapu 1 — bez przeglądu (przegląd tylko na samym końcu).**
 
 ---
 
@@ -654,7 +656,7 @@ w handoffie.
 {"files": ["README.md", "HANDOFF.md"], "verifyCommand": "uv run pytest -q && uv run ruff check && uv run ruff format --check && uv run ty check && which algopalette", "acceptanceCriteria": ["algopalette w ~/.local/bin", "README z sekcją czego nie robić", "pełna weryfikacja policzona w handoffie"], "modelTier": "mechanical"}
 ```
 
-**Koniec Etapu 2 → przegląd Opus xhigh całego TUI (Taski 8–11) + styku z rdzeniem, pętla napraw wg CLAUDE.md.**
+**Koniec → jeden przegląd całego kodu Opus high; naprawy robi kontroler bez re-review; raport do użytkownika.**
 
 ## Zależności zadań
 
