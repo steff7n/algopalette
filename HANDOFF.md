@@ -222,7 +222,7 @@ działającego PaletteBuildera w przeglądarce (sprawdzone tylko `motif()` + `im
 innej maszynie; metod ΔE 2000/itp/cam16 w optymalizacji poza testem jednostkowym (przybliżenie kalibrowane).
 
 
-Po przełączniku HSL: `uv run pytest -q` → **297 passed** (w tle, ~130 s); perf default 0.39 s; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); perf default 0.39 s; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
