@@ -55,7 +55,7 @@ async def test_value_slider_steps_and_input():
         await pilot.press("enter")
         await pilot.pause()
         assert s.value == pytest.approx(0.25)
-        assert inp.has_class("-invalid")
+        assert inp.has_class("-bad")
 
 
 async def test_range_slider_handles_and_none():

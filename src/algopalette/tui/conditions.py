@@ -15,7 +15,7 @@ from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widget import Widget
-from textual.widgets import Button, Input, Select, Static, Switch
+from textual.widgets import Button, Checkbox, Input, Select, Static
 
 from algopalette.model import (
     CONDITION_FIELDS,
@@ -179,11 +179,9 @@ class ConditionRow(Widget):
     ConditionRow .name { width: 22; text-style: bold; }
     ConditionRow .badge { width: 11; }
     ConditionRow .lbl { width: auto; padding: 0 1; color: $text-muted; }
-    ConditionRow Switch { height: 1; border: none; padding: 0; width: 5; }
     ConditionRow Input.weight, ConditionRow Input.tol {
         width: 7; height: 1; border: none; padding: 0;
     }
-    ConditionRow Button { height: 1; min-width: 5; border: none; }
     ConditionRow .value { height: auto; padding-left: 2; }
     ConditionRow Select { width: 22; }
     ConditionRow.-off .value { opacity: 50%; }
@@ -202,17 +200,17 @@ class ConditionRow(Widget):
             yield Static(source_badge(self.src), classes="badge", id="badge")
             if cond is None:
                 yield Static("— brak —", classes="lbl")
-                yield Button("+ dodaj", id="add")
+                yield Button("+ dodaj", id="add", compact=True)
                 return
             yield Static("wł.", classes="lbl")
-            yield Switch(cond.enabled, id="enabled", animate=False)
+            yield Checkbox("", cond.enabled, id="enabled", compact=True)
             yield Static("twardy", classes="lbl")
-            yield Switch(cond.hard, id="hard", animate=False)
+            yield Checkbox("", cond.hard, id="hard", compact=True)
             yield Static("waga", classes="lbl")
             yield Input(f"{cond.weight:g}", id="weight", classes="weight", compact=True)
             reset = "↺ dziedzicz" if self.editor.mode == "slot" else "✕ usuń"
             if self.editor.mode == "role" or self.src == "slot":
-                yield Button(reset, id="reset")
+                yield Button(reset, id="reset", compact=True)
         with Horizontal(classes="value"):
             yield from self._value_widgets(cond.value)
         self.set_class(not cond.enabled, "-off")
@@ -286,14 +284,14 @@ class ConditionRow(Widget):
         event.stop()
         self._commit(None, rebuild=True)
 
-    @on(Switch.Changed, "#enabled")
-    def _enabled(self, event: Switch.Changed) -> None:
+    @on(Checkbox.Changed, "#enabled")
+    def _enabled(self, event: Checkbox.Changed) -> None:
         event.stop()
         if self.cond is not None and self.cond.enabled != event.value:
             self._commit(replace(self.cond, enabled=event.value))
 
-    @on(Switch.Changed, "#hard")
-    def _hard(self, event: Switch.Changed) -> None:
+    @on(Checkbox.Changed, "#hard")
+    def _hard(self, event: Checkbox.Changed) -> None:
         event.stop()
         if self.cond is not None and self.cond.hard != event.value:
             self._commit(replace(self.cond, hard=event.value))
@@ -305,7 +303,7 @@ class ConditionRow(Widget):
         try:
             w = max(0.0, float(event.input.value.replace(",", ".")))
         except ValueError:
-            event.input.add_class("-invalid")
+            event.input.add_class("-bad")
             return
         if self.cond is not None and w != self.cond.weight:
             self._commit(replace(self.cond, weight=w))

@@ -60,8 +60,16 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   z zakładką Globalne), `tui/relations.py`, `tui/widgets.py` (`ValueSlider`, `RangeSlider`, `_Bar`), `tui/dialogs.py`.
   `History.replace_current` dodane do modelu. Zrzuty ekranu obejrzane (150×48).
   Policzone: pytest **240 passed** (w tym 23 TUI), ruff/ty zero uwag.
-- Następny: Task 9 (Globalne, Propozycje, Źródło, eksport) — zakładki mają dziś `Static` zastępcze w `app.compose`;
-  akcje `generate`/`export` w `app.py` to zaślepki z komunikatem.
+- **Task 9 ☑** (kontroler): `tui/globals_tab.py` (nastroje + własne, polaryzacja/metryka → `change_polarity_or_metric`
+  przelicza domyślne zakresy lub nakłada nastrój ponownie, ΔE, fit, układ odcieni, rozrzut L, CVD, optymalizator,
+  unikanie, `ConditionsEditor("role", …)` w `Collapsible`), `tui/proposals_tab.py` (worker `@work(thread=True)`,
+  postęp, przerwanie, przejmij całą / kolor, generowanie tylko wybranego slotu), `tui/source_tab.py` (wklejanie,
+  z pliku sesji, z bieżącej palety, 3 tryby). `app.action_generate` (g), `action_export` (Ctrl+E: schowek OSC 52 +
+  opcjonalny plik w `~/Dokumenty/motifs`). Zakładki odświeżają się przy aktywacji (`TabActivated`) i przy zmianach
+  strukturalnych; Globalne przebudowuje się tylko, gdy sesja ≠ ostatnio pokazana (`_shown`), własne edycje ją
+  aktualizują. `Switch` zastąpione kompaktowymi `Checkbox`, przyciski `compact=True`.
+  Policzone: pytest **254 passed** (w tle, 104 s), ruff/ty zero uwag.
+- Następny: Task 10 (Analiza) — `tui/analysis_tab.py` + testy napisane, NIEPODPIĘTE do `app.compose` (Static zastępczy).
 
 ## 1. O co najłatwiej się potknąć
 
@@ -145,6 +153,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   bez `compact=True` ma 3 linie; poziomy suwak bez `width: 1fr` rozjeżdża się poza widok; edytory składają dzieci
   LENIWIE — `compose` musi sprawdzić, czy slot jeszcze istnieje (`alive()`); w testach przyciski poza widokiem
   przewijanym naciskaj `Button.press()`, nie `pilot.click`. Zrzuty: `app.save_screenshot` + `rsvg-convert`.
+  Dalsze kolizje nazw z Textualem: `Widget.colors` (stąd `SourceTab.source_colors`). Klasy `-valid/-invalid`
+  na `Input` ustawia SAM Textual (walidacja) — własne oznaczenie błędu to `-bad`. `Switch` nie ma trybu
+  kompaktowego. W testach po programowej zmianie `Select.value` daj `await pilot.pause()` przed akcją.
+  Przełączanie zakładek w testach/zrzutach: klawisze F2–F6 (`action_tab` + jedna pauza nie zawsze wystarcza).
+- **Polecenia na pierwszym planie ≤ 20 s (decyzja użytkownika „timeouty max 20s”)** — pełne pytest (~100 s) TYLKO w tle.
 - `src/algopalette/color/fast.py` — numpy `(...,3)`: `oklch_to_oklab`, `oklab_to_linear_srgb`, `in_gamut`, `max_chroma`
   (bisekcja), `wcag21`, `apca(_signed)`, `contrast`, `delta_e(ok|hyab)`, `simulate_cvd(vienot|machado)`.
   + Brettel (Task 3). ΔE 2000/itp/cam16 → `NotImplementedError`.
@@ -155,7 +168,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Po Tasku 8: `uv run pytest -q` → 240 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po Tasku 9: `uv run pytest -q` → 254 passed (w tle); `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -173,3 +186,4 @@ Po Tasku 8: `uv run pytest -q` → 240 passed; `ruff check`, `ruff format --chec
 - 2026-11-14 — Task 6 ☑: sources (parsowanie, uzupełnianie, charakter, przeniesienie); 212 testów.
 - 2026-11-14 — Task 7 ☑: eksport do PB, akceptacja sprawdzona na logice PB (motif + importTheme); 216 testów. Etap 1 koniec.
 - 2026-11-14 — Task 8 ☑: TUI szkielet + Paleta + naruszenia + historia + autozapis; 240 testów.
+- 2026-11-14 — Task 9 ☑: Globalne, Propozycje, Źródło, eksport; 254 testy. Użytkownik: timeouty ≤ 20 s.

@@ -125,7 +125,7 @@ class _SliderBase(Widget):
     DEFAULT_CSS = """
     _SliderBase { height: 1; width: 1fr; layout: horizontal; }
     _SliderBase Input { width: 9; height: 1; border: none; padding: 0; }
-    _SliderBase Input.-invalid { background: $error 30%; }
+    _SliderBase Input.-bad { background: $error 30%; }
     """
 
     def __init__(
@@ -196,7 +196,7 @@ class _SliderBase(Widget):
             vals = self.handle_values()
             if k < len(vals) and not inp.has_focus:
                 inp.value = _fmt(vals[k], self.fmt)
-                inp.remove_class("-invalid")
+                inp.remove_class("-bad")
 
     def _commit_input(self, inp: Input) -> None:
         k = int(inp.name or "0")
@@ -207,9 +207,9 @@ class _SliderBase(Widget):
             try:
                 v = self.clamp(float(raw))
             except ValueError:
-                inp.add_class("-invalid")
+                inp.add_class("-bad")
                 return
-        inp.remove_class("-invalid")
+        inp.remove_class("-bad")
         if self.handle_values()[k] == v:
             return
         self._store(k, v)
@@ -302,7 +302,7 @@ class Field(Horizontal):
 
     DEFAULT_CSS = """
     Field { height: auto; }
-    Field > .field-label { width: 12; color: $text-muted; }
+    Field > .field-label { width: 16; color: $text-muted; }
     """
 
     def __init__(self, label: str, *children: Widget, **kw) -> None:

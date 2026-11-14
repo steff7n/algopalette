@@ -9,7 +9,7 @@ from textual import on
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widget import Widget
-from textual.widgets import Button, Input, Select, Static, Switch
+from textual.widgets import Button, Checkbox, Input, Select, Static
 
 from algopalette.constraints import slot_label
 from algopalette.model import Relation, broken_relations, slot_index, with_slot
@@ -65,7 +65,7 @@ class RelationsEditor(Vertical):
         broken = {i for sid, i in broken_relations(s) if sid == self.slot_id}
         for i, rel in enumerate(self.relations()):
             yield RelationRow(self, i, rel, i in broken, id=f"rel-{i}")
-        yield Button("+ dodaj zależność", id="add-rel")
+        yield Button("+ dodaj zależność", id="add-rel", compact=True)
 
     def write(self, rels: tuple[Relation, ...], *, coalesce: str | None = None) -> None:
         if not self.alive():
@@ -109,8 +109,6 @@ class RelationRow(Widget):
     RelationRow Select.narrow { width: 14; }
     RelationRow Input { width: 9; height: 1; border: none; padding: 0; }
     RelationRow .lbl { width: auto; padding: 0 1; color: $text-muted; }
-    RelationRow Switch { height: 1; border: none; padding: 0; width: 5; }
-    RelationRow Button { height: 1; min-width: 5; border: none; }
     """
 
     def __init__(
@@ -140,7 +138,7 @@ class RelationRow(Widget):
             )
             if self.broken:
                 yield Static("⚠ zerwana", classes="lbl")
-            yield Button("✕", id="del")
+            yield Button("✕", id="del", compact=True)
         with Horizontal():
             if r.kind == "mix":
                 yield Static("i", classes="lbl")
@@ -202,9 +200,9 @@ class RelationRow(Widget):
                 )
         with Horizontal():
             yield Static("wł.", classes="lbl")
-            yield Switch(r.enabled, id="enabled", animate=False)
+            yield Checkbox("", r.enabled, id="enabled", compact=True)
             yield Static("twardy", classes="lbl")
-            yield Switch(r.hard, id="hard", animate=False)
+            yield Checkbox("", r.hard, id="hard", compact=True)
             yield Static("waga", classes="lbl")
             yield Input(f"{r.weight:g}", id="weight", compact=True)
 
@@ -241,11 +239,11 @@ class RelationRow(Widget):
         elif sid in ("target", "other", "op", "chroma_op", "chroma_mode"):
             self._update(rebuild=sid in ("target", "other") and self.broken, **{sid: val})
 
-    @on(Switch.Changed)
-    def _switch(self, event: Switch.Changed) -> None:
+    @on(Checkbox.Changed)
+    def _switch(self, event: Checkbox.Changed) -> None:
         event.stop()
-        if event.switch.id in ("enabled", "hard"):
-            self._update(**{event.switch.id: event.value})
+        if event.checkbox.id in ("enabled", "hard"):
+            self._update(**{event.checkbox.id: event.value})
 
     @on(Input.Submitted)
     @on(Input.Blurred)
@@ -257,9 +255,9 @@ class RelationRow(Widget):
         try:
             v = float(event.input.value.replace(",", "."))
         except ValueError:
-            event.input.add_class("-invalid")
+            event.input.add_class("-bad")
             return
-        event.input.remove_class("-invalid")
+        event.input.remove_class("-bad")
         if key in ("tol", "weight"):
             v = max(v, 0.0)
         if key == "t":

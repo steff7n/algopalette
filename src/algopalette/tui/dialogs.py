@@ -70,8 +70,8 @@ class ConfirmScreen(ModalScreen[bool]):
         with Vertical():
             yield Label(self.question)
             with Horizontal():
-                yield Button("Tak", id="yes", variant="warning")
-                yield Button("Nie", id="no")
+                yield Button("Tak", id="yes", variant="warning", compact=True)
+                yield Button("Nie", id="no", compact=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         self.dismiss(event.button.id == "yes")
@@ -103,8 +103,8 @@ class PathScreen(ModalScreen[str | None]):
             yield Label(self.title_text)
             yield Input(self.default, id="path")
             with Horizontal():
-                yield Button("OK", id="ok", variant="primary")
-                yield Button("Anuluj", id="cancel")
+                yield Button("OK", id="ok", variant="primary", compact=True)
+                yield Button("Anuluj", id="cancel", compact=True)
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self.dismiss(event.value.strip() or None)

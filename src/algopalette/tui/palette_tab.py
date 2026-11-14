@@ -10,7 +10,7 @@ from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
-from textual.widgets import DataTable, Input, Static, Switch
+from textual.widgets import Checkbox, DataTable, Input, Static
 
 from algopalette import color as col
 from algopalette.constraints import slot_label
@@ -157,7 +157,6 @@ class SlotEditor(VerticalScroll):
     SlotEditor { width: 1fr; padding: 0 1; }
     SlotEditor .title { text-style: bold; margin-bottom: 1; }
     SlotEditor Input#name { width: 30; height: 1; border: none; padding: 0; }
-    SlotEditor Switch { height: 1; border: none; padding: 0; width: 5; }
     SlotEditor .section { text-style: bold; margin-top: 1; color: $accent; }
     """
 
@@ -184,7 +183,7 @@ class SlotEditor(VerticalScroll):
             id="title",
         )
         yield Field("nazwa", Input(slot.name, id="name", placeholder="(bez nazwy)", compact=True))
-        yield Field("kłódka", Switch(slot.locked, id="lock", animate=False))
+        yield Field("kłódka", Checkbox("", slot.locked, id="lock", compact=True))
         yield Static("Wartość (OKLCH) — edycja ręczna", classes="section")
         v = slot.value
         yield Field(
@@ -221,8 +220,8 @@ class SlotEditor(VerticalScroll):
         if event.input.value != slot.name:
             self.pal_app.set_session(with_slot(s, replace(slot, name=event.input.value.strip())))
 
-    @on(Switch.Changed, "#lock")
-    def _lock(self, event: Switch.Changed) -> None:
+    @on(Checkbox.Changed, "#lock")
+    def _lock(self, event: Checkbox.Changed) -> None:
         event.stop()
         if not self.alive():
             return

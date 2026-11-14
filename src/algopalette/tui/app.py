@@ -12,11 +12,16 @@ from textual.containers import Vertical
 from textual.widgets import DataTable, Footer, Header, Static, TabbedContent, TabPane
 
 from algopalette import io as aio
+from algopalette.color import to_hex
 from algopalette.constraints import Violation, compile_terms, evaluate
 from algopalette.hues import targets_for_session
 from algopalette.model import History, Session
+from algopalette.pb_export import default_pb_dir, pb_json, write_pb_file
 from algopalette.tui.dialogs import ConfirmScreen, HelpScreen, PathScreen
-from algopalette.tui.palette_tab import PaletteTab
+from algopalette.tui.globals_tab import GlobalsTab
+from algopalette.tui.palette_tab import PaletteTab, SlotTable
+from algopalette.tui.proposals_tab import ProposalsTab
+from algopalette.tui.source_tab import SourceTab
 
 COALESCE_S = 1.5
 AUTOSAVE_DELAY_S = 0.5
@@ -72,7 +77,7 @@ class AlgoPaletteApp(App[None]):
     Screen { layout: vertical; }
     TabbedContent { height: 1fr; }
     .hint { color: $text-muted; height: 1; }
-    Input.-invalid { background: $error 30%; }
+    Input.-bad { background: $error 30%; }
     """
     BINDINGS = [
         Binding("ctrl+z", "undo", "Cofnij"),
@@ -145,11 +150,28 @@ class AlgoPaletteApp(App[None]):
         if self._ui_ready:
             self.query_one(ViolationsPanel).show(self.violations)
             self.query_one(PaletteTab).refresh_from_session(editor=editor)
-            for tab in self.query(".session-view"):
-                refresh = getattr(tab, "refresh_from_session", None)
-                if refresh is not None:
-                    refresh()
+            if editor:
+                self._refresh_session_views()
         self._schedule_autosave()
+
+    def _refresh_session_views(self) -> None:
+        for tab in self.query(".session-view"):
+            refresh = getattr(tab, "refresh_from_session", None)
+            if refresh is not None:
+                refresh()
+
+    def on_tabbed_content_tab_activated(self, event: TabbedContent.TabActivated) -> None:
+        """Zakładka pokazuje aktualny stan po przełączeniu (edycje z innych zakładek)."""
+        if not self._ui_ready:
+            return
+        pane = event.pane.id
+        if pane == "paleta":
+            self.query_one(PaletteTab).refresh_from_session(editor=True)
+        elif pane == "globalne":
+            self._refresh_session_views()
+
+    def selected_slot_id(self) -> str | None:
+        return self.query_one(SlotTable).selected_id()
 
     def _schedule_autosave(self) -> None:
         if not self.autosave_enabled or not self._ui_ready:
@@ -171,11 +193,11 @@ class AlgoPaletteApp(App[None]):
             with TabPane("Paleta (F2)", id="paleta"):
                 yield PaletteTab(id="palette-tab")
             with TabPane("Globalne (F3)", id="globalne"):
-                yield Static("(Task 9)", id="globals-placeholder")
+                yield GlobalsTab(id="globals-tab", classes="session-view")
             with TabPane("Propozycje (F4)", id="propozycje"):
-                yield Static("(Task 9)", id="proposals-placeholder")
+                yield ProposalsTab(id="proposals-tab")
             with TabPane("Źródło (F5)", id="zrodlo"):
-                yield Static("(Task 9)", id="source-placeholder")
+                yield SourceTab(id="source-tab")
             with TabPane("Analiza (F6)", id="analiza"):
                 yield Static("(Task 10)", id="analysis-placeholder")
         yield ViolationsPanel(id="violations")
@@ -212,10 +234,45 @@ class AlgoPaletteApp(App[None]):
         self.push_screen(HelpScreen(rows))
 
     def action_generate(self) -> None:
-        self.notify("Generowanie: zakładka Propozycje (Task 9).")
+        self.action_tab("propozycje")
+        self.query_one(ProposalsTab).start()
 
     def action_export(self) -> None:
-        self.notify("Eksport: Task 9.")
+        """Jednokierunkowo do PaletteBuildera: schowek + opcjonalnie plik."""
+        s = self.session
+        hexes = [to_hex(sl.value, s.globals.fit_method) for sl in s.slots]
+        text = pb_json(hexes, s.globals.polarity)
+        self.copy_to_clipboard(text)
+        self.notify("Paleta w schowku — wklej w PaletteBuilderze: „Wczytaj…”.")
+        name = (self.file_path.stem if self.file_path else "algopalette") + ".json"
+
+        def done(path: str | None) -> None:
+            if path:
+                self.write_pb(Path(path).expanduser(), text)
+
+        self.push_screen(
+            PathScreen(
+                "Zapisać też plik dla PaletteBuildera? (Esc = tylko schowek)",
+                str(default_pb_dir() / name),
+            ),
+            done,
+        )
+
+    def write_pb(self, path: Path, text: str, overwrite: bool = False) -> None:
+        try:
+            write_pb_file(text, path, overwrite=overwrite)
+        except FileExistsError:
+
+            def answer(yes: bool | None) -> None:
+                if yes:
+                    self.write_pb(path, text, overwrite=True)
+
+            self.push_screen(ConfirmScreen(f"Plik {path} istnieje. Nadpisać?"), answer)
+            return
+        except OSError as e:
+            self.notify(f"Nie udało się zapisać {path}: {e.strerror or e}", severity="error")
+            return
+        self.notify(f"Zapisano {path}")
 
     def action_save(self) -> None:
         default = str(self.file_path or (aio.default_palettes_dir() / "paleta.json"))
