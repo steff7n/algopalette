@@ -238,7 +238,7 @@ def test_red_roundtrip(): assert to_hex(OKLCH(0.62796, 0.25768, 29.2339), "clip"
 def test_max_chroma_boundary():   # dla 50 losowych (L∈[0.05,0.95], H) z seed 1
     m = max_chroma(l, h); assert in_gamut(OKLCH(l, m * 0.999, h)) and not in_gamut(OKLCH(l, m * 1.01 + 1e-4, h))
 def test_fit_delta_out_of_gamut():
-    c = OKLCH(0.75, 0.25, 140); assert fit_delta(c, "oklch-chroma") > 0.01; assert to_hex(c, "oklch-chroma").startswith("#")
+    c = OKLCH(0.75, 0.30, 140); assert fit_delta(c, "oklch-chroma") > 0.01; assert to_hex(c, "oklch-chroma").startswith("#")
     assert fit_delta(OKLCH(0.5, 0.05, 200), "clip") == 0.0
 def test_hue_diff(): assert hue_diff(350, 10) == approx(20); assert hue_diff(10, 350) == approx(-20); assert hue_diff(0, 180) == approx(180)
 def test_from_css():
@@ -371,7 +371,7 @@ z uczciwą listą naruszeń.
 - [ ] `cancel()` → zwrot w ≤ 1 s z listą ≤ N. `time_cap_s=0.001` → `timed_out == True`.
 - [ ] Wydajność: `default_session()`, 6 propozycji → < 6 s na maszynie testowej (cel speca ~3 s). Zmierzony czas
       wpisany do handoffu.
-- [ ] `hexes` = `to_hex(value, fit_method)`, `fit_deltas` = `fit_delta`. Slot z kłódką na `OKLCH(0.75, 0.25, 140)`
+- [ ] `hexes` = `to_hex(value, fit_method)`, `fit_deltas` = `fit_delta`. Slot z kłódką na `OKLCH(0.75, 0.30, 140)`
       (spoza sRGB) → poprawny hex, `fit_deltas[id] > 0.01`, bez wyjątku (`test_locked_out_of_gamut`).
 
 **Verify:** `uv run pytest tests/test_engine.py -q` → PASS (z czasem testu wydajności w wyjściu `-s` lub w handoffie)

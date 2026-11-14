@@ -12,7 +12,12 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - Kolejność: 1 → 2 → 3 → 4 → {5, 6}; 2 → 7; {4,5,6,7} → 8 → {9, 10} → 11.
 - Nic nie zainstalowano w projekcie (brak `pyproject.toml` — powstaje w Tasku 1). Zależności sprawdzone tylko w
   jednorazowym `uv run --no-project --with …` (coloraide 8.15, coloraide-extras 1.13, textual 8.2.8, scipy 1.18.1).
-- Następny krok: wybór sposobu wykonania przez użytkownika, potem Task 1.
+- Wykonanie: Subagent-Driven w tej sesji, gałąź `feat/algopalette`. Dziennik kontrolera (git-ignored):
+  `.superpowers/sdd/2026-11-14-algopalette/progress.md`.
+- **Task 1 ☑** (8e8bf4c, Sonnet): `pyproject.toml` (ruff line 100, reguły E,F,I,UP,B,SIM,RUF; E741/RUF001-003 off;
+  pytest asyncio auto), `color/{__init__,apca,fast}.py`, `model.py` (na razie tylko `OKLCH` + aliasy Literal).
+  Policzone: pytest **39 passed**, ruff/format/ty zero uwag.
+- Następny: Task 2 (model sesji, io).
 
 ## 1. O co najłatwiej się potknąć
 
@@ -29,6 +34,12 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - PaletteBuilder (`/home/qrikk/palettebuilder`) to CUDZY projekt w sensie tego repo. **Nie modyfikuj go** (nie-cel
   w specu). Czytaj tylko.
 - Rachunek zawsze w OKLCH/OKLab. Losowanie/odległości w RGB/HSL to anty-cel.
+- **Skale ΔE są różne**: `ok` i `hyab` (u nas liczony w OKLab!) w skali 0–1, a `2000`/`itp`/`cam16` z coloraide w
+  skalach ~0–100+. Progi (`min_distance` itd.) muszą zależeć od metody.
+- Wektor z planu `OKLCH(0.75, 0.25, 140)` jest tylko 0.009 poza gamutem (fit ΔE < 0.01) — zastąpiony `C=0.30`
+  (plan Task 1 i Task 4 poprawione).
+- `simulate_cvd` nie przycina do sRGB (OK dla ΔE, nie dla hexa).
+- `ruff format` (lub hook) potrafi przeformatować bloki kodu w planie .md — nie commituj takiej zmiany przypadkiem.
 
 ## 2. Decyzje użytkownika (WIĄŻĄCE — nie otwieraj ponownie)
 
@@ -51,7 +62,16 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 
 ## 3. Mapa
 
-(brak kodu — uzupełnić po pierwszym zadaniu planu)
+- `src/algopalette/model.py` — `OKLCH` (frozen), aliasy `Role/ContrastMetric/DeltaEMethod/CvdType/CvdMethod/FitMethod/ChromaMode`
+  (Task 2 ROZSZERZA, nie redefiniuje).
+- `src/algopalette/color/__init__.py` — API: `to_hex`, `fit_delta`, `from_css`, `in_gamut`, `max_chroma`, `contrast`,
+  `delta_e`, `simulate_cvd`, `hue_diff` + `Color` (ColorAll+APCA), `to_color`, `apca_signed`, `contrast_hex`, `fast`.
+  `to_hex` = fit(metoda) + clip; `fit_delta` = ΔE ok(c, po fit+clip). Gamut: kanały linear sRGB w [−1e-6, 1+1e-6].
+  `from_css` zaokrągla do 12 miejsc; błąd `ValueError("Nie można odczytać koloru „…”.")`.
+- `src/algopalette/color/apca.py` — wtyczka contrast `apca` (stałe = PB `index.html:1282-1310`).
+- `src/algopalette/color/fast.py` — numpy `(...,3)`: `oklch_to_oklab`, `oklab_to_linear_srgb`, `in_gamut`, `max_chroma`
+  (bisekcja), `wcag21`, `apca(_signed)`, `contrast`, `delta_e(ok|hyab)`, `simulate_cvd(vienot|machado)`.
+  Brettel i ΔE 2000/itp/cam16 → `NotImplementedError` (silnik ma wtedy użyć coloraide).
 
 Jedyne odniesienie do PB: `/home/qrikk/palettebuilder/index.html:6236` `motif()` — wczytywanie JSON (akceptuje
 `palettebuilder.v2/v3`, `palette` = `{hex, role}` lub napisy); okno „Wczytaj…” przyjmuje wklejenie; PB mieści ≤ 16
@@ -59,7 +79,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Nic do weryfikacji (brak kodu).
+Po Tasku 1: `uv run pytest -q` → 39 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -69,3 +89,4 @@ Nic do weryfikacji (brak kodu).
   spec oczyszczony z ról PB, czytania motifs; dodana akcja „Przenieś do PaletteBuildera”, max 14 akcentów (PB ≤ 16).
 - 2026-11-14 — spec zaakceptowany; plan 11 zadań + .tasks.json; natywne zadania #1–#11 z zależnościami.
 - 2026-11-14 — wykonanie: gałąź `feat/algopalette`; Task 1 wysłany (Sonnet). Zmiana zasad przeglądu (jeden, Opus high, na końcu).
+- 2026-11-14 — Task 1 ☑ (8e8bf4c): warstwa koloru; 39 testów; wektor gamutu w planie poprawiony na C=0.30.
