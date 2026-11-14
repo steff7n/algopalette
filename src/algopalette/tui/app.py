@@ -17,6 +17,7 @@ from algopalette.constraints import Violation, compile_terms, evaluate
 from algopalette.hues import targets_for_session
 from algopalette.model import History, Session
 from algopalette.pb_export import default_pb_dir, pb_json, write_pb_file
+from algopalette.tui.analysis_tab import AnalysisTab
 from algopalette.tui.dialogs import ConfirmScreen, HelpScreen, PathScreen
 from algopalette.tui.globals_tab import GlobalsTab
 from algopalette.tui.palette_tab import PaletteTab, SlotTable
@@ -167,7 +168,7 @@ class AlgoPaletteApp(App[None]):
         pane = event.pane.id
         if pane == "paleta":
             self.query_one(PaletteTab).refresh_from_session(editor=True)
-        elif pane == "globalne":
+        elif pane in ("globalne", "analiza"):
             self._refresh_session_views()
 
     def selected_slot_id(self) -> str | None:
@@ -199,7 +200,7 @@ class AlgoPaletteApp(App[None]):
             with TabPane("Źródło (F5)", id="zrodlo"):
                 yield SourceTab(id="source-tab")
             with TabPane("Analiza (F6)", id="analiza"):
-                yield Static("(Task 10)", id="analysis-placeholder")
+                yield AnalysisTab(id="analysis-tab", classes="session-view")
         yield ViolationsPanel(id="violations")
         yield Footer()
 

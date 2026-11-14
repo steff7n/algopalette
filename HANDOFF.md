@@ -69,7 +69,13 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   strukturalnych; Globalne przebudowuje się tylko, gdy sesja ≠ ostatnio pokazana (`_shown`), własne edycje ją
   aktualizują. `Switch` zastąpione kompaktowymi `Checkbox`, przyciski `compact=True`.
   Policzone: pytest **254 passed** (w tle, 104 s), ruff/ty zero uwag.
-- Następny: Task 10 (Analiza) — `tui/analysis_tab.py` + testy napisane, NIEPODPIĘTE do `app.compose` (Static zastępczy).
+- **Task 10 ☑** (kontroler): `tui/analysis_tab.py` — czyste funkcje (sesja → Rich Text): `hue_wheel` (0° po prawej,
+  90° u góry, promień = C względne, łuki zakresu/celu odcienia zaznaczonego slotu), `lc_plot` (L ↑, C wzgl./bezwzgl.),
+  `de_matrix` (ΔE akcentów metodą globalną, czerwone poniżej wymaganej; widoki normalny/protan/deutan/tritan),
+  `samples` („Aa” na tle). Zakładka F6, odświeżana przy aktywacji. Zrzut obejrzany (150×52).
+  Policzone: pytest **264 passed** (w tle), ruff/ty zero uwag.
+- Następny: Task 11 (instalacja `uv tool install --editable .`, README już napisany, końcowa weryfikacja), potem
+  JEDEN przegląd całości (Opus high), naprawy bez re-review, raport do użytkownika.
 
 ## 1. O co najłatwiej się potknąć
 
@@ -168,7 +174,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Po Tasku 9: `uv run pytest -q` → 254 passed (w tle); `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po Tasku 10: `uv run pytest -q` → 264 passed (w tle); `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -187,3 +193,4 @@ Po Tasku 9: `uv run pytest -q` → 254 passed (w tle); `ruff check`, `ruff forma
 - 2026-11-14 — Task 7 ☑: eksport do PB, akceptacja sprawdzona na logice PB (motif + importTheme); 216 testów. Etap 1 koniec.
 - 2026-11-14 — Task 8 ☑: TUI szkielet + Paleta + naruszenia + historia + autozapis; 240 testów.
 - 2026-11-14 — Task 9 ☑: Globalne, Propozycje, Źródło, eksport; 254 testy. Użytkownik: timeouty ≤ 20 s.
+- 2026-11-14 — Task 10 ☑: zakładka Analiza; 264 testy.
