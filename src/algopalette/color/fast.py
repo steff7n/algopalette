@@ -2,8 +2,8 @@
 
 Wejścia to tablice OKLCH ``[l, c, h]`` (h w stopniach) lub OKLab ``[l, a, b]``; funkcje parami
 (``wcag21``, ``apca``, ``delta_e``) rozgłaszają argumenty. Macierze pochodzą z coloraide, żeby
-wyniki zgadzały się z wolną ścieżką do 1e-6. Metody bez ścieżki numpy (Brettel, ΔE 2000/itp/cam16)
-rzucają ``NotImplementedError``: silnik używa wtedy coloraide.
+wyniki zgadzały się z wolną ścieżką do 1e-6. ΔE 2000/itp/cam16 nie mają ścieżki numpy
+(``NotImplementedError``): silnik liczy je przybliżeniem kalibrowanym, a raport — przez coloraide.
 """
 
 from typing import Literal
@@ -130,6 +130,11 @@ def delta_e(a: ArrayLike, b: ArrayLike, method: str) -> Array:
 
 
 _VIENOT = {"protan": _cvd.VIENOT_PROTAN, "deutan": _cvd.VIENOT_DEUTAN, "tritan": _cvd.VIENOT_TRITAN}
+_BRETTEL = {
+    "protan": _cvd.BRETTEL_PROTAN,
+    "deutan": _cvd.BRETTEL_DEUTAN,
+    "tritan": _cvd.BRETTEL_TRITAN,
+}
 _MACHADO = {
     "protan": _cvd.MACHADO_PROTAN,
     "deutan": _cvd.MACHADO_DEUTAN,
@@ -138,7 +143,7 @@ _MACHADO = {
 
 
 def simulate_cvd(lch: ArrayLike, kind: str, method: str, severity: float) -> Array:
-    """Symulacja daltonizmu (vienot, machado) w liniowym sRGB; zwraca OKLCH."""
+    """Symulacja daltonizmu (brettel, vienot, machado) w liniowym sRGB; zwraca OKLCH."""
     lin = oklch_to_linear_srgb(lch)
     severity = min(max(float(severity), 0.0), 1.0)
     if method == "vienot":
@@ -152,6 +157,12 @@ def simulate_cvd(lch: ArrayLike, kind: str, method: str, severity: float) -> Arr
         if i != s and i < 10:
             out2 = lin @ np.array(matrices[i + 1]).T
             out = out + (out2 - out) * (s - i)
+    elif method == "brettel":
+        w1, w2, sep = (np.array(m) for m in _BRETTEL[kind])
+        lms = lin @ np.array(_cvd.LRGB_TO_LMS).T
+        side = (lms @ sep) > 0
+        full = np.where(side[..., None], lms @ w2.T, lms @ w1.T)
+        out = full if severity >= 1 else lin + (full - lin) * severity
     else:
         raise NotImplementedError(f"Brak ścieżki numpy dla metody CVD '{method}'")
     return oklab_to_oklch(linear_srgb_to_oklab(out))

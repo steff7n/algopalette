@@ -80,7 +80,7 @@ def test_delta_e_hyab():
 
 
 @pytest.mark.parametrize("kind", ["protan", "deutan", "tritan"])
-@pytest.mark.parametrize("method", ["vienot", "machado"])
+@pytest.mark.parametrize("method", ["vienot", "machado", "brettel"])
 @pytest.mark.parametrize("severity", [0.5, 1.0])
 def test_cvd_matches_coloraide(kind, method, severity):
     assert np.abs(_cvd_fast(kind, method, severity) - _cvd_ref(kind, method, severity)).max() < TOL
@@ -90,7 +90,7 @@ def test_unsupported_raises():
     with pytest.raises(NotImplementedError):
         fast.delta_e(A, B, "2000")
     with pytest.raises(NotImplementedError):
-        fast.simulate_cvd(A, "deutan", "brettel", 1.0)
+        fast.simulate_cvd(A, "deutan", "nieznana", 1.0)
 
 
 def test_max_chroma_matches_scalar():

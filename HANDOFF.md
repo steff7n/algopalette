@@ -21,7 +21,10 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `History`), `io.py` (`algopalette.v1`, zapis atomowy, XDG). Policzone: pytest **114 passed**, ruff/format/ty zero uwag.
 - **Decyzja użytkownika 2026-11-14:** zadania tworzą łańcuch zależności → od Tasku 3 kontroler implementuje WSZYSTKO
   sam, bez subagentów-implementatorów.
-- Następny: Task 3 (constraints).
+- **Task 3 ☑** (kontroler): `constraints.py` — termy WSADOWE (`Ctx` z tablicą `(B, n, 3)`), `Term.vfn(ctx, margin)` +
+  skalarne `Term.fn(values)`; `evaluate`, `objective`, `objective_batch(margin_frac)`. Brettel dodany do `fast.py`.
+  Policzone: pytest **141 passed**, ruff/format/ty zero uwag.
+- Następny: Task 4 (engine).
 
 ## 1. O co najłatwiej się potknąć
 
@@ -83,9 +86,16 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `to_hex` = fit(metoda) + clip; `fit_delta` = ΔE ok(c, po fit+clip). Gamut: kanały linear sRGB w [−1e-6, 1+1e-6].
   `from_css` zaokrągla do 12 miejsc; błąd `ValueError("Nie można odczytać koloru „…”.")`.
 - `src/algopalette/color/apca.py` — wtyczka contrast `apca` (stałe = PB `index.html:1282-1310`).
+- `src/algopalette/constraints.py` — `Ctx` (leniwe: `lab`, `maxc`, `rel_c`, `contrast(i,j,metric)`, `de(i,j,method,lch)`,
+  `cvd_lch(kind)`, `hue_weight` = (C/0.02)² obcięte do 1); `compile_terms(session, hue_targets)`; klucze termów:
+  `slot:<id>:<pole>`, `slot:<id>:rel:<kind>:<n>`, `slot:<id>:gamut`, `pair:<a>:<b>:min_distance`,
+  `pair:<a>:<b>:cvd:<typ>`, `global:lightness_spread`, `global:scheme:<id>`, `global:avoid:<id>:<k>`. Pary
+  min_distance/CVD tylko między AKCENTAMI; próg pary = max z obu slotów, twardy jeśli którykolwiek. Termy, których
+  wszystkie sloty mają kłódkę, są pomijane. ΔE 2000/itp/cam16: w optymalizacji ΔE ok × `Ctx.calib[(i,j,metoda)]`,
+  w `evaluate` (exact) przez coloraide. Skale: L .01, C .01/.02(rel), H 1°, WCAG .1, APCA 1, ΔE ok/hyab .01, inne 1.
 - `src/algopalette/color/fast.py` — numpy `(...,3)`: `oklch_to_oklab`, `oklab_to_linear_srgb`, `in_gamut`, `max_chroma`
   (bisekcja), `wcag21`, `apca(_signed)`, `contrast`, `delta_e(ok|hyab)`, `simulate_cvd(vienot|machado)`.
-  Brettel i ΔE 2000/itp/cam16 → `NotImplementedError` (silnik ma wtedy użyć coloraide).
+  + Brettel (Task 3). ΔE 2000/itp/cam16 → `NotImplementedError`.
 
 Jedyne odniesienie do PB: `/home/qrikk/palettebuilder/index.html:6236` `motif()` — wczytywanie JSON (akceptuje
 `palettebuilder.v2/v3`, `palette` = `{hex, role}` lub napisy); okno „Wczytaj…” przyjmuje wklejenie; PB mieści ≤ 16
@@ -93,7 +103,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Po Tasku 2: `uv run pytest -q` → 114 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po Tasku 3: `uv run pytest -q` → 141 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -105,3 +115,4 @@ Po Tasku 2: `uv run pytest -q` → 114 passed; `ruff check`, `ruff format --chec
 - 2026-11-14 — wykonanie: gałąź `feat/algopalette`; Task 1 wysłany (Sonnet). Zmiana zasad przeglądu (jeden, Opus high, na końcu).
 - 2026-11-14 — Task 1 ☑ (8e8bf4c): warstwa koloru; 39 testów; wektor gamutu w planie poprawiony na C=0.30.
 - 2026-11-14 — Task 2 ☑ (048d506): model + io; 114 testów; ruff wyłączony dla docs/; od Tasku 3 kontroler pracuje sam.
+- 2026-11-14 — Task 3 ☑: constraints wsadowe, Brettel w numpy; 141 testów.
