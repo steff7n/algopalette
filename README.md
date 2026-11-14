@@ -33,6 +33,12 @@ dokładnie te hexy, które trafią do pliku.
 
 Na dole zawsze widać **panel naruszeń bieżącej palety** (✗ twarde, ~ miękkie). F1 pokazuje wszystkie skróty.
 
+**F7 (albo pole „widok wartości” nad listą kolorów) przełącza widok OKLCH ↔ HSL.** W HSL tabela pokazuje H°, S%,
+L%, a suwaki „Wartość” w edytorze edytują kolor w HSL (zapis i tak trafia do sesji jako OKLCH). Warunki,
+zależności, nastroje, silnik i koło odcieni w Analizie zostają w OKLCH — odcień HSL i odcień OKLCH tego samego
+koloru potrafią różnić się o kilkadziesiąt stopni. Przełączenie widoku nie jest krokiem cofania; zapamiętuje się
+w sesji.
+
 Najważniejsze skróty: `g` generuj, `Ctrl+Z` / `Ctrl+Y` cofnij / ponów, `Ctrl+S` zapisz, `Ctrl+O` wczytaj,
 `Ctrl+E` przenieś do PaletteBuildera, `Ctrl+Q` wyjście. Na liście kolorów: `a` dodaj akcent, `x` usuń,
 `l` kłódka, `Shift+↑/↓` przesuń. Suwaki: `←/→` krok, `Shift` ×10, `Ctrl` ×0.1, `Home/End`, spacja przełącza

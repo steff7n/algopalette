@@ -12,6 +12,13 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - Kolejność: 1 → 2 → 3 → 4 → {5, 6}; 2 → 7; {4,5,6,7} → 8 → {9, 10} → 11.
 - Nic nie zainstalowano w projekcie (brak `pyproject.toml` — powstaje w Tasku 1). Zależności sprawdzone tylko w
   jednorazowym `uv run --no-project --with …` (coloraide 8.15, coloraide-extras 1.13, textual 8.2.8, scipy 1.18.1).
+- **Przełącznik widoku HSL/OKLCH ☑** (2026-11-14, prośba: „koniecznie dodaj toggle HSL/OKLCH”, zakres zatwierdzony
+  „tak, rób”; spec §11): `Session.view_model` (`"oklch"`/`"hsl"`, io: pole opcjonalne, domyślnie oklch),
+  `color.to_hsl`/`from_hsl` (HSL koloru PO fit), `palette_tab` (nagłówki kolumn wg widoku — `column_labels`,
+  stałe klucze `COLUMN_KEYS`; przebudowa kolumn przy zmianie widoku; suwaki `hsl-h/s/l` w edytorze), Select
+  `#view-model` nad tabelą, F7 (`priority=True`). `app.set_view_model` używa `History.replace_current` — NIE krok
+  cofania; undo/redo zachowuje bieżący widok (`_keep_view`). Warunki/silnik/Analiza zostają w OKLCH.
+  **Bez przeglądu — decyzja użytkownika: „nie odpalaj przypadkiem review na końcu”.**
 - Wykonanie: Subagent-Driven w tej sesji, gałąź `feat/algopalette` → scalona do `master` (decyzja użytkownika „możesz
   scalać”). Dziennik kontrolera i raport przeglądu (git-ignored) usunięte po zakończeniu — treść napraw jest niżej.
 - **Task 1 ☑** (8e8bf4c, Sonnet): `pyproject.toml` (ruff line 100, reguły E,F,I,UP,B,SIM,RUF; E741/RUF001-003 off;
@@ -215,7 +222,7 @@ działającego PaletteBuildera w przeglądarce (sprawdzone tylko `motif()` + `im
 innej maszynie; metod ΔE 2000/itp/cam16 w optymalizacji poza testem jednostkowym (przybliżenie kalibrowane).
 
 
-Po przeglądzie i naprawach: `uv run pytest -q` → **293 passed** (w tle, ~130 s); perf default 0.39 s; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po przełączniku HSL: `uv run pytest -q` → **297 passed** (w tle, ~130 s); perf default 0.39 s; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -238,3 +245,4 @@ Po przeglądzie i naprawach: `uv run pytest -q` → **293 passed** (w tle, ~130 
 - 2026-11-14 — Task 11 ☑: README, instalacja komendy; plan wykonany w całości.
 - 2026-11-14 — przegląd całości Opus high: 5C/8I/14M, wszystko naprawione bez re-review; testy dopisane.
 - 2026-11-14 — scalono do master (fast-forward 316e210); launcher `algopalette` sprawdzony spoza repo.
+- 2026-11-14 — przełącznik widoku HSL/OKLCH (F7); bez przeglądu na życzenie użytkownika.

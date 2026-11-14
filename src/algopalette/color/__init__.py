@@ -30,12 +30,14 @@ __all__ = [
     "fit_delta",
     "fitted",
     "from_css",
+    "from_hsl",
     "hue_diff",
     "in_gamut",
     "max_chroma",
     "simulate_cvd",
     "to_color",
     "to_hex",
+    "to_hsl",
 ]
 
 
@@ -105,6 +107,20 @@ def from_css(text: str) -> OKLCH:
     c = _from_color(col)
     # Zaokrąglenie usuwa szum numeryczny (np. 70% vs 0.7, chroma ≈ 1e-17 dla szarości).
     return OKLCH(round(c.l, 12), round(c.c, 12), round(c.h, 12) % 360.0)
+
+
+def to_hsl(c: OKLCH, fit: FitMethod) -> tuple[float, float, float]:
+    """(H °, S %, L %) koloru po fit — tylko do pokazywania/edycji (spec §11)."""
+    h, s, l_ = to_color(fitted(c, fit)).convert("hsl").coords(nans=False)
+    return float(h) % 360.0, float(s) * 100.0, float(l_) * 100.0
+
+
+def from_hsl(h: float, s: float, l: float) -> OKLCH:
+    """HSL (H °, S %, L %) → OKLCH."""
+    col = Color(
+        "hsl", [h % 360.0, min(max(s, 0.0), 100.0) / 100.0, min(max(l, 0.0), 100.0) / 100.0]
+    )
+    return _from_color(col)
 
 
 def contrast(text: OKLCH, bg: OKLCH, metric: ContrastMetric) -> float:

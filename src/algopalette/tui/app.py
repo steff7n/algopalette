@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from pathlib import Path
 
 from rich.text import Text
@@ -15,7 +16,7 @@ from algopalette import io as aio
 from algopalette.color import fitted, to_hex
 from algopalette.constraints import Violation, compile_terms, evaluate
 from algopalette.hues import targets_for_session
-from algopalette.model import History, Session
+from algopalette.model import History, Session, ViewModel
 from algopalette.pb_export import default_pb_dir, pb_json, write_pb_file
 from algopalette.tui.analysis_tab import AnalysisTab
 from algopalette.tui.dialogs import ConfirmScreen, HelpScreen, PathScreen
@@ -90,6 +91,7 @@ class AlgoPaletteApp(App[None]):
         Binding("g", "generate", "Generuj"),
         Binding("ctrl+e", "export", "→ PaletteBuilder", priority=True),
         Binding("f1", "help", "Pomoc"),
+        Binding("f7", "toggle_view", "HSL/OKLCH", priority=True),
         Binding("f2", "tab('paleta')", "Paleta", show=False),
         Binding("f3", "tab('globalne')", "Globalne", show=False),
         Binding("f4", "tab('propozycje')", "Propozycje", show=False),
@@ -142,6 +144,24 @@ class AlgoPaletteApp(App[None]):
             self.history.push(new)
         self._last_key, self._last_time = coalesce, now
         self.refresh_views(editor=structural)
+
+    def set_view_model(self, mode: ViewModel) -> None:
+        """Widok wartości (OKLCH/HSL) — preferencja widoku, NIE krok cofania (spec §11)."""
+        if mode == self.session.view_model:
+            return
+        self.history.replace_current(replace(self.session, view_model=mode))
+        self.refresh_views(editor=True)
+        self.notify(
+            "Widok wartości: " + ("HSL (warunki dalej w OKLCH)" if mode == "hsl" else "OKLCH")
+        )
+
+    def action_toggle_view(self) -> None:
+        self.set_view_model("oklch" if self.session.view_model == "hsl" else "hsl")
+
+    def _keep_view(self, mode: ViewModel) -> None:
+        """Cofanie/ponawianie nie zmienia widoku wartości."""
+        if self.session.view_model != mode:
+            self.history.replace_current(replace(self.session, view_model=mode))
 
     def replace_session(self, new: Session) -> None:
         """Podmiana całej sesji (wczytanie, przejęcie propozycji) — osobny krok cofania."""
@@ -230,16 +250,20 @@ class AlgoPaletteApp(App[None]):
         self.query_one(TabbedContent).active = tab
 
     def action_undo(self) -> None:
+        mode = self.session.view_model
         if self.history.undo() is None:
             self.notify("Nie ma czego cofnąć.")
             return
+        self._keep_view(mode)
         self._last_key = None
         self.refresh_views(editor=True)
 
     def action_redo(self) -> None:
+        mode = self.session.view_model
         if self.history.redo() is None:
             self.notify("Nie ma czego ponowić.")
             return
+        self._keep_view(mode)
         self._last_key = None
         self.refresh_views(editor=True)
 

@@ -11,6 +11,7 @@ DeltaEMethod = Literal["ok", "2000", "hyab", "itp", "cam16"]
 CvdType = Literal["protan", "deutan", "tritan"]
 CvdMethod = Literal["brettel", "vienot", "machado"]
 FitMethod = Literal["clip", "minde-chroma", "lch-chroma", "oklch-chroma", "raytrace", "scale"]
+ViewModel = Literal["oklch", "hsl"]
 ChromaMode = Literal["abs", "rel"]  # rel = ułamek max C w sRGB przy (L, H), 0–1
 
 
@@ -217,6 +218,7 @@ class Session:
     slots: tuple[Slot, ...]
     mood: str | None = None
     mood_snapshot: Mapping[str, Any] | None = None  # wartości ustawione przez nastrój
+    view_model: ViewModel = "oklch"  # tylko pokazywanie/edycja wartości koloru (spec §11)
 
     def __post_init__(self) -> None:
         if self.mood_snapshot is not None and not isinstance(self.mood_snapshot, FrozenMap):

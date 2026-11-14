@@ -340,3 +340,17 @@ def test_rejects_out_of_range_values(tmp_path, mutation):
     load = _mutate(tmp_path, mutation)
     with pytest.raises(SessionFormatError):
         load()
+
+
+def test_view_model_roundtrip_and_default(tmp_path):
+    from algopalette.io import load_session, save_session
+    from algopalette.model import default_session
+
+    s = replace(default_session(), view_model="hsl")
+    p = tmp_path / "s.json"
+    save_session(s, p)
+    assert load_session(p).view_model == "hsl"
+    d = json.loads(p.read_text())
+    del d["view_model"]
+    p.write_text(json.dumps(d))
+    assert load_session(p).view_model == "oklch"  # starsze pliki

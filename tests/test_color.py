@@ -106,3 +106,19 @@ def test_delta_e_and_cvd_smoke():
     sim = simulate_cvd(a, "deutan", "machado", 1.0)
     assert sim != a
     assert simulate_cvd(a, "deutan", "machado", 0.0).l == approx(a.l, abs=1e-6)
+
+
+def test_hsl_roundtrip():
+    from algopalette.color import from_hsl, to_hsl
+
+    c = from_css("#d49648")
+    h, s, l_ = to_hsl(c, "clip")
+    assert (h, s, l_) == (
+        pytest.approx(33.43, abs=0.01),
+        pytest.approx(61.95, abs=0.01),
+        pytest.approx(55.69, abs=0.01),
+    )
+    assert to_hex(from_hsl(h, s, l_), "clip") == "#d49648"
+    assert to_hsl(from_css("#808080"), "clip")[1] == pytest.approx(
+        0.0, abs=1e-6
+    )  # szarość: S = 0, H = 0

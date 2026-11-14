@@ -278,3 +278,36 @@ async def test_quit_flushes_pending_autosave():
         await pilot.press("ctrl+q")  # natychmiast, przed upływem 0.5 s
         await pilot.pause()
     assert aio.load_session(aio.autosave_path()).slots[3].locked
+
+
+async def test_view_toggle_hsl():
+    from algopalette import color as col
+
+    app = app_for()
+    async with app.run_test(size=(150, 50)) as pilot:
+        await select_row(pilot, app, 3)
+        before_hist = len(app.history)
+        await pilot.press("f7")
+        await pilot.pause()
+        assert app.session.view_model == "hsl"
+        assert len(app.history) == before_hist  # przełączenie widoku to nie krok cofania
+        table = app.query_one(SlotTable)
+        labels = [str(c.label) for c in table.columns.values()]
+        assert "S%" in labels and "C" not in labels
+        h, s, l_ = col.to_hsl(app.session.slots[3].value, app.session.globals.fit_method)
+        assert str(table.get_row_at(3)[4]) == f"{h:.0f}"
+        # edycja S w HSL zmienia kolor (zapis w OKLCH), H i L w HSL zostają
+        bar = app.query_one("#hsl-s").query_one(_Bar)
+        bar.focus()
+        await pilot.press("shift+left")
+        await pilot.pause()
+        h2, s2, l2 = col.to_hsl(app.session.slots[3].value, app.session.globals.fit_method)
+        assert s2 == pytest.approx(s - 10, abs=0.6)
+        assert h2 == pytest.approx(h, abs=1.0) and l2 == pytest.approx(l_, abs=0.6)
+        await pilot.press("ctrl+z")
+        await pilot.pause()
+        assert app.session.view_model == "hsl"  # cofnięcie edycji nie zmienia widoku
+        await pilot.press("f7")
+        await pilot.pause()
+        assert app.session.view_model == "oklch"
+        assert "C" in [str(c.label) for c in app.query_one(SlotTable).columns.values()]

@@ -537,6 +537,7 @@ def session_to_dict(s: Session) -> dict[str, Any]:
         "mood_snapshot": None if snap is None else {k: _enc_any(v) for k, v in snap.items()},
         "globals": _enc_globals(s.globals),
         "slots": [_enc_slot(sl, s.globals.fit_method) for sl in s.slots],
+        "view_model": s.view_model,
     }
 
 
@@ -569,6 +570,8 @@ def session_from_dict(data: Any) -> Session:
         slots=slots,
         mood=_opt_str(d, "mood", ""),
         mood_snapshot=snapshot,
+        # pole z 2026-11-14 (przełącznik widoku) — starsze pliki go nie mają
+        view_model=_lit(d, "view_model", "", ("oklch", "hsl")) if "view_model" in d else "oklch",
     )
 
 
