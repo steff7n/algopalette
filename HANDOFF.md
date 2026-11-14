@@ -37,7 +37,13 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `lightness_spread`). Silnik: `hue_targets_for` → `hues.targets_for_session`; wczesne wyjście, gdy cel ≈ 0
   (`SOLVED`), `ftol` 1e-6. **Zmierzone:** default 6 propozycji ok w **1.5–1.7 s** (bez wczesnego wyjścia było 5–6 s,
   bo miękkie cele odcieni zabierały cały budżet każdego startu). Policzone: pytest **200 passed**, ruff/ty zero uwag.
-- Następny: Task 6 (sources) i Task 7 (pb_export).
+- **Task 6 ☑** (kontroler): `sources.py` — `parse_colors` (≤16, `ParseError.token`), `apply_complete` (kłódki, sloty
+  dokładane), `extract_profile`/`cluster_hues` (aglomeracja ważona C, łączenie < 25°), `apply_character` (custom
+  odcienie POWTARZANE do 14, żeby reguła cykliczna nie rozsuwała ich po kole; zakresy z p10–p90 poszerzone),
+  `apply_transfer` (każdy akcent: cel H ± 8° twardy, C względne ± 0.08, kontrast z nowym tłem = źródłowy ± tol;
+  lightness wyłączone `Cond(..., enabled=False)`, bo wynika z kontrastu; liczba akcentów = źródła).
+  Policzone: pytest **212 passed**, ruff/ty zero uwag.
+- Następny: Task 7 (pb_export).
 
 ## 1. O co najłatwiej się potknąć
 
@@ -126,7 +132,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Po Tasku 5: `uv run pytest -q` → 200 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po Tasku 6: `uv run pytest -q` → 212 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -141,3 +147,4 @@ Po Tasku 5: `uv run pytest -q` → 200 passed; `ruff check`, `ruff format --chec
 - 2026-11-14 — Task 3 ☑: constraints wsadowe, Brettel w numpy; 141 testów.
 - 2026-11-14 — Task 4 ☑: silnik B (L,u,H; L-BFGS-B wsadowo); default 2.07 s / 6 ok; time_cap 30 s; 155 testów.
 - 2026-11-14 — Task 5 ☑: hues + moods (9 + własne); wczesne wyjście silnika; default 1.5–1.7 s; 200 testów.
+- 2026-11-14 — Task 6 ☑: sources (parsowanie, uzupełnianie, charakter, przeniesienie); 212 testów.
