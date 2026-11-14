@@ -31,7 +31,13 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   **Zmierzone:** `default_session()` → 6 propozycji, wszystkie `ok`, **2.07 s**; 14 akcentów + 2 typy CVD ≈ 2 s na
   propozycję (~12 s za 6). Domyślny `time_cap_s` podniesiony 10 → 30 s (bezpiecznik, nie budżet).
   Policzone: pytest **155 passed**, ruff/format/ty zero uwag.
-- Następny: Task 5 (hues + moods; podmienić `engine.hue_targets_for`, które dziś zwraca None).
+- **Task 5 ☑** (kontroler): `hues.py` (`scheme_targets`, `targets_for_session`; reguła cykliczna z planu),
+  `moods.py` (9 wbudowanych, nastroje użytkownika w `config_dir()/moods.json`, `apply_mood` resetuje część
+  nastrojową do `default_role_defaults` i nakłada nadpisania, snapshot obejmuje WSZYSTKIE pola ról + `hue_scheme` +
+  `lightness_spread`). Silnik: `hue_targets_for` → `hues.targets_for_session`; wczesne wyjście, gdy cel ≈ 0
+  (`SOLVED`), `ftol` 1e-6. **Zmierzone:** default 6 propozycji ok w **1.5–1.7 s** (bez wczesnego wyjścia było 5–6 s,
+  bo miękkie cele odcieni zabierały cały budżet każdego startu). Policzone: pytest **200 passed**, ruff/ty zero uwag.
+- Następny: Task 6 (sources) i Task 7 (pb_export).
 
 ## 1. O co najłatwiej się potknąć
 
@@ -105,6 +111,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `hue_targets_for` (HOOK dla Tasku 5). Budżet `max_evals` (20 000) na propozycję = wiersze ocenione przez
   `f_batch`. `cancel` → przerywa i zwraca gotowe propozycje; limit czasu → bieżąca z `timed_out` i koniec.
 - Wydajność `constraints.objective_batch`: termy par (`Term.pair`) liczone hurtem z macierzy ΔE `Ctx._de_matrix`.
+- `src/algopalette/hues.py` — `base_hues`, `scheme_targets(scheme, n, seed)`, `targets_for_session(session)`.
+- `src/algopalette/moods.py` — `BUILTIN` (nazwa → (opis, builder(polarity, metric))), `list_moods`, `apply_mood`,
+  `mood_overrides`, `save_user_mood`/`delete_user_mood` (używa `io._enc_globals/_dec_globals`). Nastroje
+  zależą od polaryzacji/metryki → po zmianie polaryzacji lub metryki w TUI trzeba nałożyć nastrój ponownie.
+  „monochromatyczny z jednym akcentem” = custom (35°, 220°×13), bo reguła cykliczna rozsuwa krótsze listy.
 - `src/algopalette/color/fast.py` — numpy `(...,3)`: `oklch_to_oklab`, `oklab_to_linear_srgb`, `in_gamut`, `max_chroma`
   (bisekcja), `wcag21`, `apca(_signed)`, `contrast`, `delta_e(ok|hyab)`, `simulate_cvd(vienot|machado)`.
   + Brettel (Task 3). ΔE 2000/itp/cam16 → `NotImplementedError`.
@@ -115,7 +126,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Po Tasku 4: `uv run pytest -q` → 155 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po Tasku 5: `uv run pytest -q` → 200 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -129,3 +140,4 @@ Po Tasku 4: `uv run pytest -q` → 155 passed; `ruff check`, `ruff format --chec
 - 2026-11-14 — Task 2 ☑ (048d506): model + io; 114 testów; ruff wyłączony dla docs/; od Tasku 3 kontroler pracuje sam.
 - 2026-11-14 — Task 3 ☑: constraints wsadowe, Brettel w numpy; 141 testów.
 - 2026-11-14 — Task 4 ☑: silnik B (L,u,H; L-BFGS-B wsadowo); default 2.07 s / 6 ok; time_cap 30 s; 155 testów.
+- 2026-11-14 — Task 5 ☑: hues + moods (9 + własne); wczesne wyjście silnika; default 1.5–1.7 s; 200 testów.

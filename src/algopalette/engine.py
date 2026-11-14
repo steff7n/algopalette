@@ -19,6 +19,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from algopalette import color as col
+from algopalette import hues
 from algopalette.color import fast
 from algopalette.constraints import (
     VECTOR_DE,
@@ -36,6 +37,8 @@ Array = np.ndarray
 MARGIN_FRAC = 0.5  # zaostrzenie twardych warunków przy optymalizacji (× skala termu)
 DIVERSITY_SCALE = 0.01
 N_STARTS = 4
+FTOL = 1e-6  # względna tolerancja L-BFGS-B
+SOLVED = 1e-12  # funkcja celu ≈ 0: kolejne starty niczego nie poprawią
 REFINE_ROUNDS = 2  # rundy kalibracji przybliżenia ΔE 2000/itp/cam16
 
 
@@ -62,8 +65,8 @@ class _Stop(Exception):
 
 
 def hue_targets_for(session: Session) -> Mapping[str, float] | None:
-    """Cele odcieni z układu odcieni sesji (Task 5 wypełnia przez ``hues``)."""
-    return None
+    """Cele odcieni akcentów z układu odcieni sesji (``hues``)."""
+    return hues.targets_for_session(session)
 
 
 # ---------------------------------------------------------------------------
@@ -233,7 +236,7 @@ def _local(run: _Run, x0: Array, maxfun: int) -> Array:
         jac=True,
         method="L-BFGS-B",
         bounds=bounds,
-        options={"maxfun": max(maxfun, 2), "maxiter": max(maxfun, 2)},
+        options={"maxfun": max(maxfun, 2), "maxiter": max(maxfun, 2), "ftol": FTOL},
     )
     return np.asarray(res.x)
 
@@ -344,6 +347,8 @@ def _optimize(run: _Run, rng: np.random.Generator, slow: set[str], accents: list
         fx = float(run.f_batch(x[None])[0])
         if fx < best_f:
             best_x, best_f = x, fx
+        if best_f <= SOLVED:
+            break
     if slow:
         for _ in range(REFINE_ROUNDS):
             lch = space.decode(best_x)[0]
