@@ -74,8 +74,10 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `de_matrix` (ΔE akcentów metodą globalną, czerwone poniżej wymaganej; widoki normalny/protan/deutan/tritan),
   `samples` („Aa” na tle). Zakładka F6, odświeżana przy aktywacji. Zrzut obejrzany (150×52).
   Policzone: pytest **264 passed** (w tle), ruff/ty zero uwag.
-- Następny: Task 11 (instalacja `uv tool install --editable .`, README już napisany, końcowa weryfikacja), potem
-  JEDEN przegląd całości (Opus high), naprawy bez re-review, raport do użytkownika.
+- **Task 11 ☑**: `README.md` (po polsku, z „czego nie robić”), `uv tool install --editable .` → jedyna kopia
+  `~/.local/bin/algopalette` (edytowalna: zmiany w `src/` działają bez reinstalacji; nowa zależność → reinstalacja).
+  `algopalette --help` działa. **Wszystkie 11 zadań planu ☑.**
+- Następny: JEDEN przegląd całości (Opus effort high), naprawy przez kontrolera BEZ re-review, raport do użytkownika.
 
 ## 1. O co najłatwiej się potknąć
 
@@ -174,6 +176,12 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
+**Czego NIE zweryfikowano:** uruchomienia w prawdziwym terminalu Ghostty przez człowieka (tylko Pilot + zrzuty
+SVG); schowka OSC 52 w prawdziwym terminalu (w testach `copy_to_clipboard` podmienione); wklejenia schowka do
+działającego PaletteBuildera w przeglądarce (sprawdzone tylko `motif()` + `importTheme` w node); wydajności na
+innej maszynie; metod ΔE 2000/itp/cam16 w optymalizacji poza testem jednostkowym (przybliżenie kalibrowane).
+
+
 Po Tasku 10: `uv run pytest -q` → 264 passed (w tle); `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
@@ -194,3 +202,4 @@ Po Tasku 10: `uv run pytest -q` → 264 passed (w tle); `ruff check`, `ruff form
 - 2026-11-14 — Task 8 ☑: TUI szkielet + Paleta + naruszenia + historia + autozapis; 240 testów.
 - 2026-11-14 — Task 9 ☑: Globalne, Propozycje, Źródło, eksport; 254 testy. Użytkownik: timeouty ≤ 20 s.
 - 2026-11-14 — Task 10 ☑: zakładka Analiza; 264 testy.
+- 2026-11-14 — Task 11 ☑: README, instalacja komendy; plan wykonany w całości.
