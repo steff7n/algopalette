@@ -29,7 +29,7 @@
   {
    "id": 4,
    "subject": "Task 4: Silnik optymalizacji (B)",
-   "status": "in_progress",
+   "status": "completed",
    "blockedBy": [
     3
    ],
@@ -38,7 +38,7 @@
   {
    "id": 5,
    "subject": "Task 5: Układy odcieni i nastroje",
-   "status": "pending",
+   "status": "in_progress",
    "blockedBy": [
     4
    ],
@@ -103,5 +103,5 @@
    "description": "**Goal:** Komenda `algopalette` zainstalowana dla użytkownika, README po polsku i policzony stan weryfikacji\nw handoffie.\n\n**Files:**\n- Create: `README.md`\n- Modify: `HANDOFF.md`\n\n**Acceptance Criteria:**\n- [ ] `uv tool install --editable .` → `which algopalette` wskazuje `~/.local/bin/algopalette`. Uruchomienie\n      w trybie headless (`--help` albo test Pilot na zainstalowanym module) działa.\n- [ ] README: uruchamianie, zakładki, warunki i relacje z przykładami, nastroje, tryby źródła, eksport do PB (tylko\n      w jedną stronę), pliki i katalogi, sekcja „czego nie robić”.\n- [ ] Pełny `uv run pytest -q`, `ruff check`, `ruff format --check`, `ty check`. Liczby wpisane do handoffu.\n      „Czego NIE zweryfikowano” oddzielone.\n\n**Verify:** `uv run pytest -q && uv run ruff check && uv run ruff format --check && uv run ty check && which algopalette`\n\n```json:metadata\n{\"files\": [\"README.md\", \"HANDOFF.md\"], \"verifyCommand\": \"uv run pytest -q && uv run ruff check && uv run ruff format --check && uv run ty check && which algopalette\", \"acceptanceCriteria\": [\"algopalette w ~/.local/bin\", \"README z sekcją czego nie robić\", \"pełna weryfikacja policzona w handoffie\"], \"modelTier\": \"mechanical\"}\n```"
   }
  ],
- "lastUpdated": "2026-11-14T15:39:35"
+ "lastUpdated": "2026-11-14T15:45:07"
 }

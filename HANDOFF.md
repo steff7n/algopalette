@@ -24,7 +24,14 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - **Task 3 ☑** (kontroler): `constraints.py` — termy WSADOWE (`Ctx` z tablicą `(B, n, 3)`), `Term.vfn(ctx, margin)` +
   skalarne `Term.fn(values)`; `evaluate`, `objective`, `objective_batch(margin_frac)`. Brettel dodany do `fast.py`.
   Policzone: pytest **141 passed**, ruff/format/ty zero uwag.
-- Następny: Task 4 (engine).
+- **Task 4 ☑** (kontroler): `engine.py` — zmienne wolnego slotu `(L, u, H)`, `C = u·maxC(L,H)` (kolor ZAWSZE w sRGB),
+  twarde zakresy L / nasycenia względnego / odcienia = granice zmiennych; losowanie wsadowe → 4 starty → L-BFGS-B z
+  gradientem różnic skończonych w JEDNYM wywołaniu wsadowym; margines twardych = 0.5 × skala; różnorodność = kara
+  względem wcześniejszych propozycji (średnie ΔE ok). `apply_proposal(session, p, slot_ids)` do TUI.
+  **Zmierzone:** `default_session()` → 6 propozycji, wszystkie `ok`, **2.07 s**; 14 akcentów + 2 typy CVD ≈ 2 s na
+  propozycję (~12 s za 6). Domyślny `time_cap_s` podniesiony 10 → 30 s (bezpiecznik, nie budżet).
+  Policzone: pytest **155 passed**, ruff/format/ty zero uwag.
+- Następny: Task 5 (hues + moods; podmienić `engine.hue_targets_for`, które dziś zwraca None).
 
 ## 1. O co najłatwiej się potknąć
 
@@ -93,6 +100,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   min_distance/CVD tylko między AKCENTAMI; próg pary = max z obu slotów, twardy jeśli którykolwiek. Termy, których
   wszystkie sloty mają kłódkę, są pomijane. ΔE 2000/itp/cam16: w optymalizacji ΔE ok × `Ctx.calib[(i,j,metoda)]`,
   w `evaluate` (exact) przez coloraide. Skale: L .01, C .01/.02(rel), H 1°, WCAG .1, APCA 1, ΔE ok/hyab .01, inne 1.
+- `src/algopalette/engine.py` — `generate(session, slot_ids, progress, cancel)`, `Proposal.ok` (brak twardych i nie
+  timed_out), `_Space.decode_with_maxc` (maxC liczone raz, podawane do `Ctx(maxc=)`), `_optimize`, `_finish`,
+  `hue_targets_for` (HOOK dla Tasku 5). Budżet `max_evals` (20 000) na propozycję = wiersze ocenione przez
+  `f_batch`. `cancel` → przerywa i zwraca gotowe propozycje; limit czasu → bieżąca z `timed_out` i koniec.
+- Wydajność `constraints.objective_batch`: termy par (`Term.pair`) liczone hurtem z macierzy ΔE `Ctx._de_matrix`.
 - `src/algopalette/color/fast.py` — numpy `(...,3)`: `oklch_to_oklab`, `oklab_to_linear_srgb`, `in_gamut`, `max_chroma`
   (bisekcja), `wcag21`, `apca(_signed)`, `contrast`, `delta_e(ok|hyab)`, `simulate_cvd(vienot|machado)`.
   + Brettel (Task 3). ΔE 2000/itp/cam16 → `NotImplementedError`.
@@ -103,7 +115,7 @@ kolorów (nadmiar scala). APCA w PB (`index.html:1293`) = te same stałe 0.0.98G
 
 ## 4. Stan weryfikacji
 
-Po Tasku 3: `uv run pytest -q` → 141 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
+Po Tasku 4: `uv run pytest -q` → 155 passed; `ruff check`, `ruff format --check`, `ty check` → zero uwag.
 
 ## 5. Dziennik sesji (append-only)
 
@@ -116,3 +128,4 @@ Po Tasku 3: `uv run pytest -q` → 141 passed; `ruff check`, `ruff format --chec
 - 2026-11-14 — Task 1 ☑ (8e8bf4c): warstwa koloru; 39 testów; wektor gamutu w planie poprawiony na C=0.30.
 - 2026-11-14 — Task 2 ☑ (048d506): model + io; 114 testów; ruff wyłączony dla docs/; od Tasku 3 kontroler pracuje sam.
 - 2026-11-14 — Task 3 ☑: constraints wsadowe, Brettel w numpy; 141 testów.
+- 2026-11-14 — Task 4 ☑: silnik B (L,u,H; L-BFGS-B wsadowo); default 2.07 s / 6 ok; time_cap 30 s; 155 testów.

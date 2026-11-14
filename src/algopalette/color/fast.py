@@ -68,13 +68,22 @@ def in_gamut(lch: ArrayLike, eps: float = GAMUT_EPS) -> NDArray[np.bool_]:
 
 
 def max_chroma(l: ArrayLike, h: ArrayLike, tol: float = 1e-5) -> Array:
-    """Maks. chroma w sRGB przy (L, H): bisekcja, wynik z wnętrza gamutu (dolny koniec)."""
+    """Maks. chroma w sRGB przy (L, H): bisekcja, wynik z wnętrza gamutu (dolny koniec).
+
+    LMS' jest liniowe w C (``L·m0 + C·(cos h·m1 + sin h·m2)``), więc pętla liczy tylko sześcian i
+    jedno mnożenie macierzy — bez ponownych konwersji.
+    """
     l_, h_ = np.broadcast_arrays(_arr(l), _arr(h))
+    hr = np.radians(h_)
+    m = _OKLAB_TO_LMS3
+    base = l_[..., None] * m[:, 0]
+    step = np.cos(hr)[..., None] * m[:, 1] + np.sin(hr)[..., None] * m[:, 2]
     lo = np.zeros_like(l_)
     hi = np.full_like(l_, 0.5)
     for _ in range(max(1, int(np.ceil(np.log2(0.5 / tol))))):
         mid = (lo + hi) / 2
-        ok = in_gamut(np.stack([l_, mid, h_], axis=-1))
+        lin = ((base + mid[..., None] * step) ** 3) @ _LMS_TO_LRGB.T
+        ok = np.all((lin >= -GAMUT_EPS) & (lin <= 1.0 + GAMUT_EPS), axis=-1)
         lo = np.where(ok, mid, lo)
         hi = np.where(ok, hi, mid)
     return lo

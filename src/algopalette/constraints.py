@@ -69,6 +69,7 @@ class Ctx:
         *,
         exact: bool = False,
         calib: Mapping[tuple[int, int, str], float] | None = None,
+        maxc: Array | None = None,
     ) -> None:
         lch = np.asarray(lch, dtype=np.float64)
         if lch.ndim == 2:
@@ -80,8 +81,10 @@ class Ctx:
         self.exact = exact
         self.calib = dict(calib or {})
         self._contrast: dict[tuple[int, int, str], Array] = {}
-        self._de: dict[tuple[int, int, str], Array] = {}
+        self._dem: dict[tuple[str, str], Array] = {}
         self._cvd: dict[str, Array] = {}
+        if maxc is not None:
+            self.__dict__["maxc"] = maxc  # wypełnia cached_property (policzone przy dekodowaniu)
 
     @property
     def batch(self) -> int:
@@ -120,24 +123,30 @@ class Ctx:
             self._contrast[key] = fast.contrast(self.lch[:, text], self.lch[:, bg], metric)
         return self._contrast[key]
 
-    def de(self, i: int, j: int, method: DeltaEMethod, lch: Array | None = None) -> Array:
-        """ΔE slotów i, j (na ``lch`` albo wartościach slotów). Dokładne lub kalibrowane."""
-        src = self.lch if lch is None else lch
-        key = (i, j, method) if lch is None else None
-        if key is not None and key in self._de:
-            return self._de[key]
+    def _de_matrix(self, method: str, src_key: str, src: Array) -> Array:
+        """ΔE wszystkich par ``(B, n, n)`` — numpy dla ok/hyab, inaczej ok (do kalibracji)."""
+        key = (src_key, method if method in VECTOR_DE else "ok")
+        if key not in self._dem:
+            lab = fast.oklch_to_oklab(src)
+            d = lab[:, :, None, :] - lab[:, None, :, :]
+            if key[1] == "hyab":
+                m = np.abs(d[..., 0]) + np.hypot(d[..., 1], d[..., 2])
+            else:
+                m = np.sqrt(np.sum(d * d, axis=-1))
+            self._dem[key] = m
+        return self._dem[key]
+
+    def de(self, i: int, j: int, method: DeltaEMethod, cvd: str | None = None) -> Array:
+        """ΔE slotów i, j (``cvd`` = po symulacji daltonizmu). Dokładne lub kalibrowane."""
+        src = self.lch if cvd is None else self.cvd_lch(cvd)
         if method in VECTOR_DE:
-            out = fast.delta_e(src[:, i], src[:, j], method)
-        elif self.exact:
-            out = np.array(
+            return self._de_matrix(method, cvd or "", src)[:, i, j]
+        if self.exact:
+            return np.array(
                 [col.delta_e(_ok(src[k, i]), _ok(src[k, j]), method) for k in range(src.shape[0])]
             )
-        else:
-            ratio = self.calib.get((min(i, j), max(i, j), method), 1.0)
-            out = fast.delta_e(src[:, i], src[:, j], "ok") * ratio
-        if key is not None:
-            self._de[key] = out
-        return out
+        ratio = self.calib.get((min(i, j), max(i, j), method), 1.0)
+        return self._de_matrix("ok", cvd or "", src)[:, i, j] * ratio
 
     def cvd_lch(self, kind: str) -> Array:
         if kind not in self._cvd:
@@ -184,6 +193,8 @@ class Term:
     describe: DescFn
     settings: GlobalSettings
     ids: tuple[str, ...]
+    # Para akcentów (i, j, próg, typ CVD | None, metoda) — objective_batch liczy takie termy hurtem.
+    pair: tuple[int, int, float, str | None, str] | None = None
 
     def ctx(self, values: Mapping[str, OKLCH]) -> Ctx:
         return values_ctx(values, self.ids, self.settings)
@@ -304,10 +315,11 @@ def compile_terms(session: Session, hue_targets: Mapping[str, float] | None = No
         scale: float,
         vfn: VFn,
         describe: DescFn,
+        pair: tuple[int, int, float, str | None, str] | None = None,
     ) -> None:
         if slots and all(s in locked for s in slots):
             return
-        terms.append(Term(key, slots, label, hard, weight, scale, vfn, describe, g, ids))
+        terms.append(Term(key, slots, label, hard, weight, scale, vfn, describe, g, ids, pair))
 
     accents = [i for i in range(len(ids)) if i >= 2]
     eff = {sid: effective_conditions(session, sid)[0] for sid in ids}
@@ -549,12 +561,12 @@ def _pair_term(
         label = f"odróżnialność przy {_CVD_NAMES[kind]}: {a} – {b}"
 
         def vfn(x: Ctx, m: float) -> Array:
-            return _relu(req + m - x.de(i, j, method, x.cvd_lch(kind)))
+            return _relu(req + m - x.de(i, j, method, kind))
 
         def desc(x: Ctx) -> tuple[str, str]:
-            return f"ΔE ≥ {req:.3f}", f"{x.de(i, j, method, x.cvd_lch(kind))[0]:.3f}"
+            return f"ΔE ≥ {req:.3f}", f"{x.de(i, j, method, kind)[0]:.3f}"
 
-    add(key, (si, sj), label, hard, weight, scale_de(method), vfn, desc)
+    add(key, (si, sj), label, hard, weight, scale_de(method), vfn, desc, (i, j, req, kind, method))
 
 
 def _relation_term(
@@ -705,12 +717,40 @@ def evaluate(terms: Sequence[Term], values: Mapping[str, OKLCH]) -> list[Violati
 def objective_batch(
     terms: Sequence[Term], ctx: Ctx, hard_weight: float, margin_frac: float = 0.0
 ) -> Array:
-    """Σ w·(v/scale)² (×hard_weight dla twardych) dla każdego kandydata; margines = frac × scale."""
+    """Σ w·(v/scale)² (×hard_weight dla twardych) dla każdego kandydata; margines = frac × scale.
+
+    Termy par akcentów (``Term.pair``) liczone hurtem: jedno indeksowanie macierzy ΔE na grupę.
+    """
     total = np.zeros(ctx.batch)
+    groups: dict[tuple[str | None, str], list[tuple[Term, tuple[int, int, float]]]] = {}
     for t in terms:
+        if t.pair is not None and not ctx.exact:
+            i, j, req_v, cvd_k, meth = t.pair
+            groups.setdefault((cvd_k, meth), []).append((t, (i, j, req_v)))
+            continue
         m = margin_frac * t.scale if t.hard else 0.0
         v = t.vfn(ctx, m) / t.scale
         total = total + (hard_weight if t.hard else 1.0) * t.weight * v * v
+    for (cvd, method), group in groups.items():
+        src = ctx.lch if cvd is None else ctx.cvd_lch(cvd)
+        mat = ctx._de_matrix(method, cvd or "", src)
+        ii = np.array([p[0] for _, p in group])
+        jj = np.array([p[1] for _, p in group])
+        req = np.array([p[2] for _, p in group])
+        scale = np.array([t.scale for t, _ in group])
+        mult = np.array([(hard_weight if t.hard else 1.0) * t.weight for t, _ in group])
+        marg = np.array([margin_frac * t.scale if t.hard else 0.0 for t, _ in group])
+        d = mat[:, ii, jj]
+        if method not in VECTOR_DE:
+            ratio = np.array(
+                [
+                    ctx.calib.get((min(i, j), max(i, j), method), 1.0)
+                    for i, j in zip(ii, jj, strict=True)
+                ]
+            )
+            d = d * ratio
+        v = np.maximum(req + marg - d, 0.0) / scale
+        total = total + (mult * v * v).sum(axis=1)
     return total
 
 
