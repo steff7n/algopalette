@@ -1,0 +1,16 @@
+[package]
+name = "algopalette-py"
+description = "Moduł Pythona algopalette._engine (PyO3, abi3)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+name = "_engine"
+crate-type = ["cdylib"]
+
+[dependencies]
+algopalette-core.workspace = true
+pyo3.workspace = true
+serde.workspace = true

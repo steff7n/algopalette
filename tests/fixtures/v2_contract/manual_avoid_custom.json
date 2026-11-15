@@ -1,0 +1,236 @@
+{
+  "format": "algopalette.v2",
+  "preset": "własny układ",
+  "view_model": "hsl",
+  "globals": {
+    "polarity": "light",
+    "contrast_metric": "apca",
+    "delta_e": "cam16",
+    "cvd": {
+      "types": [
+        "deutan",
+        "protan",
+        "tritan"
+      ],
+      "method": "vienot",
+      "severity": 0.8
+    },
+    "fit_method": "raytrace",
+    "hue_scheme": {
+      "kind": "custom",
+      "rotation": 12.5,
+      "center": 200.0,
+      "spread": 120.0,
+      "custom": [
+        15.0,
+        140.0,
+        280.0
+      ],
+      "tol": 10.0,
+      "jitter": 4.0,
+      "hard": true,
+      "weight": 2.0
+    },
+    "lightness_spread": {
+      "value": {
+        "lo": 0.02,
+        "hi": null
+      },
+      "enabled": false,
+      "hard": true,
+      "weight": 0.0
+    },
+    "avoid_colors": [
+      {
+        "l": 0.7,
+        "c": 0.1,
+        "h": 30.0
+      },
+      {
+        "l": 0.0,
+        "c": 0.0,
+        "h": 0.0
+      },
+      {
+        "l": 1,
+        "c": 0,
+        "h": 359.5
+      }
+    ],
+    "avoid_distance": 0.05,
+    "optimizer": {
+      "n_proposals": 6,
+      "seed": 0,
+      "budget": 3000,
+      "time_cap_s": 0.0,
+      "min_diversity": 0.0,
+      "hard_weight": 250.0,
+      "threads": 1
+    }
+  },
+  "slots": [
+    {
+      "id": "bg000000",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.97,
+        "c": 0.01,
+        "h": 90.0
+      },
+      "hex": "#f7f5ef",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    },
+    {
+      "id": "fg000000",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.25,
+        "c": 0.02,
+        "h": 260.0
+      },
+      "hex": "#1e2230",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": {
+          "value": {
+            "metric": "wcag21",
+            "lo": 7.0,
+            "hi": null
+          },
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    },
+    {
+      "id": "acc00001",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.5,
+        "c": 0.15,
+        "h": 15.0
+      },
+      "hex": "#b0423f",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": {
+          "value": {
+            "mode": "rel",
+            "lo": null,
+            "hi": null,
+            "exclude": []
+          },
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        "hue": null,
+        "contrast_bg": {
+          "value": {
+            "metric": "apca",
+            "lo": 60.0,
+            "hi": 90.0
+          },
+          "enabled": true,
+          "hard": false,
+          "weight": 1.0
+        },
+        "min_distance": {
+          "value": 0.1,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        "cvd_min_distance": {
+          "value": 0.06,
+          "enabled": true,
+          "hard": false,
+          "weight": 0.5
+        },
+        "extreme": {
+          "value": "weakest",
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        }
+      },
+      "relations": []
+    },
+    {
+      "id": "acc00002",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.55,
+        "c": 0.13,
+        "h": 140.0
+      },
+      "hex": "#4f8f4a",
+      "use_scheme": false,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": {
+          "value": 0.05,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        "cvd_min_distance": null,
+        "extreme": {
+          "value": "strongest",
+          "enabled": false,
+          "hard": true,
+          "weight": 1.0
+        }
+      },
+      "relations": []
+    },
+    {
+      "id": "acc00003",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.45,
+        "c": 0.16,
+        "h": 280.0
+      },
+      "hex": "#6a4fb8",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    }
+  ]
+}

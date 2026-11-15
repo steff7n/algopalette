@@ -219,8 +219,252 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 
 ## 0d. TOR SILNIKA (Rust) — pisze WYŁĄCZNIE agent silnikowy; kontroler tej sekcji nie edytuje
 
-- Gałąź `feat/silnik-rust`, worktree `/home/qrikk/algopalette/.worktrees/silnik-rust` (odgałęziona od
-  `feat/zasady-silnik`). Stan: faza A (4a, 5, 6) wysłana 2026-11-15; jeszcze nic nie scalono.
+**Stan na 2026-11-16.** Gałąź `feat/silnik-rust`, worktree `/home/qrikk/algopalette/.worktrees/silnik-rust`
+(odgałęziona od `feat/zasady-silnik` @ `bc85502`). Faza A = Task 4a → 5 → 6, osobny commit na każde.
+**Faza A ZAKOŃCZONA:** 4a (`50e56d4` `feat: przestrzeń Cargo, moduł _engine (kontrakty)`), 5 (`09de714`
+`feat(engine): matematyka koloru w Ruście z pochodnymi`), 6 (`feat(engine): optymalizator, sterownik
+równoległy, zadanie z postępem` — ostatni commit gałęzi). Następne: czekać na wiadomość kontrolera z fazą B (Task 14: `rules/` —
+`Problem`, funkcja celu, gradienty, ocena; Task 16: spięcie `_engine.evaluate/hue_targets/start`, benchmark,
+progi W1–W4). `_engine.start` jest nadal zaślepką (prawdziwy `optim::Job` podpina Task 16).
+Faza B (Task 14, 16) dopiero po scaleniu przez kontrolera modelu v2/migracji/nakładki do tej gałęzi.
+Nic z tej gałęzi nie jest jeszcze scalone do `feat/zasady-silnik`. Raport fazy A dla kontrolera:
+`.worktrees/zasady-silnik/.superpowers/sdd/2026-11-15-zasady-silnik/engine-phaseA-report.md`.
+
+**O co najłatwiej się potknąć w fazie B.**
+- Odcień w całym rdzeniu jest w STOPNIACH (`oklch_to_oklab`, `max_chroma(l, h)`); zmienna okresowa optymalizatora
+  ma granice ±inf — skaluj zmienne tak, żeby wszystkie były rzędu 1 (pierwszy krok minimalizacji ma długość 1).
+- Gradient termu licz liczbami dualnymi (`Dual<3>` na kolor, `Dual<6>` na parę) i składaj regułą łańcuchową do
+  zmiennych; `max_chroma(Dual, Dual)` daje od razu pochodne po L i H. Żadnych różnic skończonych.
+- `Objective` nie może mieć stanu zmienianego w wywołaniach (determinizm); `repulsion` DODAJE do `grad`.
+- `Job::spawn(Arc::clone(&problem), opts)` — `Arc<Problem>` jest `Objective`; zachowaj `Arc` do `decode`.
+- Nowa funkcja `_engine` = wpis w `IMPLEMENTED` (`crates/py/src/lib.rs:15`), w `#[pymodule]` na końcu pliku i w
+  `src/algopalette/_engine.pyi`. Konwersję `Violation` → `dict` trzeba dopisać (crate `py` nie ma jeszcze
+  `serde_json`; `Violation.req/meta` to `serde_json::Map`).
+- ΔE `itp` przy czerni na brzegu gamutu: patrz pułapka 6.
+- Po każdej zmianie Rusta: `uv sync` w tle, dopiero potem `uv run --no-sync pytest …`.
+
+**Podział Tasku 4 (wiążący).** 4a (ten tor): `Cargo.toml`, `crates/`, backend maturin w `pyproject.toml`,
+`.gitignore`, ręczne pliki kontraktu. 4b (kontroler, NIE ruszać stąd): `src/algopalette/engine.py`, `forms.py`,
+`tests/test_engine_api.py`, usunięcie starego silnika i `scipy`/`textual`, 40 plików kontraktu z `eval.json`,
+instalacja narzędzia w scratchpadzie. W `pyproject.toml` ten tor zmienił TYLKO `[build-system]`, `[tool.maturin]`,
+`[tool.uv]`.
+
+**Mapa (4a).**
+- `Cargo.toml` — workspace (`crates/core`, `crates/py`, `crates/cli`), edycja 2024, `[workspace.dependencies]`,
+  profil release: `opt-level = 3`, `lto = "thin"`, `codegen-units = 1`, `panic` domyślne (unwind — panika ma być
+  wyjątkiem Pythona / stanem `failed`, nie przerwaniem procesu). `rustfmt.toml`: `max_width = 100`,
+  `use_small_heuristics = "Max"`.
+- `crates/core/src/schema.rs` — I1. Wyliczenia `schema.rs:48–200` (`DeltaE::Ciede2000` ↔ `"2000"`; `RelMetric` =
+  metryki kontrastu + metody ΔE, `as_contrast`/`as_delta_e` `:182`/`:191`). `enum_from_name` `:204` (nazwa z dokumentu → wyliczenie, np. `"2000"`). `required` `:214`
+  (pole wymagane, ale może być `null` — bez tego serde uznaje brak `Option` za `None`). `pairs` `:224` (pary
+  zakazów; patrz pułapka 2). Struktury `:244–436`. `parse` `:444` (serde_path_to_error → ścieżka; błąd składni
+  → ścieżka `$`), `validate` `:566`.
+- `crates/core/src/rng.rs` — ZAMROŻONY: `splitmix64` `:22`, `Rng::new` `:36` (ziarno → 1 krok SplitMix64 → xor
+  `stream · 0xD6E8FEB86659FD93` → 4 kroki SplitMix64 = stan xoshiro256++), `next_u64` `:51`, `uniform` `:65`
+  (górne 53 bity), `range` `:70` (półotwarty). Testy `frozen_*` mają wartości policzone niezależną implementacją
+  w Pythonie + wektor wzorcowy xoshiro256++ dla stanu [1,2,3,4].
+- `crates/core/src/objective.rs` — `FEASIBLE_EPS` `:10`, `Score` `:14`, `trait Objective` `:25` (dokładnie I5).
+- `crates/core/src/violation.rs` — `ViolationKind` `:12` (14 rodzajów z tabeli I3), `Violation` `:53`
+  (`req`/`meta` = `serde_json::Map`), funkcje kluczy `key_*` `:72–110` (formaty kluczy z tabeli I3 zamrożone
+  testem `keys_match_i3_table`).
+- `crates/core/tests/schema_contract.rs` — czyta WSZYSTKIE `tests/fixtures/v2_contract/*.json` (pliki kontrolera
+  dojdą bez zmiany testu; próg „≥ 12 plików”) + 16 testów negatywnych psujących `manual_exclusions.json`.
+- `crates/py/src/lib.rs` — moduł `algopalette._engine` (`#[pymodule(name = "_engine")]` na końcu pliku),
+  `IMPLEMENTED` `:15` (`["schema", "color"]`). Zaślepki: `evaluate` `:44`, `hue_targets` `:54`, `Job` (od razu
+  `done`), `start` `:93`. Kolor: `named` `:104` (nazwa → wyliczenie, `ValueError("<argument>: unknown value …")`),
+  `max_chroma` `:111`, `delta_e` `:117`, `contrast` `:124`, `simulate_cvd` `:131` (wejście/wyjście OKLCH), dodatki
+  ponad I3: `oklch_to_linear_srgb` `:142`, `linear_srgb_to_oklch` `:148`, `in_gamut` `:154`.
+  `src/algopalette/_engine.pyi` — typy I3 + dodatków dla `ty` (bez tego `from algopalette import _engine` to
+  błąd `unresolved-import`).
+- `crates/cli/src/main.rs` — `algopalette-bench --version` (reszta w Tasku 16).
+- `tests/fixtures/v2_contract/manual_*.json` — 12 ręcznych sesji v2 (generator jednorazowy, nie w repo): przykład
+  I1, zakazy w 3 kanałach (odcień przez 0°, zakaz pokrywający cały zakres), pełne koło 0–360 zapisane liczbami
+  całkowitymi, 16 kolorów z ziarnem > 2³², wszystkie zasady `null` + `lightness_spread: null`, 16 zależności
+  (każdy rodzaj/metryka/`op`, zerwana), `avoid_colors` + układ `custom` + 3 typy CVD, po jednym pliku na każdy
+  pozostały `hue_scheme.kind` / `fit_method` / `delta_e`.
+
+**Mapa (5: kolor).**
+- `crates/core/src/scalar.rs` — `trait Scalar` `:16` (I5 + dodatki z domyślną implementacją: `scale`, `offset`,
+  `maxf`, `minf`, `spow`, `square`, `cube` — działania ze stałą `f64` bez budowania `Dual` ze stałej), `impl
+  Scalar for f64` `:79`, `Dual<N>` `:140` (`constant`, `var(v, i)`, `chain`), arytmetyka `:182–226`, `impl Scalar
+  for Dual<N>` `:228`. Porównania `Dual` patrzą tylko na wartość.
+- `crates/core/src/color/mod.rs` — re-eksporty (wyliczenia `ContrastMetric`, `DeltaE`, `CvdKind`, `CvdMethod`
+  pochodzą ze `schema`); `testutil` `:27` (tylko testy): `random_lch` `:33`, `grad_error` `:59`,
+  `check_gradients` `:77`.
+- `color/convert.rs` — macierze `:9–40` (z coloraide; `LMS_TO_LRGB`/`LRGB_TO_LMS` to iloczyny policzone przez
+  numpy w `fast.py`), `mat3` `:43`, `dot3` `:49`, `oklch_to_oklab` `:55` (h w STOPNIACH), `oklab_to_oklch` `:62`,
+  `oklab_to_lms` `:76`, `oklab_to_linear_srgb` `:82`, `linear_srgb_to_oklab` `:88`, `oklab_to_xyz` `:94`.
+- `color/gamut.rs` — `GAMUT_EPS` `:14`, `in_gamut` `:27`, `Ray` `:37` (półprosta LMS′ = base + C·step),
+  `boundary` `:96`, `finish_bisection` `:143`, `max_chroma` `:162`.
+- `color/contrast.rs` — stałe APCA `:12–23`, `wcag21` `:32`, `apca_y` `:40`, `apca_signed` `:56`, `contrast` `:71`.
+- `color/delta_e.rs` — `delta_e` `:22`, `delta_e_ok` `:40`, `delta_e_hyab` `:47`, `lab_d65` `:61`, `ciede2000`
+  `:91`, `ictcp` `:172`, `delta_e_itp` `:181`, stałe CAM16 `:191–210`, `cam16_ucs` `:213`, `delta_e_cam16` `:250`.
+- `color/cvd.rs` — `simulate_cvd` `:13`, `lerp` `:49`, wybór macierzy `:56–81`, stałe (Brettel/Viénot/Machado
+  11 × 3) od `:87`.
+- `tests/test_engine_color.py` — 69 testów wobec wyroczni (`algopalette.color`, `algopalette.color.fast`), 2000
+  losowych kolorów w gamucie (ziarno 20261115) + 11 kolorów brzegowych; `skipif("color" not in implemented)`.
+
+**Mapa (6: optymalizator).**
+- `crates/core/src/objective.rs` — `impl Objective for Arc<T>` `:57` (zadanie bierze funkcję na własność,
+  wywołujący zachowuje `Arc` do odkodowania wyniku).
+- `optim/mod.rs` — `DriverOpts` `:24`, `Control` `:41` (`cancel`, `is_cancelled`, `evals_done`, `evals_planned`,
+  `candidates`, `progress` `:83`; wewnętrzne `plan`/`add_done`/`add_candidate`/`finish` `:91–106`), `Candidate`
+  `:111`, `Outcome` `:125`; `testutil::Wells` `:147` (tylko testy: „studnie” `min_k(‖x − c_k‖² + depth_k)`, z
+  opóźnieniem, paniką i licznikiem wywołań).
+- `optim/lbfgsb.rs` — `Settings` `:26` (domyślnie pamięć 10, `pg_tol = 1e-9`, `f_tol = 1e-13`), `Stop` `:45`,
+  `Minimum` `:58`, `minimize` `:72`, `Memory` `:221` (`push`, `direction` — rekurencja dwupętlowa po zmiennych
+  wolnych).
+- `optim/select.rs` — `rank` `:11`, `pick_diverse` `:22`, `assemble` `:44`.
+- `optim/driver.rs` — `MAX_WAVES = 3` `:29`, `first_wave_runs` `:32`, `refill_runs` `:37`, `pool_size` `:42`,
+  `generate` `:48`, `thread_pool` `:110`, `run_one` `:129`.
+- `optim/job.rs` — `JobState` `:19` (`as_str` = nazwy z I3), `JobStatus` `:49`, `JobResult` `:61` (`outcome`,
+  `elapsed`), `JobError` `:69`, `Job` `:95` (`spawn` `:101`, `poll` `:133`, `cancel` `:152`, `result` `:157`,
+  `Drop` anuluje `:169`).
+
+**Decyzje (6).**
+- Minimalizacja = L-BFGS z rzutowaniem na pudełko (metoda dwóch metryk), NIE pełny L-BFGS-B Byrda–Lu–Nocedala
+  (bez punktu Cauchy'ego i minimalizacji w podprzestrzeni): zmienne na granicy z gradientem wypychającym są
+  zamrażane, kierunek −H·g na wolnych (iloczyny w rekurencji tylko po wolnych, para z niedodatnią krzywizną w tej
+  podprzestrzeni pomijana), przeszukiwanie z nawrotami wzdłuż łuku rzutowanego z warunkiem Armijo (1e-4)
+  względem faktycznego przesunięcia, interpolacja kwadratowa kroku w [0.1, 0.5], najwyżej 30 nawrotów. Gdy
+  kierunek quasi-Newtona zawodzi → pamięć czyszczona, krok rzutowanym gradientem (zawsze spadek); gdy i ten
+  zawodzi → `Stop::Stalled`. Pierwszy krok bez pamięci ma długość 1 (albo 2 × ostatni przyjęty). Zbieżność:
+  `‖P(x − g) − x‖∞ ≤ 1e-9` albo spadek w kroku `≤ 1e-13 · max(|f|, |f′|, 1)`. Wartość nieskończona/NaN w próbie
+  = nawrót ×0.1. Wynik nigdy nie jest gorszy niż start; liczba wywołań ≤ `max_evals`; `known` oszczędza
+  ponowne liczenie najlepszego punktu puli. Parametry `pg_tol`/`f_tol`/pamięć są stałymi w `Settings::default`
+  — do strojenia pomiarem w Tasku 16.
+- Przebieg: pula `min(clamp(budget/8, 8, 128) + [przebieg 0: 1], budget)` punktów (przebieg 0 zaczyna od
+  `current`), najlepszy wg wartości (w falach 2–3 wartość zawiera karę odpychającą) → `minimize` resztą budżetu.
+  Przebieg przerwany (anulowanie/limit czasu) nie daje kandydata.
+- Wybór po KAŻDEJ fali od zera na wszystkich dotychczasowych kandydatach (sort `rank`, zachłannie
+  `pick_diverse`), nie „dokładanie do wybranych” — wynik jest wtedy funkcją zbioru ukończonych przebiegów.
+  Kandydat z fali 2–3 odepchnięty poza dno minimum jest pełnoprawnym różnorodnym rozwiązaniem (ocena `score`
+  bez kary). Odległość dokładnie równa progowi liczy się jako różnorodna; `min_diversity = 0` → każdy różny.
+- `Outcome.runs` = liczba UKOŃCZONYCH przebiegów (przy pełnym przebiegu = suma fal). `cancelled` =
+  `ctl.is_cancelled()` na końcu; `timed_out` ustawia pierwszy wątek, który zobaczył przekroczony termin.
+  `time_cap = 0` to natychmiastowy limit (odwzorowanie „0 = bez limitu”, jeśli potrzebne, należy do Tasku 16).
+- Postęp: `evals_done / evals_planned`, a zwracane jest maksimum z dotychczasowych odczytów (`fetch_max` na
+  bitach `f64`); ukończony przebieg dolicza niewykorzystany budżet, więc po pełnym przebiegu `done == planned` i
+  postęp = 1. Po przerwaniu postęp zostaje < 1.
+- Pula wątków rayon tworzona na jedno `generate` (`threads = 0` → `available_parallelism`, `threads = 1` → bez
+  puli, w wątku wywołującym). Panika w funkcji celu wychodzi z puli do `Job`, który łapie ją `catch_unwind` →
+  stan `failed` z tekstem paniki.
+
+**Decyzje (5).**
+- `max_chroma` (`gamut.rs:162`): wartość = ta sama bisekcja co wyrocznia (przedział [0, 0.5], środek, kanały
+  liniowe w [−1e-6, 1 + 1e-6]) przez 20 kroków (przedział 4.8e-7), potem Newton na kanale przekroczonym w górnym
+  końcu; pierwiastek przyjęty tylko, gdy tuż pod nim kolor jest w gamucie, inaczej bisekcja do wyczerpania
+  precyzji. Zgodność z `fast.max_chroma(l, h, tol=1e-13)` ≤ 1e-9 (wyrocznia z domyślnym `tol=1e-5` zwraca dolny
+  koniec przedziału, czyli wartość do 1e-5 mniejszą — to sprawdza osobna asercja). Pochodna: funkcja niejawna
+  `lin_k(L, C*, H) = próg` ⇒ `dC*/dθ = −(∂lin_k/∂θ)/(∂lin_k/∂C)`; `∂lin_k/∂θ` z liczb dualnych przy stałym C*,
+  `∂lin_k/∂C` analitycznie (`Ray::channel`). W punkcie zmiany kanału ograniczającego pochodna jednostronna. L
+  poza [0, 1] → wartość 0 i pochodna 0. Dla L = 0 wynik NIE jest zerem (≈ 0.0116 przy h = 30°): tolerancja
+  gamutu 1e-6 dopuszcza małe C przy czerni — tak samo liczy wyrocznia.
+- Punkty nieróżniczkowalne (`scalar.rs`): `sqrt(0)`, `cbrt(0)`, `powf(0, p < 1)`, `abs(0)`, `hypot(0, 0)`,
+  `atan2(0, 0)` mają pochodną 0 ⇒ ΔE identycznych kolorów ma gradient dokładnie zerowy we wszystkich pięciu
+  metodach (test `identical_colors_have_zero_derivative`).
+- ΔE `2000` w CIELAB D65 (biel xy 0.3127/0.3290), `itp` w ICtCp z bielą 203 cd/m², `cam16` w CAM16-UCS przy
+  środowisku `CAM16JMh.ENV` coloraide (L_A = 64/π·0,2, tło 20, „average”, D = 0.8317); stałe środowiska
+  przepisane liczbowo z coloraide 8.15 (`delta_e.rs:197–207`). `hyab` w OKLab.
+- Funkcje koloru w Ruście biorą OKLab; funkcje `_engine` biorą i zwracają OKLCH `[l, c, h°]`.
+- Testy pochodnych: gradient z `Dual` wobec różnicy centralnej 4. rzędu; punkt uznany za „z dala od załamania”,
+  gdy różnice z krokami 2e-4 i 1e-4 zgadzają się do 1e-7 (ocena niezależna od sprawdzanej pochodnej); 200
+  punktów gładkich na funkcję, najwyżej 20 % losowań odrzuconych (zmierzone: ≤ 243 losowania na 200).
+
+**Decyzje (4a).**
+- Walidacja Rusta = lista z I1 + to, co sprawdzał `io.py` v1: `l ∈ [0,1]`, `c ≥ 0` (kolory i `avoid_colors`);
+  wagi ≥ 0 (każda zasada, zależność, układ, rozrzut); `tol`, `jitter`, `severity`, `avoid_distance`, `time_cap_s`,
+  `min_diversity`, `hard_weight` ≥ 0; `n_proposals ≥ 1`, `budget ≥ 1`, `seed`/`threads` nieujemne całkowite;
+  3–16 slotów; unikalne `id` (ścieżka `slots[i].id` drugiego wystąpienia); zakaz L/C `od < do`; zakaz H końce
+  różne mod 360; metryka zależności pasuje do rodzaju (`contrast` ↔ wcag21/apca, `distance` ↔ ΔE, inne rodzaje:
+  tylko `null`); `t ∈ [0,1]`. NIE sprawdza: `lo ≤ hi` zakresów, zakresu wartości odcienia, istnienia celu
+  zależności (zerwana zależność to nie błąd schematu).
+- `hex`, `name`, `preset`, `view_model` opcjonalne (`#[serde(default)]`), `view_model` dowolny tekst — silnik ich
+  nie używa. Wszystkie inne pola wymagane, także o wartości `null`.
+- Opisy błędów po angielsku (jak komunikaty serde, których nie da się spolszczyć); to kanał techniczny, napisy dla
+  użytkownika składa Python.
+- `start` odrzuca nieznane id w `free` (`ValueError("free[k]: unknown slot id")`).
+
+**Zależności (wersje).** Rust: `serde 1.0.229` (derive), `serde_json 1.0.154`, `serde_path_to_error 0.1.20`
+(ścieżka błędu), `rayon 1.12.0` (fale przebiegów), `pyo3 0.30.1` (`abi3-py313`; cecha `extension-module` już niepotrzebna — maturin ustawia
+`PYO3_BUILD_EXTENSION_MODULE`). Python (budowanie): `maturin 1.16.0` (`requires = ["maturin>=1.16,<2.0"]`).
+rustc/cargo 1.99.0, uv 0.13.6.
+
+**Wyniki policzone (6).** `cargo test -p algopalette-core optim`: 35 zielonych w module `optim` (13 `lbfgsb`, 4
+`select`, 12 `driver`, 6 `job`) + 1 trafiony filtrem w `schema_contract`; 32 uruchomienia bez porażki po
+poprawce z pułapki 11, w tym 20 pod sztucznym obciążeniem procesora (32–96 pętli na 16 wątkach); testy czasowe
+mają opóźnienie 1 ms/wywołanie, anulowanie po 80 ms, limit czasu 80 ms. Całość `cargo test -p
+algopalette-core`: 98 (75 jednostkowych + 23 `schema_contract`). `cargo fmt --check` czysto, `cargo clippy
+--all-targets -- -D warnings` bez uwag. Zmierzone: Rosenbrock 10-D ze startu (−1.2, 1, …) → f = 1.4e-16 po 97
+wywołaniach (wymóg: ≤ 1e-8 w ≤ 2000); kwadratowa z granicami zbieżna w < 60 wywołań. Po przebudowie
+rozszerzenia `pytest tests/test_engine_color.py` nadal 69 zielonych.
+
+**Wyniki policzone (5).** `cargo test -p algopalette-core color`: 24 zielone; całość `cargo test -p
+algopalette-core`: 63 (40 jednostkowych + 23 `schema_contract`). `uv run pytest -q tests/test_engine_color.py`: 69
+zielonych w 0,7 s. `cargo fmt --check` czysto, `cargo clippy --all-targets -- -D warnings` bez uwag, `ruff` i
+`ty` na `tests/test_engine_color.py` i `_engine.pyi` czysto. Sprawdzone mutacją (test pada po zepsuciu): znak
+pochodnej `max_chroma`, pochodna `cbrt`, pochodna `atan2`. `build_info()["implemented"] == ["schema", "color"]`.
+
+**Wyniki policzone (4a).** `cargo test -p algopalette-core`: 32 zielone (9 jednostkowych: 6 rng + 3 violation;
+23 w `schema_contract`). `cargo fmt --check` czysto, `cargo clippy --all-targets -- -D warnings` bez uwag.
+`uv sync` buduje `src/algopalette/_engine.abi3.so` (pierwszy raz ~21 s, potem ~5 s); `build_info()` →
+`{'version': '0.1.0', 'profile': 'release', 'implemented': ['schema']}`; `validate` przyjmuje 12/12 plików
+kontraktu; nieznane pole → `ValueError: slots[2].rules.hue.value.foo: unknown field ...`. `ruff`/`ty` na
+`_engine.pyi` czysto. `pytest tests/test_color.py tests/test_fast.py`: 46 zielonych (paczka importuje się z
+backendem maturin).
+
+**Pułapki, które kosztowały czas.**
+1. pyo3 0.30 ma inne API niż starsze poradniki: moduł deklaratywny `#[pymodule] mod … { #[pymodule_export] use … }`,
+   `Python::detach` zamiast `allow_threads`, `PyDict::new(py)` zwraca `Bound`. Poradnik do TEJ wersji:
+   `~/.cargo/registry/src/*/pyo3-0.30.1/guide/src/`.
+2. `[f64; 2]` z serde przyjmuje za długą tablicę po cichu, a błąd wychodzi dopiero z serde_json jako składniowy
+   („trailing characters”), bez ścieżki. Stąd własny `pairs` w `schema.rs:218` (test
+   `exclusion_pair_must_have_two_numbers`).
+3. `[tool.uv] cache-keys` obejmuje `crates/**/*.rs`: każde `uv run` po zmianie Rusta przebudowuje release
+   (5–25 s). Wzorzec pracy: `uv sync` w tle, potem `uv run --no-sync …` na pierwszym planie.
+4. `ty` nie widzi modułu z pliku `.so` — potrzebny `_engine.pyi`; nowe funkcje `_engine` dopisuj też tam.
+5. `cargo clippy` nie buduje binarki; `./target/debug/algopalette-bench` powstaje dopiero po `cargo build`.
+
+6. ΔE `itp` koloru prawie czarnego z minimalnie ujemnym kanałem liniowym (w tolerancji gamutu 1e-6, np. OKLCH
+   `[0.00025, 0.0167, 154]`, kanały ≈ −4e-7) wybucha w SAMYM coloraide do ~3e62 (mianownik krzywej PQ przechodzi
+   przez zero dla ujemnego LMS). Rust odtwarza to co do ~12 cyfr; test porównuje więc ΔE błędem bezwzględnym w
+   skali 0–100 i względnym powyżej (`_max_scaled`). **Skutek dla Tasku 14:** przy `delta_e = "itp"` kolor wolny
+   przy czerni na brzegu gamutu może dać funkcję celu ~1e120 i nieskończony gradient — `Problem` musi to
+   zabezpieczyć (np. liczyć ΔE po obcięciu kanałów do ≥ 0 albo trzymać kolory wolne w gamucie ścisłym) i
+   zgłosić wybór kontrolerowi.
+7. Wzorcowe liczby do testów Rusta bierz z wyroczni (`uv run --no-sync python -c …`), nie z pamięci: wartości
+   OKLCH czerwieni sRGB wpisane „z głowy” różniły się na 15. cyfrze.
+
+8. Test „budżet 100 → `Stop::Budget`” dla Rosenbrocka był błędny: metoda zbiega w 97 wywołaniach. Założenia o
+   liczbie wywołań sprawdzaj pomiarem, zanim wpiszesz je w test.
+9. W teście „więcej rozwiązań niż minimów” kara odpychająca tworzy dodatkowe różnorodne rozwiązania poza dnem
+   studni — to poprawne zachowanie, nie błąd; „N − 1 nieróżnorodnych” zachodzi tylko dla funkcji, której
+   `repulsion` nic nie robi (`Wells::single`). Siła i zasięg kary to decyzja `Problem::repulsion` (Task 14).
+11. Test zadania migotał pod obciążeniem maszyny (1 porażka na ~20 uruchomień, gdy równolegle szła inna
+   kompilacja; odtworzone 2/5 przy 24 pętlach zajmujących procesor): `JobResult.elapsed` było liczone od startu
+   WĄTKU, który pod obciążeniem rusza z opóźnieniem, a test zakładał „≥ 80 ms od `spawn`”. Naprawione w kodzie
+   (`elapsed` liczone od wywołania `spawn`, `job.rs:101`) — po poprawce 20 uruchomień pod obciążeniem 32–96
+   pętli bez porażki. Wniosek: testy czasowe uruchamiaj także pod obciążeniem, zanim uznasz je za stabilne.
+10. `f64::max` ignoruje NaN — norma rzutowanego gradientu liczona `fold(max)` nie wykryje NaN w gradiencie;
+   taki przypadek kończy się i tak `Stalled` (kierunek z NaN nie jest spadkowy).
+
+**Czego NIE zweryfikowano (6).** Optymalizatora na prawdziwej funkcji celu palety (`Problem` powstaje w Tasku
+14): jakości wobec wzorca §9.5, progów W1–W4, zachowania na załamaniach funkcji (zmiana kanału `max_chroma`,
+progi APCA). Kosztu tworzenia puli wątków na każde `generate` (istotne dla W1 ≤ 0,15 s; do pomiaru w Tasku 16).
+Testy czasowe (`cancel ≤ 100 ms`, `poll < 20 ms`, limit czasu ≤ 180 ms) zależą od planisty systemu — przy
+skrajnym obciążeniu mogą paść mimo poprawnego kodu. Limitu 100 ms reakcji na przerwanie przy funkcji celu
+wolniejszej niż 1 ms/wywołanie (reakcja następuje przed
+kolejnym wywołaniem `value_grad`, więc zależy od czasu jednego wywołania). Zachowania na Windows/macOS.
+
+**Czego NIE zweryfikowano (5).** Gałęzi coloraide „ujemna barwność M → ponowne przeliczenie” w CAM16 (kolory
+daleko poza gamutem; w Ruście jej nie ma — udokumentowane w nagłówku `delta_e.rs`). Zgodności ΔE dla kolorów
+wyraźnie poza gamutem (testy biorą kolory w gamucie + brzegi + dwa kolory tuż za gamutem). Wydajności (pomiary
+dopiero w Tasku 16; `max_chroma` to ~25 wyliczeń kanałów na wywołanie — kandydat do profilowania).
+
+**Czego NIE zweryfikowano (4a).** Instalacji `uv tool install --editable .` (to 4b, kontroler). Zgodności
+`schema.rs` z `io.session_to_dict` v2 (Task 3 powstaje równolegle; wykryje to test kontraktu po dołożeniu 40
+plików z `eval.json`). Pełnego `pytest` (zgodnie z planem każde zadanie uruchamia tylko swoje Verify).
+Budowania na innym systemie niż ta maszyna.
 
 ## 0b. TRYB CIEMNY + POMOC KONTEKSTOWA (2026-11-15) — T1–T8 ☑, przegląd + fala napraw, SCALONE do `main` i wypchnięte (bez re-review i bez uruchomienia testów — decyzja użytkownika)
 
