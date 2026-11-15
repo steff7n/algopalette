@@ -1,9 +1,13 @@
-"""Model danych AlgoPalette (kontrakt z Shared Interfaces; rozszerzany w Task 2)."""
+"""Model danych AlgoPalette (v2): sesja, kolory i ich zasady.
+
+Każdy kolor ma komplet własnych zasad (``Slot.rules``); pole ``None`` znaczy „tej zasady nie ma”.
+Nie ma dziedziczenia ani wartości wspólnych dla roli — domyślne zasady ról nadaje preset.
+"""
 
 import uuid
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, replace
-from typing import Any, Literal
+from typing import Literal
 
 Role = Literal["bg", "fg", "accent"]
 ContrastMetric = Literal["wcag21", "apca"]
@@ -12,7 +16,8 @@ CvdType = Literal["protan", "deutan", "tritan"]
 CvdMethod = Literal["brettel", "vienot", "machado"]
 FitMethod = Literal["clip", "minde-chroma", "lch-chroma", "oklch-chroma", "raytrace", "scale"]
 ViewModel = Literal["oklch", "hsl"]
-ChromaMode = Literal["abs", "rel"]  # rel = ułamek max C w sRGB przy (L, H), 0–1
+ChromaMode = Literal["abs", "rel"]  # rel = część największego C w sRGB przy (L, H), 0–1
+Polarity = Literal["dark", "light"]
 
 
 @dataclass(frozen=True)
@@ -24,24 +29,20 @@ class OKLCH:
     h: float
 
 
-# ---------------------------------------------------------------------------
-# Rozszerzenie z Task 2: modele sesji, dziedziczenie warunków, historia.
-# ---------------------------------------------------------------------------
-
 MAX_ACCENTS = 14
 MIN_ACCENTS = 1
 HISTORY_LIMIT = 200
 
-CONDITION_FIELDS: tuple[str, ...] = (
-    "hue_range",
-    "hue_target",
-    "chroma",
+RULE_FIELDS: tuple[str, ...] = (
     "lightness",
+    "chroma",
+    "hue",
     "contrast_bg",
     "min_distance",
     "cvd_min_distance",
     "extreme",
 )
+ACCENT_ONLY_FIELDS = frozenset({"min_distance", "cvd_min_distance", "extreme"})
 
 
 class FrozenMap[K, V](Mapping[K, V]):
@@ -72,15 +73,29 @@ class FrozenMap[K, V](Mapping[K, V]):
         return f"FrozenMap({self._d!r})"
 
 
+# Zakazane przedziały: pary (od, do). Dla odcienia para może zawijać się przez 0° (od > do).
+Exclusions = tuple[tuple[float, float], ...]
+
+
+def _exclusions(raw: Iterable[Iterable[float]]) -> Exclusions:
+    out: list[tuple[float, float]] = []
+    for pair in raw:
+        lo, hi = pair
+        out.append((float(lo), float(hi)))
+    return tuple(out)
+
+
 @dataclass(frozen=True)
 class Interval:
+    """Przedział bez zakazów (rozrzut jasności akcentów)."""
+
     lo: float | None = None
     hi: float | None = None
 
 
 @dataclass(frozen=True)
-class Cond[T]:
-    """Pojedynczy warunek: wartość + włączenie + twardy/miękki + waga (dla miękkich)."""
+class Rule[T]:
+    """Jedna zasada: wartość + włączenie + twarda/miękka + waga (dla miękkich)."""
 
     value: T
     enabled: bool = True
@@ -89,43 +104,60 @@ class Cond[T]:
 
 
 @dataclass(frozen=True)
-class HueRange:
-    lo: float
-    hi: float  # lo > hi = zakres przez 0°
+class Band:
+    """Dozwolony zakres jasności z zakazanymi przedziałami."""
+
+    lo: float | None = None
+    hi: float | None = None
+    exclude: Exclusions = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "exclude", _exclusions(self.exclude))
 
 
 @dataclass(frozen=True)
-class HueTarget:
-    target: float
-    tol: float
+class ChromaBand:
+    """Dozwolony zakres nasycenia (bezwzględnego albo względnego); zakazy w jednostkach trybu."""
 
-
-@dataclass(frozen=True)
-class ChromaRange:
     mode: ChromaMode
     lo: float | None
     hi: float | None
+    exclude: Exclusions = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "exclude", _exclusions(self.exclude))
+
+
+@dataclass(frozen=True)
+class HueArc:
+    """Dozwolony łuk odcienia w stopniach; ``lo > hi`` = przez 0°, ``0, 360`` = pełne koło."""
+
+    lo: float
+    hi: float
+    exclude: Exclusions = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "exclude", _exclusions(self.exclude))
 
 
 @dataclass(frozen=True)
 class ContrastBound:
-    metric: ContrastMetric | None  # None = metryka globalna
+    metric: ContrastMetric | None  # None = metryka z ustawień palety
     lo: float | None
     hi: float | None
 
 
 @dataclass(frozen=True)
-class SlotConditions:
-    """Warunki slotu. Pole ``None`` = dziedzicz z ustawień globalnych."""
+class SlotRules:
+    """Zasady jednego koloru. Pole ``None`` = tej zasady nie ma."""
 
-    hue_range: Cond[HueRange] | None = None
-    hue_target: Cond[HueTarget] | None = None
-    chroma: Cond[ChromaRange] | None = None
-    lightness: Cond[Interval] | None = None
-    contrast_bg: Cond[ContrastBound] | None = None
-    min_distance: Cond[float] | None = None  # ΔE do każdego innego akcentu
-    cvd_min_distance: Cond[float] | None = None
-    extreme: Cond[Literal["weakest", "strongest"]] | None = None
+    lightness: Rule[Band] | None = None
+    chroma: Rule[ChromaBand] | None = None
+    hue: Rule[HueArc] | None = None
+    contrast_bg: Rule[ContrastBound] | None = None
+    min_distance: Rule[float] | None = None  # ΔE do każdego innego akcentu
+    cvd_min_distance: Rule[float] | None = None
+    extreme: Rule[Literal["weakest", "strongest"]] | None = None
 
 
 RelKind = Literal["hue", "lightness", "chroma", "contrast", "distance", "mix"]
@@ -155,7 +187,8 @@ class Slot:
     name: str = ""
     locked: bool = False
     value: OKLCH = OKLCH(0.5, 0.0, 0.0)
-    conditions: SlotConditions = SlotConditions()
+    rules: SlotRules = SlotRules()
+    use_scheme: bool = True  # tylko akcenty: czy kolor dostaje cel z układu odcieni
     relations: tuple[Relation, ...] = ()
 
 
@@ -185,20 +218,19 @@ class CvdSettings:
 class OptimizerSettings:
     n_proposals: int = 6
     seed: int = 0
-    # Budżet w ewaluacjach funkcji celu na jedną propozycję (nie czas). Wartość startowa; Task 4
-    # (engine) dostroi ją po pomiarach jakości/czasu.
-    max_evals: int = 8_000  # pomiar 2026-11-14: ~3.8 s / 6 propozycji dla najwolniejszych nastrojów
-    time_cap_s: float = 30.0  # tylko bezpiecznik (timed_out); budżet to max_evals
+    # Największa liczba ocen funkcji celu z gradientem na jeden przebieg (jednego kandydata).
+    budget: int = 3_000
+    time_cap_s: float = 30.0  # tylko bezpiecznik (timed_out); pracę ogranicza budżet
     min_diversity: float = 0.05
     hard_weight: float = 1000.0
+    threads: int = 0  # 0 = wszystkie rdzenie
 
 
 @dataclass(frozen=True)
 class GlobalSettings:
-    polarity: Literal["dark", "light"]
-    role_defaults: Mapping[Role, SlotConditions]  # pełne dla bg/fg/accent
+    polarity: Polarity
     hue_scheme: HueScheme
-    lightness_spread: Cond[Interval] | None  # max L − min L akcentów
+    lightness_spread: Rule[Interval] | None  # max L − min L akcentów
     contrast_metric: ContrastMetric
     delta_e: DeltaEMethod
     cvd: CvdSettings
@@ -208,21 +240,18 @@ class GlobalSettings:
     optimizer: OptimizerSettings = OptimizerSettings()
 
     def __post_init__(self) -> None:
-        if not isinstance(self.role_defaults, FrozenMap):
-            object.__setattr__(self, "role_defaults", FrozenMap(self.role_defaults))
+        if not isinstance(self.avoid_colors, tuple):
+            object.__setattr__(self, "avoid_colors", tuple(self.avoid_colors))
 
 
 @dataclass(frozen=True)
 class Session:
     globals: GlobalSettings
     slots: tuple[Slot, ...]
-    mood: str | None = None
-    mood_snapshot: Mapping[str, Any] | None = None  # wartości ustawione przez nastrój
-    view_model: ViewModel = "oklch"  # tylko pokazywanie/edycja wartości koloru (spec §11)
+    preset: str | None = None  # nazwa ostatnio nałożonego presetu (zasady mogły się potem zmienić)
+    view_model: ViewModel = "oklch"  # tylko pokazywanie/edycja wartości koloru
 
     def __post_init__(self) -> None:
-        if self.mood_snapshot is not None and not isinstance(self.mood_snapshot, FrozenMap):
-            object.__setattr__(self, "mood_snapshot", FrozenMap(self.mood_snapshot))
         if not isinstance(self.slots, tuple):
             object.__setattr__(self, "slots", tuple(self.slots))
 
@@ -238,53 +267,53 @@ def new_slot_id() -> str:
     return uuid.uuid4().hex[:8]
 
 
-def default_role_defaults(
-    polarity: Literal["dark", "light"] = "dark",
-    contrast_metric: ContrastMetric = "wcag21",
-) -> Mapping[Role, SlotConditions]:
-    """Domyślne warunki wg roli strukturalnej dla polaryzacji i metryki kontrastu.
+def rule_fields_for(role: Role) -> tuple[str, ...]:
+    """Zasady dotyczące roli: tło nie ma kontrastu z tłem; trzy ostatnie tylko dla akcentów."""
+    if role == "accent":
+        return RULE_FIELDS
+    out = tuple(f for f in RULE_FIELDS if f not in ACCENT_ONLY_FIELDS)
+    return tuple(f for f in out if f != "contrast_bg") if role == "bg" else out
 
-    Liczby kontrastu zależą od metryki (WCAG ratio vs |Lc|), dlatego ``metric`` w ``ContrastBound``
-    zostaje ``None`` (globalna), a wartość dobieramy tu. Zmiana metryki globalnej w TUI powinna
-    wołać tę funkcję ponownie.
+
+def default_rules(
+    role: Role, polarity: Polarity = "dark", contrast_metric: ContrastMetric = "wcag21"
+) -> SlotRules:
+    """Zasady presetu „neutralny” dla roli, polaryzacji i metryki kontrastu.
+
+    Progi kontrastu zależą od metryki (stosunek WCAG albo |Lc| APCA), dlatego ``metric`` w
+    ``ContrastBound`` zostaje ``None`` (metryka palety), a liczba jest dobierana tutaj.
     """
     wcag = contrast_metric == "wcag21"
-    fg_contrast = 7.0 if wcag else 75.0
-    accent_contrast = 4.5 if wcag else 60.0
     dark = polarity == "dark"
-    bg_l = Interval(0.10, 0.25) if dark else Interval(0.93, 0.99)
-    fg_l = Interval(0.85, 0.98) if dark else Interval(0.15, 0.30)
-    accent_l = Interval(0.60, 0.85) if dark else Interval(0.35, 0.60)
-    tint = Cond(ChromaRange("abs", 0.0, 0.04))
-    return FrozenMap(
-        {
-            "bg": SlotConditions(lightness=Cond(bg_l), chroma=tint),
-            "fg": SlotConditions(
-                lightness=Cond(fg_l),
-                chroma=tint,
-                contrast_bg=Cond(ContrastBound(None, fg_contrast, None)),
-            ),
-            "accent": SlotConditions(
-                lightness=Cond(accent_l),
-                chroma=Cond(ChromaRange("abs", 0.06, 0.20)),
-                contrast_bg=Cond(ContrastBound(None, accent_contrast, None)),
-                min_distance=Cond(0.08, hard=False),  # ΔE „ok” (skala 0–1)
-                cvd_min_distance=Cond(0.04, hard=False),
-            ),
-        }
+    tint = Rule(ChromaBand("abs", 0.0, 0.04))
+    if role == "bg":
+        return SlotRules(
+            lightness=Rule(Band(0.10, 0.25) if dark else Band(0.93, 0.99)), chroma=tint
+        )
+    if role == "fg":
+        return SlotRules(
+            lightness=Rule(Band(0.85, 0.98) if dark else Band(0.15, 0.30)),
+            chroma=tint,
+            contrast_bg=Rule(ContrastBound(None, 7.0 if wcag else 75.0, None)),
+        )
+    return SlotRules(
+        lightness=Rule(Band(0.60, 0.85) if dark else Band(0.35, 0.60)),
+        chroma=Rule(ChromaBand("abs", 0.06, 0.20)),
+        contrast_bg=Rule(ContrastBound(None, 4.5 if wcag else 60.0, None)),
+        min_distance=Rule(0.08, hard=False),  # ΔE „ok” (skala 0–1)
+        cvd_min_distance=Rule(0.04, hard=False),
     )
 
 
 def _starting_accent(index: int) -> OKLCH:
-    """Plausibilny kolor startowy n-tego akcentu (0-based): odcienie co 45°, L na przemian."""
+    """Kolor startowy n-tego akcentu (0-based): odcienie co 45°, L na przemian."""
     return OKLCH(0.78 if index % 2 == 0 else 0.72, 0.12, (25.0 + 45.0 * index) % 360.0)
 
 
 def default_session() -> Session:
-    """Sesja startowa: ciemna, tło + tekst + 8 akcentów, układ odcieni „equal”, bez nastroju."""
+    """Sesja startowa: ciemna, tło + tekst + 8 akcentów, preset „neutralny”."""
     g = GlobalSettings(
         polarity="dark",
-        role_defaults=default_role_defaults("dark", "wcag21"),
         hue_scheme=HueScheme(kind="equal"),
         lightness_spread=None,
         contrast_metric="wcag21",
@@ -292,17 +321,23 @@ def default_session() -> Session:
         cvd=CvdSettings(),
         fit_method="oklch-chroma",
     )
+    accent = default_rules("accent", "dark", "wcag21")
     slots = [
-        Slot(id=new_slot_id(), name="tło", value=OKLCH(0.18, 0.02, 260.0)),
-        Slot(id=new_slot_id(), name="tekst", value=OKLCH(0.92, 0.01, 260.0)),
-        *(Slot(id=new_slot_id(), value=_starting_accent(i)) for i in range(8)),
+        Slot(
+            id=new_slot_id(),
+            name="tło",
+            value=OKLCH(0.18, 0.02, 260.0),
+            rules=default_rules("bg", "dark", "wcag21"),
+        ),
+        Slot(
+            id=new_slot_id(),
+            name="tekst",
+            value=OKLCH(0.92, 0.01, 260.0),
+            rules=default_rules("fg", "dark", "wcag21"),
+        ),
+        *(Slot(id=new_slot_id(), value=_starting_accent(i), rules=accent) for i in range(8)),
     ]
-    return Session(globals=g, slots=tuple(slots), mood=None, mood_snapshot=None)
-
-
-def snapshot_key(role: Role, field: str) -> str:
-    """Klucz w ``mood_snapshot`` dla pola warunków roli: ``role_defaults.<rola>.<pole>``."""
-    return f"role_defaults.{role}.{field}"
+    return Session(globals=g, slots=tuple(slots), preset="neutralny")
 
 
 def slot_index(session: Session, slot_id: str) -> int:
@@ -312,43 +347,56 @@ def slot_index(session: Session, slot_id: str) -> int:
     raise ValueError(f"Nieznany slot: {slot_id}")
 
 
-def effective_conditions(
-    session: Session, slot_id: str
-) -> tuple[SlotConditions, Mapping[str, Literal["mood", "global", "slot"]]]:
-    """Warunki obowiązujące slot (pole po polu: slot > domyślne roli z ustawień globalnych).
+# ---------------------------------------------------------------------------
+# Łuki odcienia (stopnie; łuk biegnie od ``lo`` do ``hi`` w stronę rosnących kątów)
+# ---------------------------------------------------------------------------
 
-    Zwraca ``(warunki, źródła)``; źródła są kluczowane nazwą pola ``SlotConditions``:
 
-    * ``"slot"``   — slot definiuje pole (nie ``None``);
-    * ``"mood"``   — pole dziedziczone, a ``session.mood_snapshot`` zawiera pod kluczem
-      ``role_defaults.<rola>.<pole>`` (``snapshot_key``; rola ∈ bg/fg/accent) wartość równą
-      wartości globalnej (nastrój ustawił ją i użytkownik jej nie zmienił);
-    * ``"global"`` — pozostałe przypadki.
+def arc_width(lo: float, hi: float) -> float:
+    """Szerokość łuku ``lo → hi`` w stopniach; ``lo ≠ hi`` o tej samej pozycji to pełne koło."""
+    width = (hi - lo) % 360.0
+    if width == 0.0 and lo != hi:
+        return 360.0
+    return width
+
+
+def arc_from_center(center: float, half: float) -> tuple[float, float]:
+    """Łuk ``środek ± połowa szerokości``; połowa ≥ 180° to pełne koło ``(0, 360)``."""
+    if half >= 180.0:
+        return 0.0, 360.0
+    return (center - half) % 360.0, (center + half) % 360.0
+
+
+def arc_center_half(lo: float, hi: float) -> tuple[float, float]:
+    """Środek i połowa szerokości łuku (odwrotność ``arc_from_center``)."""
+    half = arc_width(lo, hi) / 2.0
+    return (lo + half) % 360.0, half
+
+
+def arc_intersection(a: tuple[float, float], b: tuple[float, float]) -> list[tuple[float, float]]:
+    """Część wspólna dwóch łuków: 0, 1 albo 2 łuki, w kolejności wzdłuż ``a``.
+
+    Samo zetknięcie końcami nie jest częścią wspólną; łuk o zerowej szerokości (jeden odcień)
+    leżący wewnątrz drugiego łuku — jest.
     """
-    slot = session.slots[slot_index(session, slot_id)]
-    role = role_of(slot_index(session, slot_id))
-    base = session.globals.role_defaults[role]
-    snapshot = session.mood_snapshot
-    merged: dict[str, Any] = {}
-    sources: dict[str, Literal["mood", "global", "slot"]] = {}
-    for name in CONDITION_FIELDS:
-        own = getattr(slot.conditions, name)
-        if own is not None:
-            merged[name] = own
-            sources[name] = "slot"
-            continue
-        inherited = getattr(base, name)
-        merged[name] = inherited
-        key = snapshot_key(role, name)
-        if snapshot is not None and key in snapshot and snapshot[key] == inherited:
-            sources[name] = "mood"
-        else:
-            sources[name] = "global"
-    return SlotConditions(**merged), sources
+    wa, wb = arc_width(*a), arc_width(*b)
+    if wa == 360.0:
+        return [(float(b[0]), float(b[1]))]
+    if wb == 360.0:
+        return [(float(a[0]), float(a[1]))]
+    start = a[0] % 360.0
+    offset = (b[0] - start) % 360.0  # początek b liczony od początku a
+    parts: list[tuple[float, float]] = []
+    for shift in (-360.0, 0.0):
+        lo = max(0.0, offset + shift)
+        hi = min(wa, offset + shift + wb)
+        if lo < hi or (lo == hi and (wa == 0.0 or wb == 0.0)):
+            parts.append((lo, hi))
+    return [((start + lo) % 360.0, (start + hi) % 360.0) for lo, hi in sorted(parts)]
 
 
 def broken_relations(session: Session) -> list[tuple[str, int]]:
-    """Relacje (slot_id, indeks) z ``target`` albo ``other`` spoza sesji (też mix bez ``other``)."""
+    """Zależności (slot_id, indeks) z celem albo ``other`` spoza sesji (też mix bez ``other``)."""
     ids = {s.id for s in session.slots}
     broken: list[tuple[str, int]] = []
     for slot in session.slots:
@@ -374,7 +422,7 @@ def _accent_count(session: Session) -> int:
 
 
 def add_accent(session: Session) -> Session:
-    """Dodaje akcent na końcu (kolejny odcień startowy). Najwyżej 14 akcentów."""
+    """Dodaje akcent z zasadami i ``use_scheme`` ostatniego akcentu (bez jego zależności)."""
     n = _accent_count(session)
     if n >= MAX_ACCENTS:
         raise ValueError(f"Najwyżej {MAX_ACCENTS} akcentów")
@@ -382,12 +430,13 @@ def add_accent(session: Session) -> Session:
     sid = new_slot_id()
     while sid in used:
         sid = new_slot_id()
-    slot = Slot(id=sid, value=_starting_accent(n))
+    last = session.slots[-1]
+    slot = Slot(id=sid, value=_starting_accent(n), rules=last.rules, use_scheme=last.use_scheme)
     return replace(session, slots=(*session.slots, slot))
 
 
 def remove_slot(session: Session, slot_id: str) -> Session:
-    """Usuwa akcent. Relacje innych slotów do niego zostają (``broken_relations`` je zgłosi)."""
+    """Usuwa akcent. Zależności innych kolorów od niego zostają (``broken_relations`` je zgłosi)."""
     i = slot_index(session, slot_id)
     if i < 2:
         raise ValueError("Nie można usunąć tła ani tekstu")

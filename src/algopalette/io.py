@@ -1,17 +1,18 @@
-"""Zapis i odczyt sesji (format ``algopalette.v1``), ścieżki XDG, autozapis.
+"""Zapis i odczyt sesji (format ``algopalette.v2``), wczytywanie v1, ścieżki XDG, autozapis.
 
-Kodowanie JSON jest jawne (nazwy pól, brak pickle). Wczytanie waliduje strukturę: każdy zły lub
-brakujący element kończy się ``SessionFormatError`` z polskim komunikatem (nigdy surowym
-``KeyError``/``TypeError``). ``hex`` przy slotach jest informacją dla człowieka i jest pomijany
-przy wczytaniu (źródłem prawdy jest OKLCH).
+Kodowanie JSON jest jawne (nazwy pól, brak pickle); ten sam dokument czyta silnik natywny
+(``algopalette._engine``), więc kształt jest kontraktem. Wczytanie waliduje strukturę: każdy zły
+lub brakujący element kończy się ``SessionFormatError`` z polskim komunikatem (nigdy surowym
+``KeyError``/``TypeError``). ``hex`` przy kolorach jest informacją dla człowieka i jest pomijany
+przy wczytaniu (źródłem prawdy jest OKLCH). Pliki ``algopalette.v1`` są migrowane przy wczytaniu
+(``migrate.migrate_v1``); zapis jest zawsze w v2.
 """
 
 import json
 import math
 import os
 import tempfile
-from collections.abc import Mapping
-from dataclasses import fields, is_dataclass
+from dataclasses import fields
 from pathlib import Path
 from typing import Any, get_args
 
@@ -20,33 +21,37 @@ from algopalette.model import (
     MAX_ACCENTS,
     MIN_ACCENTS,
     OKLCH,
+    RULE_FIELDS,
+    Band,
+    ChromaBand,
     ChromaMode,
-    ChromaRange,
-    Cond,
     ContrastBound,
     ContrastMetric,
     CvdMethod,
     CvdSettings,
     CvdType,
     DeltaEMethod,
+    Exclusions,
     FitMethod,
-    FrozenMap,
     GlobalSettings,
-    HueRange,
+    HueArc,
     HueScheme,
-    HueTarget,
     Interval,
     OptimizerSettings,
     Relation,
     RelKind,
     RelOp,
     Role,
+    Rule,
     Session,
     Slot,
-    SlotConditions,
+    SlotRules,
+    role_of,
+    rule_fields_for,
 )
 
-FORMAT = "algopalette.v1"
+FORMAT = "algopalette.v2"
+FORMAT_V1 = "algopalette.v1"
 MAX_FILE_BYTES = 16 * 1024 * 1024
 APP_DIR = "algopalette"
 
@@ -182,7 +187,6 @@ def _opt_lit(d: dict[str, Any], key: str, path: str, allowed: tuple[Any, ...]) -
 # Kodowanie
 # ---------------------------------------------------------------------------
 
-_ROLES: tuple[Role, ...] = ("bg", "fg", "accent")
 _METRICS = get_args(ContrastMetric)
 _DELTA_E = get_args(DeltaEMethod)
 _CVD_TYPES = get_args(CvdType)
@@ -193,6 +197,7 @@ _REL_KINDS = get_args(RelKind)
 _REL_OPS = get_args(RelOp)
 _REL_METRICS = (*_METRICS, *_DELTA_E)
 _EXTREMES = ("weakest", "strongest")
+_ROLE_NAMES: dict[Role, str] = {"bg": "tła", "fg": "tekstu", "accent": "akcentu"}
 
 
 def _enc_oklch(c: OKLCH) -> dict[str, Any]:
@@ -207,50 +212,81 @@ def _dec_oklch(v: Any, path: str) -> OKLCH:
     return OKLCH(l_, _nonneg(d, "c", path), _num(d, "h", path) % 360.0)
 
 
-# Warunki: dla każdego pola SlotConditions osobny koder/dekoder wartości Cond.value.
-def _enc_interval(v: Interval) -> dict[str, Any]:
-    return {"lo": v.lo, "hi": v.hi}
+# Zasady: dla każdego pola SlotRules osobny koder/dekoder wartości Rule.value.
+def _enc_exclude(ex: Exclusions) -> list[list[float]]:
+    return [[a, b] for a, b in ex]
 
 
-def _dec_interval(d: dict[str, Any], p: str) -> Interval:
-    return Interval(_opt_num(d, "lo", p), _opt_num(d, "hi", p))
+def _dec_exclude(d: dict[str, Any], path: str, *, hue: bool) -> Exclusions:
+    ep = _join(path, "exclude")
+    out: list[tuple[float, float]] = []
+    for i, pair in enumerate(_list(_get(d, "exclude", path), ep)):
+        pp = _join(ep, i)
+        if not isinstance(pair, list) or len(pair) != 2:
+            raise _err(pp, "powinno być parą [od, do]")
+        a, b = _to_num(pair[0], _join(pp, 0)), _to_num(pair[1], _join(pp, 1))
+        if hue:
+            if not (0.0 <= a <= 360.0 and 0.0 <= b <= 360.0):
+                raise _err(pp, "odcienie muszą być w zakresie 0–360")
+            if a % 360.0 == b % 360.0:
+                raise _err(pp, "zakazany przedział odcienia musi mieć różne końce")
+        elif not a < b:
+            raise _err(pp, "zakazany przedział musi mieć „od” mniejsze niż „do”")
+        out.append((a, b))
+    return tuple(out)
+
+
+def _dec_hue_arc(d: dict[str, Any], p: str) -> HueArc:
+    lo, hi = _num(d, "lo", p), _num(d, "hi", p)
+    for key, v in (("lo", lo), ("hi", hi)):
+        if not 0.0 <= v <= 360.0:
+            raise _err(_join(p, key), "odcień musi być w zakresie 0–360")
+    return HueArc(lo, hi, _dec_exclude(d, p, hue=True))
 
 
 _VALUE_CODECS: dict[str, tuple[Any, Any]] = {
-    "hue_range": (
-        lambda v: {"lo": v.lo, "hi": v.hi},
-        lambda d, p: HueRange(_num(d, "lo", p), _num(d, "hi", p)),
-    ),
-    "hue_target": (
-        lambda v: {"target": v.target, "tol": v.tol},
-        lambda d, p: HueTarget(_num(d, "target", p), _nonneg(d, "tol", p)),
-    ),
-    "chroma": (
-        lambda v: {"mode": v.mode, "lo": v.lo, "hi": v.hi},
-        lambda d, p: ChromaRange(
-            _lit(d, "mode", p, _CHROMA_MODES), _opt_num(d, "lo", p), _opt_num(d, "hi", p)
+    "lightness": (
+        lambda v: {"lo": v.lo, "hi": v.hi, "exclude": _enc_exclude(v.exclude)},
+        lambda d, p: Band(
+            _opt_num(d, "lo", p), _opt_num(d, "hi", p), _dec_exclude(d, p, hue=False)
         ),
     ),
-    "lightness": (_enc_interval, _dec_interval),
+    "chroma": (
+        lambda v: {"mode": v.mode, "lo": v.lo, "hi": v.hi, "exclude": _enc_exclude(v.exclude)},
+        lambda d, p: ChromaBand(
+            _lit(d, "mode", p, _CHROMA_MODES),
+            _opt_num(d, "lo", p),
+            _opt_num(d, "hi", p),
+            _dec_exclude(d, p, hue=False),
+        ),
+    ),
+    "hue": (
+        lambda v: {"lo": v.lo, "hi": v.hi, "exclude": _enc_exclude(v.exclude)},
+        _dec_hue_arc,
+    ),
     "contrast_bg": (
         lambda v: {"metric": v.metric, "lo": v.lo, "hi": v.hi},
         lambda d, p: ContrastBound(
             _opt_lit(d, "metric", p, _METRICS), _opt_num(d, "lo", p), _opt_num(d, "hi", p)
         ),
     ),
+    "lightness_spread": (
+        lambda v: {"lo": v.lo, "hi": v.hi},
+        lambda d, p: Interval(_opt_num(d, "lo", p), _opt_num(d, "hi", p)),
+    ),
 }
 _SCALAR_FIELDS = ("min_distance", "cvd_min_distance")
 
 
-def _enc_cond(name: str, cond: Cond[Any] | None) -> dict[str, Any] | None:
-    if cond is None:
+def _enc_rule(name: str, rule: Rule[Any] | None) -> dict[str, Any] | None:
+    if rule is None:
         return None
-    # pola bez kodera w _VALUE_CODECS to skalar albo „extreme” (kodowane wprost)
-    value = _VALUE_CODECS[name][0](cond.value) if name in _VALUE_CODECS else cond.value
-    return {"value": value, "enabled": cond.enabled, "hard": cond.hard, "weight": cond.weight}
+    # pola bez kodera w _VALUE_CODECS to liczba albo „extreme” (kodowane wprost)
+    value = _VALUE_CODECS[name][0](rule.value) if name in _VALUE_CODECS else rule.value
+    return {"value": value, "enabled": rule.enabled, "hard": rule.hard, "weight": rule.weight}
 
 
-def _dec_cond(name: str, v: Any, path: str) -> Cond[Any] | None:
+def _dec_rule(name: str, v: Any, path: str) -> Rule[Any] | None:
     if v is None:
         return None
     d = _dict(v, path)
@@ -264,22 +300,25 @@ def _dec_cond(name: str, v: Any, path: str) -> Cond[Any] | None:
         if raw not in _EXTREMES:
             raise _err(vp, f"musi mieć jedną z wartości: {', '.join(_EXTREMES)}")
         value = raw
-    return Cond(
+    return Rule(
         value, _bool(d, "enabled", path), _bool(d, "hard", path), _nonneg(d, "weight", path)
     )
 
 
-def _enc_conditions(sc: SlotConditions) -> dict[str, Any]:
-    return {f.name: _enc_cond(f.name, getattr(sc, f.name)) for f in fields(SlotConditions)}
+def _enc_rules(rules: SlotRules) -> dict[str, Any]:
+    return {name: _enc_rule(name, getattr(rules, name)) for name in RULE_FIELDS}
 
 
-def _dec_conditions(v: Any, path: str) -> SlotConditions:
+def _dec_rules(v: Any, path: str, role: Role) -> SlotRules:
     d = _dict(v, path)
-    kwargs = {
-        f.name: _dec_cond(f.name, _get(d, f.name, path), _join(path, f.name))
-        for f in fields(SlotConditions)
-    }
-    return SlotConditions(**kwargs)
+    applicable = rule_fields_for(role)
+    kwargs: dict[str, Any] = {}
+    for name in RULE_FIELDS:
+        rule = _dec_rule(name, _get(d, name, path), _join(path, name))
+        if rule is not None and name not in applicable:
+            raise _err(_join(path, name), f"ta zasada nie dotyczy {_ROLE_NAMES[role]}")
+        kwargs[name] = rule
+    return SlotRules(**kwargs)
 
 
 def _enc_relation(r: Relation) -> dict[str, Any]:
@@ -324,12 +363,13 @@ def _enc_slot(s: Slot, fit: FitMethod) -> dict[str, Any]:
         "locked": s.locked,
         "value": _enc_oklch(s.value),
         "hex": to_hex(s.value, fit),  # tylko informacyjnie
-        "conditions": _enc_conditions(s.conditions),
+        "use_scheme": s.use_scheme,
+        "rules": _enc_rules(s.rules),
         "relations": [_enc_relation(r) for r in s.relations],
     }
 
 
-def _dec_slot(v: Any, path: str) -> Slot:
+def _dec_slot(v: Any, path: str, role: Role) -> Slot:
     d = _dict(v, path)
     rels = _list(_get(d, "relations", path), _join(path, "relations"))
     return Slot(
@@ -337,7 +377,8 @@ def _dec_slot(v: Any, path: str) -> Slot:
         name=_str(d, "name", path),
         locked=_bool(d, "locked", path),
         value=_dec_oklch(_get(d, "value", path), _join(path, "value")),
-        conditions=_dec_conditions(_get(d, "conditions", path), _join(path, "conditions")),
+        rules=_dec_rules(_get(d, "rules", path), _join(path, "rules"), role),
+        use_scheme=_bool(d, "use_scheme", path),
         relations=tuple(
             _dec_relation(r, _join(_join(path, "relations"), i)) for i, r in enumerate(rels)
         ),
@@ -395,23 +436,23 @@ def _dec_optimizer(v: Any, path: str) -> OptimizerSettings:
     return OptimizerSettings(
         n_proposals=_int(d, "n_proposals", path, minimum=1),
         seed=_int(d, "seed", path, minimum=0),
-        max_evals=_int(d, "max_evals", path, minimum=1),
+        budget=_int(d, "budget", path, minimum=1),
         time_cap_s=_nonneg(d, "time_cap_s", path),
         min_diversity=_nonneg(d, "min_diversity", path),
         hard_weight=_nonneg(d, "hard_weight", path),
+        threads=_int(d, "threads", path, minimum=0),
     )
 
 
 def _enc_globals(g: GlobalSettings) -> dict[str, Any]:
     return {
         "polarity": g.polarity,
-        "role_defaults": {r: _enc_conditions(g.role_defaults[r]) for r in _ROLES},
-        "hue_scheme": _enc_hue_scheme(g.hue_scheme),
-        "lightness_spread": _enc_cond("lightness", g.lightness_spread),
         "contrast_metric": g.contrast_metric,
         "delta_e": g.delta_e,
         "cvd": _enc_cvd(g.cvd),
         "fit_method": g.fit_method,
+        "hue_scheme": _enc_hue_scheme(g.hue_scheme),
+        "lightness_spread": _enc_rule("lightness_spread", g.lightness_spread),
         "avoid_colors": [_enc_oklch(c) for c in g.avoid_colors],
         "avoid_distance": g.avoid_distance,
         "optimizer": _enc_optimizer(g.optimizer),
@@ -420,19 +461,15 @@ def _enc_globals(g: GlobalSettings) -> dict[str, Any]:
 
 def _dec_globals(v: Any, path: str) -> GlobalSettings:
     d = _dict(v, path)
-    rp = _join(path, "role_defaults")
-    rd = _dict(_get(d, "role_defaults", path), rp)
-    role_defaults = {r: _dec_conditions(_get(rd, r, rp), _join(rp, r)) for r in _ROLES}
     ap = _join(path, "avoid_colors")
     avoid = tuple(
         _dec_oklch(c, _join(ap, i)) for i, c in enumerate(_list(_get(d, "avoid_colors", path), ap))
     )
     return GlobalSettings(
         polarity=_lit(d, "polarity", path, ("dark", "light")),
-        role_defaults=FrozenMap(role_defaults),
         hue_scheme=_dec_hue_scheme(_get(d, "hue_scheme", path), _join(path, "hue_scheme")),
-        lightness_spread=_dec_cond(
-            "lightness", _get(d, "lightness_spread", path), _join(path, "lightness_spread")
+        lightness_spread=_dec_rule(
+            "lightness_spread", _get(d, "lightness_spread", path), _join(path, "lightness_spread")
         ),
         contrast_metric=_lit(d, "contrast_metric", path, _METRICS),
         delta_e=_lit(d, "delta_e", path, _DELTA_E),
@@ -444,105 +481,23 @@ def _dec_globals(v: Any, path: str) -> GlobalSettings:
     )
 
 
-# ``mood_snapshot`` ma wartości dowolnego typu modelu (np. ``Cond``, ``HueScheme``): kodowanie
-# ogólne z jawnymi znacznikami ``$type``/``$tuple``/``$frozenset``/``$map``.
-_SNAPSHOT_TYPES: dict[str, type] = {
-    t.__name__: t
-    for t in (
-        OKLCH,
-        Interval,
-        Cond,
-        HueRange,
-        HueTarget,
-        ChromaRange,
-        ContrastBound,
-        SlotConditions,
-        Relation,
-        HueScheme,
-        CvdSettings,
-        OptimizerSettings,
-    )
-}
-
-
-def _enc_any(v: Any) -> Any:
-    if v is None or isinstance(v, bool | int | float | str):
-        return v
-    if isinstance(v, tuple | list):
-        return {"$tuple": [_enc_any(x) for x in v]}
-    if isinstance(v, frozenset | set):
-        items = [_enc_any(x) for x in v]
-        return {"$frozenset": sorted(items, key=lambda x: json.dumps(x, sort_keys=True))}
-    if isinstance(v, Mapping):
-        return {"$map": [[_enc_any(k), _enc_any(x)] for k, x in v.items()]}
-    if is_dataclass(v) and not isinstance(v, type) and type(v).__name__ in _SNAPSHOT_TYPES:
-        return {
-            "$type": type(v).__name__,
-            "fields": {f.name: _enc_any(getattr(v, f.name)) for f in fields(v)},
-        }
-    raise TypeError(f"Nieobsługiwany typ w mood_snapshot: {type(v).__name__}")
-
-
-def _dec_any(v: Any, path: str) -> Any:
-    if v is None or isinstance(v, bool | int | float | str):
-        if isinstance(v, float) and not math.isfinite(v):
-            raise _err(path, "musi być liczbą skończoną")
-        return v
-    if not isinstance(v, dict) or len(v) not in (1, 2):
-        raise _err(path, "ma nieznaną strukturę (brak znacznika typu)")
-    if "$tuple" in v:
-        items = _list(v["$tuple"], _join(path, "$tuple"))
-        return tuple(_dec_any(x, _join(path, i)) for i, x in enumerate(items))
-    if "$frozenset" in v:
-        items = _list(v["$frozenset"], _join(path, "$frozenset"))
-        try:
-            return frozenset(_dec_any(x, _join(path, i)) for i, x in enumerate(items))
-        except TypeError as e:
-            raise _err(path, "zawiera niehashowalny element zbioru") from e
-    if "$map" in v:
-        pairs = _list(v["$map"], _join(path, "$map"))
-        out: dict[Any, Any] = {}
-        for i, pair in enumerate(pairs):
-            pp = _join(path, i)
-            if not isinstance(pair, list) or len(pair) != 2:
-                raise _err(pp, "powinno być parą [klucz, wartość]")
-            out[_dec_any(pair[0], pp)] = _dec_any(pair[1], pp)
-        try:
-            return FrozenMap(out)
-        except TypeError as e:  # pragma: no cover - klucze dict są już hashowalne
-            raise _err(path, "ma niehashowalny klucz") from e
-    if "$type" in v:
-        name = v["$type"]
-        cls = _SNAPSHOT_TYPES.get(name) if isinstance(name, str) else None
-        if cls is None:
-            raise _err(_join(path, "$type"), "ma nieznany typ")
-        raw = _dict(v.get("fields"), _join(path, "fields"))
-        try:
-            return cls(**{k: _dec_any(x, _join(path, k)) for k, x in raw.items()})
-        except TypeError as e:
-            raise _err(path, f"nie pasuje do typu {name}") from e
-    raise _err(path, "ma nieznaną strukturę (nieznany znacznik)")
-
-
 # ---------------------------------------------------------------------------
 # Sesja <-> słownik
 # ---------------------------------------------------------------------------
 
 
 def session_to_dict(s: Session) -> dict[str, Any]:
-    snap = s.mood_snapshot
     return {
         "format": FORMAT,
-        "mood": s.mood,
-        "mood_snapshot": None if snap is None else {k: _enc_any(v) for k, v in snap.items()},
+        "preset": s.preset,
+        "view_model": s.view_model,
         "globals": _enc_globals(s.globals),
         "slots": [_enc_slot(sl, s.globals.fit_method) for sl in s.slots],
-        "view_model": s.view_model,
     }
 
 
 def session_from_dict(data: Any) -> Session:
-    """Waliduje i buduje ``Session``; każdy błąd to ``SessionFormatError``."""
+    """Waliduje dokument ``algopalette.v2`` i buduje ``Session``; błąd to ``SessionFormatError``."""
     d = _dict(data, "")
     fmt = d.get("format")
     if fmt != FORMAT:
@@ -550,29 +505,33 @@ def session_from_dict(data: Any) -> Session:
             f"To nie jest plik sesji AlgoPalette: pole „format” ma wartość {fmt!r}, "
             f"oczekiwano „{FORMAT}”."
         )
-    snap_raw = _get(d, "mood_snapshot", "")
-    snapshot: FrozenMap[str, Any] | None = None
-    if snap_raw is not None:
-        sd = _dict(snap_raw, "mood_snapshot")
-        snapshot = FrozenMap({k: _dec_any(v, _join("mood_snapshot", k)) for k, v in sd.items()})
     slots_raw = _list(_get(d, "slots", ""), "slots")
-    slots = tuple(_dec_slot(v, _join("slots", i)) for i, v in enumerate(slots_raw))
-    accents = len(slots) - 2
+    accents = len(slots_raw) - 2
     if not MIN_ACCENTS <= accents <= MAX_ACCENTS:
         raise _err(
             "slots",
-            f"ma {len(slots)} slotów; wymagane: tło, tekst i {MIN_ACCENTS}–{MAX_ACCENTS} akcentów",
+            f"ma {len(slots_raw)} kolorów; wymagane: tło, tekst i "
+            f"{MIN_ACCENTS}–{MAX_ACCENTS} akcentów",
         )
+    slots = tuple(_dec_slot(v, _join("slots", i), role_of(i)) for i, v in enumerate(slots_raw))
     if len({s.id for s in slots}) != len(slots):
-        raise _err("slots", "zawiera powtórzone „id” slotów")
+        raise _err("slots", "zawiera powtórzone „id” kolorów")
     return Session(
         globals=_dec_globals(_get(d, "globals", ""), "globals"),
         slots=slots,
-        mood=_opt_str(d, "mood", ""),
-        mood_snapshot=snapshot,
-        # pole z 2026-11-14 (przełącznik widoku) — starsze pliki go nie mają
+        preset=_opt_str(d, "preset", ""),
         view_model=_lit(d, "view_model", "", ("oklch", "hsl")) if "view_model" in d else "oklch",
     )
+
+
+def decode_session(data: Any) -> tuple[Session, tuple[str, ...]]:
+    """Dokument v2 albo v1 → ``(sesja, komunikaty migracji)``; dla v2 komunikatów nie ma."""
+    if isinstance(data, dict) and data.get("format") == FORMAT_V1:
+        from algopalette.migrate import migrate_v1  # import zwrotny: migrate korzysta z io
+
+        migrated, notes = migrate_v1(data)
+        return session_from_dict(migrated), tuple(notes)
+    return session_from_dict(data), ()
 
 
 # ---------------------------------------------------------------------------
@@ -589,7 +548,7 @@ def save_session(s: Session, path: str | os.PathLike[str], overwrite: bool = Fal
 
     Istniejący plik bez ``overwrite=True`` → ``FileExistsError`` (plik nietknięty). Brakujące
     katalogi nadrzędne są tworzone. Błędy wejścia/wyjścia (brak uprawnień itp.) lecą jako
-    ``OSError`` — łapie je warstwa TUI.
+    ``OSError`` — łapie je warstwa interfejsu.
     """
     target = Path(path)
     if target.exists() and not overwrite:
@@ -610,8 +569,11 @@ def save_session(s: Session, path: str | os.PathLike[str], overwrite: bool = Fal
         raise
 
 
-def load_session(path: str | os.PathLike[str]) -> Session:
-    """Wczytuje sesję. Brak pliku: ``FileNotFoundError``; zły format: ``SessionFormatError``."""
+def load_session_ex(path: str | os.PathLike[str]) -> tuple[Session, tuple[str, ...]]:
+    """Wczytuje sesję v2 albo v1; zwraca też komunikaty migracji (co przepadło albo się zmieniło).
+
+    Brak pliku: ``FileNotFoundError``; zły format: ``SessionFormatError``.
+    """
     p = Path(path)
     if p.stat().st_size > MAX_FILE_BYTES:
         raise SessionFormatError("Plik jest zbyt duży, by był plikiem sesji AlgoPalette.")
@@ -626,4 +588,9 @@ def load_session(path: str | os.PathLike[str]) -> Session:
         raise SessionFormatError(
             f"Plik nie jest poprawnym JSON-em (uszkodzony lub ucięty): {e}"
         ) from e
-    return session_from_dict(data)
+    return decode_session(data)
+
+
+def load_session(path: str | os.PathLike[str]) -> Session:
+    """Jak ``load_session_ex``, ale bez komunikatów migracji."""
+    return load_session_ex(path)[0]

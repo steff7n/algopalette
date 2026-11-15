@@ -1,4 +1,4 @@
-"""Testy zapisu/odczytu sesji algopalette.v1 i ścieżek XDG."""
+"""Testy zapisu/odczytu sesji algopalette.v2, wczytywania v1 i ścieżek XDG."""
 
 import json
 import os
@@ -8,46 +8,48 @@ from pathlib import Path
 import pytest
 
 from algopalette.io import (
+    FORMAT,
     SessionFormatError,
     autosave_path,
     config_dir,
     default_palettes_dir,
     load_session,
+    load_session_ex,
     save_session,
     session_from_dict,
     session_to_dict,
 )
 from algopalette.model import (
     OKLCH,
-    ChromaRange,
-    Cond,
+    RULE_FIELDS,
+    Band,
+    ChromaBand,
     ContrastBound,
     CvdSettings,
-    FrozenMap,
-    HueRange,
+    HueArc,
     HueScheme,
-    HueTarget,
     Interval,
     OptimizerSettings,
     Relation,
-    SlotConditions,
+    Rule,
+    SlotRules,
     default_session,
-    snapshot_key,
     with_slot,
 )
 
 
 def full_session():
     s = default_session()
-    cond = SlotConditions(
-        hue_range=Cond(HueRange(330.0, 20.0), hard=False, weight=2.5),
-        hue_target=Cond(HueTarget(200.0, 12.5), enabled=False),
-        chroma=Cond(ChromaRange("rel", 0.3, None)),
-        lightness=Cond(Interval(None, 0.8)),
-        contrast_bg=Cond(ContrastBound("apca", 60.0, 90.0)),
-        min_distance=Cond(0.1, hard=False, weight=0.5),
-        cvd_min_distance=Cond(0.05),
-        extreme=Cond("weakest"),
+    rules = SlotRules(
+        lightness=Rule(Band(None, 0.8, exclude=((0.70, 0.74),))),
+        chroma=Rule(ChromaBand("rel", 0.3, None, exclude=((0.5, 0.6), (0.8, 0.9)))),
+        hue=Rule(
+            HueArc(330.0, 270.0, exclude=((350.0, 10.0), (60.0, 85.0))), hard=False, weight=2.5
+        ),
+        contrast_bg=Rule(ContrastBound("apca", 60.0, 90.0)),
+        min_distance=Rule(0.1, hard=False, weight=0.5),
+        cvd_min_distance=Rule(0.05, enabled=False),
+        extreme=Rule("weakest"),
     )
     a, b, c, d = s.slots[2:6]
     rels = (
@@ -57,36 +59,28 @@ def full_session():
         Relation("contrast", b.id, "ge", 4.5, metric="wcag21", hard=False, weight=3.0),
         Relation("distance", c.id, "le", 0.08, metric="2000", enabled=False),
         Relation("mix", b.id, "eq", 0.0, tol=0.02, other=c.id, t=0.3),
-        Relation("hue", "duch", "eq", 10.0),  # zerwana relacja też przechodzi roundtrip
+        Relation("hue", "duch", "eq", 10.0),  # zerwana zależność też przechodzi roundtrip
     )
-    s = with_slot(s, replace(a, name="komentarz", locked=True, conditions=cond, relations=rels))
+    s = with_slot(
+        s,
+        replace(a, name="komentarz", locked=True, rules=rules, use_scheme=False, relations=rels),
+    )
+    s = with_slot(s, replace(b, rules=SlotRules(hue=Rule(HueArc(0.0, 360.0)))))
     s = with_slot(s, replace(d, value=OKLCH(0.61234567891234, 0.31, 359.99999)))
-    rd = dict(s.globals.role_defaults)
     g = replace(
         s.globals,
         polarity="light",
-        role_defaults=rd,
         hue_scheme=HueScheme("custom", 10.0, 20.0, 30.0, (1.0, 2.5, 300.0), 5.0, 2.0, True, 0.7),
-        lightness_spread=Cond(Interval(0.1, None), hard=False),
+        lightness_spread=Rule(Interval(0.1, None), hard=False),
         contrast_metric="apca",
         delta_e="cam16",
         cvd=CvdSettings(frozenset({"protan", "tritan"}), "brettel", 0.6),
         fit_method="raytrace",
         avoid_colors=(OKLCH(0.5, 0.1, 30.0), OKLCH(0.7, 0.2, 200.0)),
         avoid_distance=0.07,
-        optimizer=OptimizerSettings(3, 42, 1234, 2.5, 0.1, 500.0),
+        optimizer=OptimizerSettings(3, 42, 1234, 2.5, 0.1, 500.0, 4),
     )
-    snap = {
-        snapshot_key("accent", "lightness"): rd["accent"].lightness,
-        snapshot_key("bg", "chroma"): Cond(ChromaRange("abs", 0.0, 0.02)),
-        "hue_scheme": HueScheme("triad", custom=(1.0, 2.0)),
-        "cvd": CvdSettings(frozenset({"deutan"})),
-        "number": 3,
-        "name": "x",
-        "none": None,
-        "nested": FrozenMap({"a": (1, 2.5)}),
-    }
-    return replace(s, globals=g, mood="neon", mood_snapshot=snap)
+    return replace(s, globals=g, preset="neon")
 
 
 def test_roundtrip(tmp_path):
@@ -104,8 +98,82 @@ def test_roundtrip_default_and_dict():
     s = default_session()
     assert session_from_dict(json.loads(json.dumps(session_to_dict(s)))) == s
     d = session_to_dict(s)
-    assert d["format"] == "algopalette.v1"
+    assert d["format"] == FORMAT == "algopalette.v2"
     assert all("hex" in sl and sl["hex"].startswith("#") for sl in d["slots"])
+
+
+def test_document_shape_matches_contract():
+    """Kształt z I1 planu — ten sam dokument czyta silnik w Ruście."""
+    d = json.loads(json.dumps(session_to_dict(full_session())))
+    assert list(d) == ["format", "preset", "view_model", "globals", "slots"]
+    assert set(d["globals"]) == {
+        "polarity",
+        "contrast_metric",
+        "delta_e",
+        "cvd",
+        "fit_method",
+        "hue_scheme",
+        "lightness_spread",
+        "avoid_colors",
+        "avoid_distance",
+        "optimizer",
+    }
+    assert d["globals"]["optimizer"] == {
+        "n_proposals": 3,
+        "seed": 42,
+        "budget": 1234,
+        "time_cap_s": 2.5,
+        "min_diversity": 0.1,
+        "hard_weight": 500.0,
+        "threads": 4,
+    }
+    assert d["globals"]["lightness_spread"] == {
+        "value": {"lo": 0.1, "hi": None},
+        "enabled": True,
+        "hard": False,
+        "weight": 1.0,
+    }
+    slot = d["slots"][2]
+    assert set(slot) == {"id", "name", "locked", "value", "hex", "use_scheme", "rules", "relations"}
+    assert slot["use_scheme"] is False
+    assert tuple(slot["rules"]) == RULE_FIELDS
+    assert slot["rules"]["lightness"] == {
+        "value": {"lo": None, "hi": 0.8, "exclude": [[0.70, 0.74]]},
+        "enabled": True,
+        "hard": True,
+        "weight": 1.0,
+    }
+    assert slot["rules"]["chroma"]["value"] == {
+        "mode": "rel",
+        "lo": 0.3,
+        "hi": None,
+        "exclude": [[0.5, 0.6], [0.8, 0.9]],
+    }
+    assert slot["rules"]["hue"]["value"] == {
+        "lo": 330.0,
+        "hi": 270.0,
+        "exclude": [[350.0, 10.0], [60.0, 85.0]],
+    }
+    assert slot["rules"]["contrast_bg"]["value"] == {"metric": "apca", "lo": 60.0, "hi": 90.0}
+    assert slot["rules"]["min_distance"]["value"] == 0.1
+    assert slot["rules"]["extreme"]["value"] == "weakest"
+    assert set(slot["relations"][0]) == {
+        "kind",
+        "target",
+        "op",
+        "value",
+        "tol",
+        "chroma_op",
+        "chroma_mode",
+        "metric",
+        "other",
+        "t",
+        "enabled",
+        "hard",
+        "weight",
+    }
+    assert all(v is None for v in d["slots"][0]["rules"].values() if v is None)
+    assert d["slots"][0]["rules"]["contrast_bg"] is None
 
 
 def test_roundtrip_hash_preserved():
@@ -179,27 +247,53 @@ DELETE = object()
         (["slots", 2, "relations", 0, "kind"], "teleport"),
         (["slots", 2, "relations", 0, "value"], None),
         (["slots", 2, "relations", 0, "enabled"], "tak"),
-        (["slots", 2, "conditions", "hue_range"], 7),
-        (["slots", 2, "conditions", "hue_range", "value", "lo"], "x"),
-        (["slots", 2, "conditions", "chroma", "value", "mode"], "huh"),
-        (["slots", 2, "conditions", "extreme", "value"], "middle"),
-        (["slots", 2, "conditions", "min_distance", "weight"], None),
+        (["slots", 2, "rules", "hue"], 7),
+        (["slots", 2, "rules", "hue", "value", "lo"], "x"),
+        (["slots", 2, "rules", "hue", "value", "hi"], 400.0),
+        (["slots", 2, "rules", "hue", "value", "exclude"], [[10.0, 370.0]]),
+        (["slots", 2, "rules", "hue", "value", "exclude"], [[10.0]]),
+        (["slots", 2, "rules", "hue", "value", "exclude"], "x"),
+        (["slots", 2, "rules", "hue", "value", "exclude"], DELETE),
+        (["slots", 2, "rules", "chroma", "value", "mode"], "huh"),
+        (["slots", 2, "rules", "chroma", "value", "exclude"], [[0.6, 0.5]]),
+        (["slots", 2, "rules", "lightness", "value", "exclude"], [[0.74, 0.70]]),
+        (["slots", 2, "rules", "lightness", "value", "exclude"], [[0.7, 0.7]]),
+        (["slots", 2, "rules", "lightness", "value", "exclude"], [[0.7, "0.8"]]),
+        (["slots", 2, "rules", "extreme", "value"], "middle"),
+        (["slots", 2, "rules", "min_distance", "weight"], None),
+        (["slots", 2, "rules", "min_distance", "weight"], -1.0),
+        (["slots", 2, "rules", "extreme"], DELETE),
+        (["slots", 2, "rules"], DELETE),
+        (["slots", 2, "use_scheme"], "tak"),
+        (["slots", 2, "use_scheme"], DELETE),
+        (
+            ["slots", 0, "rules", "contrast_bg"],
+            {
+                "value": {"metric": None, "lo": 4.5, "hi": None},
+                "enabled": True,
+                "hard": True,
+                "weight": 1.0,
+            },
+        ),
+        (
+            ["slots", 1, "rules", "extreme"],
+            {"value": "weakest", "enabled": True, "hard": True, "weight": 1.0},
+        ),
         (["globals", "polarity"], "gray"),
         (["globals", "contrast_metric"], "wcag3"),
         (["globals", "cvd", "types"], ["alpha"]),
         (["globals", "cvd", "types"], "protan"),
-        (["globals", "role_defaults", "bg"], DELETE),
         (["globals", "hue_scheme", "custom"], ["a"]),
+        (["globals", "lightness_spread"], 3),
         (["globals", "optimizer", "seed"], 1.5),
         (["globals", "optimizer", "n_proposals"], 0),
-        (["globals", "optimizer", "max_evals"], True),
+        (["globals", "optimizer", "budget"], True),
+        (["globals", "optimizer", "budget"], 0),
+        (["globals", "optimizer", "threads"], -1),
+        (["globals", "optimizer", "threads"], DELETE),
         (["globals"], DELETE),
-        (["mood"], 5),
-        (["mood_snapshot"], [1]),
-        (["mood_snapshot", "x"], {"$type": "Nieznany", "fields": {}}),
-        (["mood_snapshot", "x"], {"bez": "znacznika"}),
-        (["mood_snapshot", "x"], [1, 2]),
-        (["mood_snapshot", "x"], {"$type": "Interval", "fields": {"zly": 1}}),
+        (["preset"], 5),
+        (["preset"], DELETE),
     ],
 )
 def test_bad_fields_raise_session_format_error(path, value):
@@ -315,6 +409,7 @@ def _mutate(tmp_path, fn):
     [
         lambda d: d["slots"][2]["value"].update(l=-0.5),
         lambda d: d["globals"]["optimizer"].update(seed=-3),
+        lambda d: d["slots"][2]["value"].update(l=1.5),
         lambda d: d["slots"][2]["relations"].append(
             {
                 "kind": "contrast",
@@ -354,3 +449,28 @@ def test_view_model_roundtrip_and_default(tmp_path):
     del d["view_model"]
     p.write_text(json.dumps(d))
     assert load_session(p).view_model == "oklch"  # starsze pliki
+
+
+def test_v1_document_is_not_accepted_by_strict_decoder():
+    d = session_to_dict(default_session())
+    d["format"] = "algopalette.v1"
+    with pytest.raises(SessionFormatError, match="format"):
+        session_from_dict(d)
+
+
+def test_load_session_ex_v2_has_no_messages(tmp_path):
+    p = tmp_path / "s.json"
+    s = full_session()
+    save_session(s, p)
+    assert load_session_ex(p) == (s, ())
+
+
+def test_hue_full_circle_and_wrapping_exclusion_roundtrip():
+    s = default_session()
+    arc = HueArc(0.0, 360.0, exclude=((350.0, 10.0),))
+    s = with_slot(s, replace(s.slots[2], rules=replace(s.slots[2].rules, hue=Rule(arc))))
+    s2 = session_from_dict(json.loads(json.dumps(session_to_dict(s))))
+    assert s2 == s
+    rule = s2.slots[2].rules.hue
+    assert rule is not None
+    assert rule.value.exclude == ((350.0, 10.0),)

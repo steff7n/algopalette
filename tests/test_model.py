@@ -1,4 +1,4 @@
-"""Testy modelu sesji: kształt domyślnej sesji, dziedziczenie, limity slotów, historia."""
+"""Testy modelu sesji v2: zasady per kolor (bez dziedziczenia), łuki odcienia, limity, historia."""
 
 from dataclasses import replace
 
@@ -7,24 +7,31 @@ import pytest
 from algopalette.color import contrast, delta_e
 from algopalette.model import (
     OKLCH,
-    ChromaRange,
-    Cond,
+    RULE_FIELDS,
+    Band,
+    ChromaBand,
+    ContrastBound,
     FrozenMap,
     History,
-    Interval,
+    HueArc,
+    OptimizerSettings,
     Relation,
+    Rule,
     Session,
     Slot,
-    SlotConditions,
+    SlotRules,
     add_accent,
+    arc_center_half,
+    arc_from_center,
+    arc_intersection,
+    arc_width,
     broken_relations,
-    default_role_defaults,
+    default_rules,
     default_session,
-    effective_conditions,
     move_slot,
     remove_slot,
     role_of,
-    snapshot_key,
+    rule_fields_for,
     with_slot,
 )
 
@@ -36,15 +43,23 @@ def test_default_session_shape():
     assert [role_of(i) for i in range(3)] == ["bg", "fg", "accent"]
     g = s.globals
     assert g.polarity == "dark"
-    assert set(g.role_defaults) == {"bg", "fg", "accent"}
+    assert not hasattr(g, "role_defaults")
     assert g.hue_scheme.kind == "equal"
     assert (g.contrast_metric, g.delta_e, g.fit_method) == ("wcag21", "ok", "oklch-chroma")
-    assert s.mood is None
-    assert s.mood_snapshot is None
+    assert s.preset == "neutralny"
+    assert not hasattr(s, "mood")
     bg = s.slots[0].value
     assert bg.l <= 0.25
     assert bg.c <= 0.04
     assert len({sl.value for sl in s.slots}) == 10  # nie wszystkie takie same
+
+
+def test_default_session_rules_are_role_defaults():
+    s = default_session()
+    for i, sl in enumerate(s.slots):
+        assert sl.rules == default_rules(role_of(i), "dark", "wcag21")
+        assert sl.use_scheme is True
+        assert sl.relations == ()
 
 
 def test_default_values_satisfy_defaults():
@@ -58,55 +73,105 @@ def test_default_values_satisfy_defaults():
             assert delta_e(a, b, "ok") >= 0.08
 
 
-@pytest.mark.parametrize("polarity", ["dark", "light"])
-@pytest.mark.parametrize("metric", ["wcag21", "apca"])
-def test_role_defaults_complete(polarity, metric):
-    rd = default_role_defaults(polarity, metric)
-    assert set(rd) == {"bg", "fg", "accent"}
-    assert rd["fg"].contrast_bg is not None
-    assert rd["accent"].min_distance is not None
-    cb = rd["accent"].contrast_bg
-    assert cb is not None
-    bound = cb.value
-    assert bound.lo == (4.5 if metric == "wcag21" else 60.0)
+def test_default_rules_numbers_match_v1_role_defaults():
+    """Liczby jak ``default_role_defaults`` z commita 4b71aeb."""
+    tint = Rule(ChromaBand("abs", 0.0, 0.04))
+    assert default_rules("bg", "dark", "wcag21") == SlotRules(
+        lightness=Rule(Band(0.10, 0.25)), chroma=tint
+    )
+    assert default_rules("bg", "light", "apca") == SlotRules(
+        lightness=Rule(Band(0.93, 0.99)), chroma=tint
+    )
+    assert default_rules("fg", "dark", "wcag21") == SlotRules(
+        lightness=Rule(Band(0.85, 0.98)),
+        chroma=tint,
+        contrast_bg=Rule(ContrastBound(None, 7.0, None)),
+    )
+    assert default_rules("fg", "light", "apca") == SlotRules(
+        lightness=Rule(Band(0.15, 0.30)),
+        chroma=tint,
+        contrast_bg=Rule(ContrastBound(None, 75.0, None)),
+    )
+    assert default_rules("accent", "dark", "wcag21") == SlotRules(
+        lightness=Rule(Band(0.60, 0.85)),
+        chroma=Rule(ChromaBand("abs", 0.06, 0.20)),
+        contrast_bg=Rule(ContrastBound(None, 4.5, None)),
+        min_distance=Rule(0.08, hard=False),
+        cvd_min_distance=Rule(0.04, hard=False),
+    )
+    light = default_rules("accent", "light", "apca")
+    assert light.lightness == Rule(Band(0.35, 0.60))
+    assert light.contrast_bg == Rule(ContrastBound(None, 60.0, None))
+    assert light.hue is None
+    assert light.extreme is None
 
 
-def test_effective_inherits_and_sources():
-    s = default_session()
-    acc = s.slots[2]
-    own = Cond(ChromaRange("rel", 0.5, 0.9), hard=False)
-    s = with_slot(s, replace(acc, conditions=SlotConditions(chroma=own)))
-    glob_lightness = s.globals.role_defaults["accent"].lightness
-    snap = {snapshot_key("accent", "lightness"): glob_lightness}
-    s = replace(s, mood="x", mood_snapshot=snap)
-
-    cond, src = effective_conditions(s, acc.id)
-    assert cond.chroma == own
-    assert src["chroma"] == "slot"
-    assert cond.lightness == glob_lightness
-    assert src["lightness"] == "mood"
-    assert cond.contrast_bg == s.globals.role_defaults["accent"].contrast_bg
-    assert src["contrast_bg"] == "global"
-    assert set(src) == set(SlotConditions.__dataclass_fields__)
-
-    # użytkownik zmienił wartość globalną po nastroju: źródło wraca do „global”
-    changed = Cond(Interval(0.5, 0.7))
-    rd = dict(s.globals.role_defaults)
-    rd["accent"] = replace(rd["accent"], lightness=changed)
-    s2 = replace(s, globals=replace(s.globals, role_defaults=rd))
-    cond2, src2 = effective_conditions(s2, acc.id)
-    assert cond2.lightness == changed
-    assert src2["lightness"] == "global"
+def test_rule_fields():
+    assert RULE_FIELDS == (
+        "lightness",
+        "chroma",
+        "hue",
+        "contrast_bg",
+        "min_distance",
+        "cvd_min_distance",
+        "extreme",
+    )
+    assert tuple(SlotRules.__dataclass_fields__) == RULE_FIELDS
+    assert rule_fields_for("bg") == ("lightness", "chroma", "hue")
+    assert rule_fields_for("fg") == ("lightness", "chroma", "hue", "contrast_bg")
+    assert rule_fields_for("accent") == RULE_FIELDS
 
 
-def test_effective_uses_role_of_slot():
-    s = default_session()
-    bg_cond, _ = effective_conditions(s, s.slots[0].id)
-    fg_cond, _ = effective_conditions(s, s.slots[1].id)
-    assert bg_cond.contrast_bg is None
-    assert fg_cond.contrast_bg is not None
-    with pytest.raises(ValueError, match="Nieznany slot"):
-        effective_conditions(s, "nie-ma")
+def test_optimizer_defaults():
+    o = OptimizerSettings()
+    assert (o.n_proposals, o.seed, o.budget, o.time_cap_s) == (6, 0, 3000, 30.0)
+    assert (o.min_diversity, o.hard_weight, o.threads) == (0.05, 1000.0, 0)
+    assert not hasattr(o, "max_evals")
+
+
+def test_bands_normalize_exclusions_and_stay_hashable():
+    band = Band(0.2, 0.8, exclude=[[0.4, 0.5]])  # ty: ignore[invalid-argument-type]
+    assert band.exclude == ((0.4, 0.5),)
+    arc = HueArc(0.0, 270.0, exclude=[(60, 85), (140, 155)])  # ty: ignore[invalid-argument-type]
+    assert arc.exclude == ((60.0, 85.0), (140.0, 155.0))
+    chroma = ChromaBand("rel", 0.2, None, exclude=[(0.5, 0.6)])  # ty: ignore[invalid-argument-type]
+    assert isinstance(hash((band, arc, chroma)), int)
+
+
+@pytest.mark.parametrize(
+    ("lo", "hi", "width"),
+    [(0, 60, 60), (330, 20, 50), (0, 360, 360), (10, 10, 0), (90, 30, 300), (20, 380, 360)],
+)
+def test_arc_width(lo, hi, width):
+    assert arc_width(lo, hi) == pytest.approx(width)
+
+
+def test_arc_center_conversions():
+    assert arc_from_center(30, 20) == (10, 50)
+    assert arc_from_center(350, 20) == (330, 10)
+    assert arc_from_center(10, 20) == (350, 30)
+    assert arc_from_center(100, 0) == (100, 100)
+    assert arc_from_center(100, 180) == (0, 360)
+    assert arc_from_center(100, 200) == (0, 360)
+    assert arc_center_half(330, 10) == (350, 20)
+    assert arc_center_half(10, 50) == (30, 20)
+    assert arc_center_half(0, 360) == (180, 180)
+    for center, half in [(0.0, 15.0), (359.0, 30.0), (123.5, 0.5), (200.0, 179.0)]:
+        got_c, got_h = arc_center_half(*arc_from_center(center, half))
+        assert (got_c, got_h) == pytest.approx((center, half))
+
+
+def test_arc_intersection():
+    assert arc_intersection((0, 90), (40, 80)) == [(40, 80)]
+    assert arc_intersection((40, 80), (0, 90)) == [(40, 80)]
+    assert arc_intersection((0, 60), (190, 210)) == []
+    assert arc_intersection((300, 60), (30, 330)) == [(300, 330), (30, 60)]
+    assert arc_intersection((330, 20), (350, 40)) == [(350, 20)]
+    assert arc_intersection((0, 360), (350, 40)) == [(350, 40)]
+    assert arc_intersection((350, 40), (0, 360)) == [(350, 40)]
+    assert arc_intersection((0, 60), (60, 120)) == []  # samo dotknięcie to nie część wspólna
+    assert arc_intersection((0, 60), (30, 30)) == [(30, 30)]  # łuk zerowy wewnątrz
+    assert arc_intersection((0, 60), (90, 90)) == []
 
 
 def test_accent_limit():
@@ -117,6 +182,21 @@ def test_accent_limit():
     assert len({sl.id for sl in s.slots}) == 16
     with pytest.raises(ValueError, match="Najwyżej 14 akcentów"):
         add_accent(s)
+
+
+def test_new_accent_copies_rules_of_last_accent():
+    s = default_session()
+    last = s.slots[-1]
+    rules = replace(last.rules, hue=Rule(HueArc(0.0, 270.0, exclude=((60.0, 85.0),)), hard=False))
+    rel = Relation("hue", s.slots[2].id, "eq", 180.0, tol=15.0)
+    s = with_slot(s, replace(last, rules=rules, use_scheme=False, relations=(rel,)))
+    s2 = add_accent(s)
+    new = s2.slots[-1]
+    assert new.id != last.id
+    assert new.rules == rules
+    assert new.use_scheme is False
+    assert new.relations == ()
+    assert new.value != last.value
 
 
 def test_cannot_remove_bg_fg():
@@ -144,7 +224,7 @@ def test_broken_relation_after_remove():
     assert broken_relations(s) == []
     s = remove_slot(s, b.id)
     assert broken_relations(s) == [(a.id, 0)]
-    assert s.slots[2].relations == (rel,)  # relacja zostaje, nie jest po cichu usuwana
+    assert s.slots[2].relations == (rel,)  # zależność zostaje, nie jest po cichu usuwana
 
 
 def test_broken_relation_mix_other():
@@ -189,7 +269,7 @@ def test_history_undo_redo_limit():
     h = History(limit=200)
     assert h.current is None
     assert h.undo() is None
-    states = [replace(base, mood=str(i)) for i in range(201)]
+    states = [replace(base, preset=str(i)) for i in range(201)]
     for st in states:
         h.push(st)
     assert len(h) == 200
@@ -203,7 +283,7 @@ def test_history_undo_redo_limit():
 
 
 def test_history_push_truncates_redo():
-    a, b, c = (replace(default_session(), mood=m) for m in "abc")
+    a, b, c = (replace(default_session(), preset=m) for m in "abc")
     h = History(a)
     h.push(b)
     assert h.undo() == a
@@ -224,16 +304,11 @@ def test_frozen_map_eq_hash():
 
 def test_session_hashable_and_normalized():
     s = default_session()
-    assert isinstance(s.globals.role_defaults, FrozenMap)
-    s2 = replace(s, mood_snapshot={"k": 1})
-    assert isinstance(s2.mood_snapshot, FrozenMap)
-    assert isinstance(hash(s2), int)
+    assert isinstance(hash(s), int)
     assert isinstance(Session(s.globals, list(s.slots)).slots, tuple)  # ty: ignore[invalid-argument-type]
 
 
 def test_history_replace_current():
-    from algopalette.model import History, add_accent, default_session
-
     a = default_session()
     b = add_accent(a)
     c = add_accent(b)

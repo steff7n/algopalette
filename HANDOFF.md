@@ -35,6 +35,30 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     `tests/gui/test_gui_app.py` → 29 passed (usunięty `test_main_tui_flag_parses`, plik spoza listy zadania —
     wymagał tego grep). `scipy` zostaje do Tasku 4b. W docstringach `model.py`, `io.py`, `forms.py` zostało
     słowo „TUI” — znikną przy przepisywaniu tych plików (Task 3, 12).
+  - Task 3 ☑ — model v2 + plik v2 + migracja. Verify: `uv run pytest -q tests/test_model.py tests/test_io.py
+    tests/test_migrate.py` → **147 passed**; ruff/ty czyste na 3 plikach źródłowych i 3 testowych.
+    Mapa: `model.py:36` `RULE_FIELDS`, `:97` `Rule[T]`, `:107/:119/:132` `Band`/`ChromaBand`/`HueArc`
+    (`__post_init__` normalizuje `exclude` do krotki par float), `:151` `SlotRules`, `:270` `rule_fields_for`,
+    `:278` `default_rules`, `:313` `default_session` (preset „neutralny”), `:355–:376` `arc_width`,
+    `arc_from_center`, `arc_center_half`, `arc_intersection`, `:424` `add_accent` (kopiuje zasady ostatniego).
+    `io.py:53` `FORMAT`, `:220` `_dec_exclude`, `:312` `_dec_rules(…, role)`, `:489` `session_to_dict`, `:499`
+    `session_from_dict` (TYLKO v2), `:527` `decode_session` (v1 → migracja), `:572` `load_session_ex`.
+    `migrate.py:133` `_merge_hue`, `:233` `_optimizer`, `:256` `migrate_v1`.
+    **Decyzje kontrolera ponad plan (rulingi w ledgerze):** (1) zasada niedotycząca roli (np. `contrast_bg`
+    tła, `min_distance` tekstu) jest w v2 BŁĘDEM formatu (`io._dec_rules`), a migracja v1 ją pomija z
+    komunikatem — w v1 i tak nie działała; (2) `use_scheme` tła i tekstu jest zawsze `True` (pole ma sens tylko
+    dla akcentów); (3) komunikat migracji także przy: nastroju spoza dziewięciu (oznaczenie presetu przepada)
+    i budżecie obciętym do 300–100 000; zwykłe ÷ 10 jest ciche; (4) odcień w v2: `lo`, `hi` i końce zakazów
+    muszą leżeć w 0–360 (pełne koło = `0, 360`), migracja normalizuje `mod 360`; cel z tolerancją ≥ 180° →
+    pełne koło; (5) `arc_intersection`: samo zetknięcie końcami = brak części wspólnej, łuk zerowy wewnątrz
+    drugiego = jest; (6) Python NIE odrzuca nieznanych pól (Rust odrzuca) — pliki ręcznie rozszerzone wczytają
+    się w GUI, ale silnik je odrzuci dopiero po zapisie… nie: `session_to_dict` nie przenosi nieznanych pól,
+    więc do silnika trafia zawsze czysty dokument.
+    **Czerwone po tym zadaniu (stan przejściowy, zgodnie z planem):** kolekcja pytest pada w
+    `tests/test_constraints.py`, `test_engine.py` (znikną w 4b), `test_moods.py` (Task 8), `test_sources.py`
+    (Task 7), `tests/gui/test_gui_app.py`, `test_help_globals.py`, `test_help_palette.py` (Taski 15, 17, 18);
+    `moods.py`, `sources.py`, `units.py`, `globals_logic.py`, `forms.py`, `constraints.py`, `engine.py`,
+    `gui/*` importują nazwy, których w `model.py` już nie ma. GUI na tej gałęzi nie startuje do Tasku 15.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -514,3 +538,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
   odtworzone; ledger w `.superpowers/sdd/`; gałąź `feat/silnik-rust` założona.
 - 2026-11-16 — Task 1 ☑: dane wzorcowe v1 (eval 300, quality 36), generator z `--check`; README danych.
 - 2026-11-16 — Task 2 ☑: usunięte TUI i zależności textual/pytest-asyncio; 29 testów GUI aplikacji zielonych.
+- 2026-11-16 — Task 3 ☑: model v2 (`Rule`, `Band`, `HueArc`, `SlotRules`), plik `algopalette.v2`, `migrate_v1`; 147 testów.
