@@ -7,8 +7,8 @@ P = "Propozycje"
 TOPICS: dict[str, Topic] = {
     "proposals.generate_all": Topic(
         "Generuj wszystkie wolne (Ctrl+G)",
-        "Liczy propozycje dla wszystkich kolorów bez kłódki. Kolory z kłódką zostają, ale ich warunki "
-        "i zależności się liczą.",
+        "Liczy propozycje dla wszystkich kolorów bez kłódki. Kolory z kłódką zostają, a warunki wiążące "
+        "je z wolnymi kolorami się liczą.",
         """Liczenie działa w tle — możesz w tym czasie przeglądać inne zakładki. Postęp pokazuje pasek obok
 przycisków. Wynik zależy tylko od sesji w chwili startu: zmiany wprowadzone w trakcie nie wpływają na
 trwające generowanie. Zobacz [generowanie](help:menu.generate) i
@@ -66,7 +66,8 @@ więc dostajesz realne alternatywy.""",
         "limitem czasu.",
         """Propozycji ✗ ani ⏱ nie traktuj jak gotowego wyniku. ✗ oznacza zwykle, że warunki się
 wykluczają — lista naruszeń w szczegółach mówi, które i o ile. ⏱ powstała pod presją czasu, więc to
-samo ziarno może dać inny wynik ([limit czasu](help:globals.opt.time_cap)).""",
+samo ziarno może dać inny wynik ([limit czasu](help:globals.opt.time_cap)). Limit dotyczy całego
+generowania, więc po propozycji ⏱ kolejnych już nie ma.""",
         P,
     ),
     "proposals.col.score": Topic(

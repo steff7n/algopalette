@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import threading
 from collections.abc import Collection
 from typing import TYPE_CHECKING
@@ -63,6 +64,7 @@ class ProposalsTab(QWidget):
         self.base: Session | None = None
         self._cancel = False
         self.running = False
+        self._error: str | None = None
         self._thread: threading.Thread | None = None
         self.bridge = _Bridge()
         self.bridge.progress.connect(self._set_progress)
@@ -185,6 +187,7 @@ class ProposalsTab(QWidget):
             return
         self.running = True
         self._cancel = False
+        self._error = None
         self.base = self.win.session
         self.progress.setValue(0)
         self.status.setText("Generowanie…")
@@ -229,8 +232,33 @@ class ProposalsTab(QWidget):
 
     def _failed(self, msg: str) -> None:
         self.running = False
-        self.status.setText(f"<span style='color:{theme.colors().hard}'>Błąd silnika: {msg}</span>")
+        self._error = msg
+        self._show_error()
         self._update_buttons()
+
+    def _show_error(self) -> None:
+        msg = html.escape(self._error or "")
+        self.status.setText(f"<span style='color:{theme.colors().hard}'>Błąd silnika: {msg}</span>")
+
+    @staticmethod
+    def _state(p: Proposal) -> tuple[str, str]:
+        if p.timed_out:
+            return "⏱ niepowtarzalna", theme.colors().soft
+        if any(v.hard for v in p.violations):
+            return "✗ łamie twarde", theme.colors().hard
+        return "✓", theme.colors().ok
+
+    def restyle(self) -> None:
+        """Zmiana motywu: kolory stanów, błąd silnika i szczegóły liczone przy budowie."""
+        if self._error is not None and not self.running:
+            self._show_error()
+        for i, p in enumerate(self.proposals):
+            it = self.table.item(i, 1)
+            if it is not None:
+                it.setForeground(QColor(self._state(p)[1]))
+        r = self.table.currentRow()
+        if r >= 0:
+            self._detail(r)
 
     def _done(self, result: list[Proposal]) -> None:
         self.running = False
@@ -253,12 +281,7 @@ class ProposalsTab(QWidget):
         for i, p in enumerate(self.proposals):
             hard = sum(v.hard for v in p.violations)
             soft = len(p.violations) - hard
-            if p.timed_out:
-                state, color = "⏱ niepowtarzalna", theme.colors().soft
-            elif hard:
-                state, color = "✗ łamie twarde", theme.colors().hard
-            else:
-                state, color = "✓", theme.colors().ok
+            state, color = self._state(p)
             t.setItem(i, 0, QTableWidgetItem(str(i + 1)))
             st = QTableWidgetItem(state)
             st.setForeground(QColor(color))

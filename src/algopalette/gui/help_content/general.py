@@ -14,9 +14,11 @@ paleta, a silnik szuka kolorów, które spełniają je wszystkie naraz.
 
 **Typowy przebieg pracy**
 
-1. **Globalne (F3) → nastrój.** Nastrój ustawia od razu polaryzację (ciemne albo jasne tło), układ
-   odcieni, rozrzut jasności i domyślne warunki dla tła, tekstu i akcentów. Jest punktem wyjścia,
-   a każdą jego wartość możesz zmienić.
+1. **Globalne (F3) → polaryzacja, potem nastrój.** Najpierw wybierz polaryzację (ciemne albo jasne
+   tło) — nowa paleta startuje z ciemnym tłem. Potem nastrój: ustawia układ odcieni, rozrzut jasności
+   i domyślne warunki dla tła, tekstu i akcentów, dopasowane do bieżącej polaryzacji (nastrój
+   wbudowany jej nie zmienia; własny przywraca polaryzację, w której go zapisano). Jest punktem
+   wyjścia, a każdą jego wartość możesz zmienić.
 2. **Paleta (F2).** Lista po lewej to kolory palety (tło, tekst, akcenty), po prawej edytor
    zaznaczonego koloru: jego bieżąca wartość, warunki i zależności od innych kolorów. Dodaj albo usuń
    akcenty, zablokuj kłódką kolory, które mają zostać.

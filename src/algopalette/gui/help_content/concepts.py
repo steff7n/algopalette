@@ -98,8 +98,9 @@ Wyłączony warunek (odznaczony) nie liczy się wcale.""",
         """Warunki koloru dziedziczą się w trzech warstwach:
 
 - **nastrój** — wartość ustawił wybrany nastrój;
-- **globalne** — domyślny warunek roli (tło / tekst / akcent) zmieniony ręcznie w Globalnych; dotyczy
-  wszystkich kolorów tej roli;
+- **globalne** — domyślny warunek roli (tło / tekst / akcent), którego nie ustawił bieżący nastrój:
+  zmieniony ręcznie w Globalnych albo ustawiony bez nastroju (np. trybem charakter / przeniesienie,
+  zmianą metryki); dotyczy wszystkich kolorów tej roli;
 - **własne** — wartość zmieniona w tym jednym kolorze; nadpisuje globalne.
 
 Przycisk **↺ dziedzicz** (w edytorze koloru) usuwa własną wartość, więc kolor znów bierze ją

@@ -71,8 +71,8 @@ widokami ([widok wartości](help:menu.view.values)).""",
     ),
     "palette.col.lock": Topic(
         "Kłódka (🔒)",
-        "Kolor z kłódką nie zmienia się przy generowaniu. Jego warunki i zależności nadal wpływają na "
-        "pozostałe kolory.",
+        "Kolor z kłódką nie zmienia się przy generowaniu. Warunki wiążące go z kolorami bez kłódki nadal "
+        "obowiązują.",
         """Zobacz [kłódka](help:palette.lock).""",
         P,
     ),
@@ -98,7 +98,7 @@ w macierzy ΔE na zakładce Analiza.""",
         "Dodaj akcent (Ins / A)",
         "Dodaje nowy akcent na końcu listy (najwyżej 14 akcentów). Dostaje domyślne warunki roli akcentu.",
         """Nowy akcent dostaje kolejny odcień startowy i dziedziczy domyślne warunki akcentów z Globalnych.
-Jego kolor wstępny zostanie zastąpiony przy najbliższym generowaniu. Liczba akcentów wpływa na układ odcieni: przy schemacie
+Jego kolor wstępny zastąpisz, przejmując propozycję po generowaniu (Ctrl+G). Liczba akcentów wpływa na układ odcieni: przy schemacie
 „równo po kole” cele rozkładają się na wszystkie akcenty. Ctrl+Z cofa dodanie.""",
         P,
     ),
@@ -113,12 +113,13 @@ Ctrl+Z przywraca usunięty kolor razem z powiązaniami.""",
     ),
     "palette.lock": Topic(
         "Kłódka (L)",
-        "Zamraża kolor: generowanie go nie zmienia. Jego warunki i zależności nadal obowiązują pozostałe "
-        "kolory.",
+        "Zamraża kolor: generowanie go nie zmienia. Warunki wiążące go z kolorami bez kłódki nadal "
+        "obowiązują.",
         """Zablokuj kolory, które już ci odpowiadają (np. tło z istniejącego motywu), i generuj resztę.
 Silnik traktuje zablokowany kolor jako stały punkt: inne kolory muszą spełniać zależności i warunki
-względem niego (np. kontrast z zablokowanym tłem). Ręcznie możesz dalej zmieniać zablokowany kolor
-w edytorze. Tryb „uzupełnianie” na zakładce Źródło blokuje wklejone kolory automatycznie.""",
+względem niego (np. kontrast z zablokowanym tłem). Warunki dotyczące wyłącznie kolorów z kłódką (np.
+kontrast zablokowanego tekstu z zablokowanym tłem) nie są liczone ani pokazywane w panelu naruszeń.
+Ręcznie możesz dalej zmieniać zablokowany kolor w edytorze. Tryb „uzupełnianie” na zakładce Źródło blokuje wklejone kolory automatycznie.""",
         P,
     ),
     "palette.move": Topic(

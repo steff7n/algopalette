@@ -213,6 +213,7 @@ class MainWindow(QMainWindow):
         """Przemalowanie po zmianie motywu: elementy z kolorami liczonymi przy budowie."""
         self.violations_panel.show_violations(self.violations)
         self.palette_tab.refresh_from_session(editor=True)
+        self.proposals_tab.restyle()
         self._refresh_current_tab()
         self._update_actions()
 
@@ -416,6 +417,7 @@ class MainWindow(QMainWindow):
             (self.act_generate, "menu.generate"),
             (self.act_view, "menu.view.values"),
             (self.help.act_help, "general.help"),
+            (self.help.act_info, "general.help"),
             (self.help.act_click, "general.help"),
             (self.help.act_start, "general.start"),
             (self.help.act_shortcuts, "general.shortcuts"),

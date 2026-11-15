@@ -32,6 +32,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDockWidget,
     QFormLayout,
+    QGroupBox,
     QHeaderView,
     QLabel,
     QLineEdit,
@@ -45,9 +46,9 @@ from PySide6.QtWidgets import (
     QStyle,
     QStyleFactory,
     QTabBar,
+    QTabWidget,
     QTextBrowser,
     QTextEdit,
-    QToolBar,
     QToolButton,
     QToolTip,
     QTreeWidget,
@@ -55,6 +56,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from algopalette.gui import theme
 from algopalette.gui.help_content import GROUPS, TOPICS
 from algopalette.gui.widgets import hbox, vbox
 
@@ -68,7 +70,7 @@ PANEL_NAME = "help-panel"
 MORE = "F1 — więcej"
 
 # Klasy, których wnętrze nie wymaga własnych kluczy (części składowe jednego elementu).
-_OPAQUE = (QComboBox, QAbstractSpinBox, QAbstractItemView, QTabBar, QMenu, QScrollBar, QToolBar)
+_OPAQUE = (QComboBox, QAbstractSpinBox, QAbstractItemView, QTabBar, QMenu, QScrollBar)
 
 
 # --- podpinanie ----------------------------------------------------------------------------------
@@ -253,6 +255,8 @@ def _needs_key(w: QWidget) -> bool:
         return False
     if isinstance(w, QLabel):
         return bool(w.text().strip())
+    if isinstance(w, QGroupBox):
+        return bool(w.title().strip())
     if isinstance(
         w,
         (
@@ -308,7 +312,15 @@ def uncovered(root: QWidget, skip: Sequence[QWidget] = ()) -> list[str]:
             if anc is root:
                 break
             anc = anc.parentWidget()
-        if skip_w or w.property(DECORATIVE_PROP) or not _needs_key(w):
+        if skip_w or w.property(DECORATIVE_PROP):
+            continue
+        if isinstance(w, QTabWidget):  # sam kontener nie musi mieć klucza, każda zakładka tak
+            bar = w.tabBar()
+            for i in range(w.count()):
+                d = bar.tabData(i)
+                if not (isinstance(d, str) and d):
+                    out.append(f"{_describe(w)} — zakładka {w.tabText(i)!r}")
+        if not _needs_key(w):
             continue
         if isinstance(w, QToolButton) and w.defaultAction() is not None:
             if key_of(w.defaultAction()) is None:
@@ -380,6 +392,7 @@ class HelpPanel(QDockWidget):
             Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.LeftDockWidgetArea
         )
         self.current_key: str | None = None
+        self._showing_results = False
         self._history: list[str | None] = []
         self._pos = -1
 
@@ -404,8 +417,10 @@ class HelpPanel(QDockWidget):
 
         self.tree = QTreeWidget()
         self.tree.setHeaderHidden(True)
-        self.tree.itemActivated.connect(self._pick)
+        # klik: temat otwiera, grupa się zwija/rozwija; aktywacja (Enter, dwuklik albo pojedynczy
+        # klik w KDE) tylko otwiera temat — inaczej grupa przełączałaby się dwa razy
         self.tree.itemClicked.connect(self._pick)
+        self.tree.itemActivated.connect(self._pick_topic)
         self.text = QTextBrowser()
         self.text.setOpenLinks(False)
         self.text.anchorClicked.connect(self._link)
@@ -421,6 +436,15 @@ class HelpPanel(QDockWidget):
         self.show_index()
         self._history, self._pos = [None], 0
         self._update_nav()
+        theme.notifier.changed.connect(self._rerender)
+
+    def _rerender(self) -> None:
+        """Zmiana motywu: QTextBrowser wpieka kolory (np. linków) w dokument — renderuj ponownie."""
+        text = self.query.text()
+        if self._showing_results and text.strip():
+            self._render_results(text, search(text))
+        else:
+            self._render(self._history[self._pos] if self._history else None)
 
     # spis tematów
     def _build_tree(self) -> None:
@@ -463,6 +487,9 @@ class HelpPanel(QDockWidget):
             g.setExpanded(hits is not None and visible > 0)
         if hits is not None:
             self._render_results(text, search(text))
+        elif self._showing_results:
+            self._showing_results = False
+            self._render(self._history[self._pos])  # wróć do tematu sprzed wyszukiwania
 
     def search(self, text: str) -> list[str]:
         return search(text)
@@ -473,6 +500,11 @@ class HelpPanel(QDockWidget):
             self.show_topic(key)
         else:
             item.setExpanded(not item.isExpanded())
+
+    def _pick_topic(self, item: QTreeWidgetItem, _col: int = 0) -> None:
+        key = item.data(0, HELP_ROLE)
+        if isinstance(key, str):
+            self.show_topic(key)
 
     def _link(self, url: QUrl) -> None:
         if url.scheme() == "help":
@@ -510,6 +542,8 @@ class HelpPanel(QDockWidget):
             self.tree.scrollToItem(it)
 
     def _render_results(self, text: str, keys: list[str]) -> None:
+        self._showing_results = True
+        self.current_key = None  # strona wyników to nie temat — klik w poprzedni temat ma działać
         if not keys:
             self.text.setMarkdown(f"Nic nie znaleziono dla „{text}”.")
             return
@@ -518,7 +552,10 @@ class HelpPanel(QDockWidget):
         self.text.setMarkdown("\n".join(lines))
 
     def _go(self, key: str | None) -> None:
-        if self._history and self._history[self._pos] == key and self.current_key == key:
+        self._showing_results = False
+        if self._history and self._history[self._pos] == key:
+            if self.current_key != key or key is None:
+                self._render(key)  # np. powrót z wyników wyszukiwania do tego samego tematu
             return
         del self._history[self._pos + 1 :]
         self._history.append(key)
@@ -573,7 +610,9 @@ class HelpController(QObject):
             window.addAction(a)
             return a
 
+        # F1 tylko jako skrót: wywołane z menu nie wie, nad czym był kursor
         self.act_help = act("Pomoc", self.help_here, "F1")
+        self.act_info = act("Jak korzystać z pomocy (F1 nad elementem)", self.open_info)
         self.act_click = act(
             "Kliknij element, żeby zobaczyć pomoc…", self.enter_click_mode, "Shift+F1"
         )
@@ -583,7 +622,11 @@ class HelpController(QObject):
         self.panel.setProperty(HELP_PROP, "general.help")  # F1 w panelu → jak korzystać z pomocy
 
     def actions(self) -> list[QAction]:
-        return [self.act_help, self.act_click, self.act_start, self.act_shortcuts, self.act_index]
+        """Pozycje menu Pomoc (F1 działa jako skrót okna, poza menu)."""
+        return [self.act_info, self.act_click, self.act_start, self.act_shortcuts, self.act_index]
+
+    def open_info(self) -> None:
+        self.open_topic("general.help")
 
     def watch_menus(self) -> None:
         """F1 w otwartym menu → temat podświetlonej akcji (wołać po zbudowaniu menu)."""
@@ -668,6 +711,11 @@ class HelpController(QObject):
                         self.open_index()
                     else:
                         self.open_topic(key)
+                return True
+            if t == QEvent.Type.ShortcutOverride:
+                ev.accept()  # klawisz idzie jako KeyPress (niżej), nie do skrótu (F7, Ins…)
+                return True
+            if t == QEvent.Type.Shortcut:
                 return True
             if isinstance(ev, QKeyEvent) and t == QEvent.Type.KeyPress:
                 if ev.key() == Qt.Key.Key_Escape:

@@ -17,7 +17,7 @@ from typing import Any, Literal, cast, get_args
 
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QColor, QGuiApplication, QPalette
-from PySide6.QtWidgets import QApplication, QStyleFactory, QWidget
+from PySide6.QtWidgets import QApplication, QStyleFactory, QToolTip, QWidget
 
 from algopalette import io as aio
 
@@ -161,7 +161,7 @@ def dark_palette() -> QPalette:
         (R.Button, "#33363c"),
         (R.ButtonText, "#e6e6e6"),
         (R.BrightText, "#ffffff"),
-        (R.Highlight, "#4a7fd4"),
+        (R.Highlight, "#3a6bc0"),
         (R.HighlightedText, "#ffffff"),
         (R.PlaceholderText, "#9a9da3"),
         (R.Link, "#8ab4f8"),
@@ -184,7 +184,9 @@ def apply(app: QApplication, mode: ThemeMode) -> None:
     Styl (Fusion) ustawia ``run()`` raz — tu tylko paleta, żeby nie zgubić proxy-stylu."""
     dark = is_dark(mode)
     _state["mode"], _state["dark"] = mode, dark
-    app.setPalette(dark_palette() if dark else light_palette())
+    pal = dark_palette() if dark else light_palette()
+    app.setPalette(pal)
+    QToolTip.setPalette(pal)  # paleta podpowiedzi jest osobna i statyczna — inaczej zostaje stara
     if not _state["hooked"]:
         _state["hooked"] = True
         QGuiApplication.styleHints().colorSchemeChanged.connect(_system_changed)
@@ -240,7 +242,9 @@ def _restyle(w: QWidget) -> None:
         sel = w.property(_ERR_SEL)
         rule = f"border: 2px solid {c.error_border};"
         w.setStyleSheet(f"{sel} {{ {rule} }}" if sel else rule)
-    elif w.property(_ERR) is not None:
+        return
+    # żaden znacznik nie jest aktywny (np. mark_text(w, None) po błędzie) → bez koloru z motywu
+    if any(w.property(k) is not None for k in (_ERR, _TEXT, _BADGE)):
         w.setStyleSheet("")
 
 

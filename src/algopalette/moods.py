@@ -178,11 +178,14 @@ BUILTIN: dict[str, tuple[str, Builder]] = {
         "Błękity i zielenie, niskie nasycenie, mały rozrzut jasności.",
         _cool_misty,
     ),
-    "neon": ("Maksymalne nasycenie w gamucie, odcienie szeroko, bardzo ciemne tło.", _neon),
+    "neon": (
+        "Maksymalne nasycenie w gamucie, odcienie szeroko; skrajne tło (bardzo ciemne lub jasne).",
+        _neon,
+    ),
     "ziemisty": ("Ciepłe, przygaszone brązy, oliwki i ochry.", _earthy),
     "pastel": ("Jasne, mało nasycone akcenty.", _pastel),
     "nocny wysoki kontrast": (
-        "Prawie czarne tło, bardzo wysoki kontrast tekstu i akcentów.",
+        "Skrajne tło (prawie czarne lub białe), bardzo wysoki kontrast tekstu i akcentów.",
         _night_contrast,
     ),
     "monochromatyczny z jednym akcentem": (

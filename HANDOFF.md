@@ -2,7 +2,31 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0b. TRYB CIEMNY + POMOC KONTEKSTOWA (2026-11-15) — T1–T8 ☑, przed przeglądem całości (Opus xhigh) i scaleniem do `main`, gałąź `gui`
+## 0b. TRYB CIEMNY + POMOC KONTEKSTOWA (2026-11-15) — T1–T8 ☑, przegląd + fala napraw, SCALONE do `main` i wypchnięte (bez re-review i bez uruchomienia testów — decyzja użytkownika)
+
+- **STAN NA TERAZ (2026-11-15, koniec dnia):** `gui` scalona do `main` i wypchnięta na `origin`. Ostatni commit
+  zawiera falę napraw po przeglądzie całości, która w poprzedniej sesji została NIEZACOMMITOWANA (sesja przerwana
+  przed commitem i bez wpisu w handoffie). Użytkownik: „nie testuj juz. handoff + commit + merge + push. jezeli cos
+  sie nie bedzie zgadzalo w dzialaniu aplikacji, to wrocimy do tematu” → **fala napraw NIE była uruchomiona
+  testami ani lintem, re-review NIE było**. Jeśli użytkownik zgłosi błąd: najpierw `uv run pytest -q tests/gui`
+  (w tym nowe `tests/gui/test_review_fixes.py`, 14 testów), `ruff check`, `ty check`.
+- **Pułapka, która kosztowała zgłoszenie użytkownika („dlaczego nie ma ciemnego trybu i pomocy?”):** launcher
+  `~/.local/bin/algopalette` był z `uv tool install .` BEZ `--editable` — zamrożona kopia z 2026-11-15 00:51,
+  sprzed `gui/theme.py`/`gui/help.py`. Przeinstalowane `uv tool install --editable . --force` → launcher czyta
+  wprost z `src/` w repo (sprawdzone: `algopalette.gui.theme.__file__` wskazuje repo). Nie instaluj już bez
+  `--editable`; po zmianie zależności w `pyproject.toml` powtórz to polecenie.
+- **Fala napraw (co zmienia, wg diffu):** `theme.apply` ustawia też `QToolTip.setPalette` (paleta podpowiedzi
+  była statyczna); `_restyle` czyści arkusz, gdy żaden znacznik nie jest aktywny (`mark_text(w, None)`); ciemny
+  `Highlight` #3a6bc0 (kontrast); `ProposalsTab._state()`/`restyle()` — kolory stanów, błąd silnika i szczegóły
+  przemalowywane w `MainWindow._theme_changed`; `HelpPanel._rerender` na `theme.notifier.changed` (QTextBrowser
+  wpieka kolory linków), `_showing_results` (wyczyszczenie wyszukiwarki wraca do tematu, ponowne otwarcie tego
+  samego tematu po wyszukiwaniu działa), `itemClicked`→`_pick` / `itemActivated`→`_pick_topic` (grupa nie
+  przełącza się dwa razy w KDE); `uncovered` wymaga klucza od `QGroupBox` z tytułem i od każdej zakładki
+  `QTabWidget`, `QToolBar` nie jest już nieprzezroczysty; `act_info` w menu Pomoc z kluczem; `Swatch` obwódka
+  #808080 zamiast `palette(mid)`; pusty uchwyt `Bar` w kolorze `windowText`; opisy nastrojów „neon” i „nocny
+  wysoki kontrast” zgodne z silnikiem (skrajne tło, ciemne LUB jasne); poprawki treści w `help_content/*`.
+  Test pokrycia całego okna już bez parametryzacji motywem (`uncovered` od motywu nie zależy).
+- Raport z przeglądu nie został zapisany w repo — kategorie znalezisk (C/I/M) nieznane tej sesji.
 
 - Prośba: „wprowadź proszę tryb ciemny do tego GUI, Wyjaśnij każdą pojedynczą rzecz wewnątrz aplikacji poprzez
   szybkie tooltipy z możliwością rozwinięcia do bardziej rozbudowanej zakładki pomocy. Czytelność, przejrzystość
@@ -381,3 +405,5 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-14 — scalono do master (fast-forward 316e210); launcher `algopalette` sprawdzony spoza repo.
 - 2026-11-14 — przełącznik widoku HSL/OKLCH (F7); bez przeglądu na życzenie użytkownika.
 - 2026-11-14 — GUI w PySide6 (domyślne), TUI pod `--tui`; `forms.py` wspólne; testy GUI (pytest-qt).
+- 2026-11-15 — tryb ciemny + pomoc kontekstowa (T1–T8), przegląd, fala napraw zacommitowana bez testów (decyzja
+  użytkownika); launcher przeinstalowany `--editable`; `gui` scalona do `main`, push.

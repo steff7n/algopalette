@@ -85,7 +85,8 @@ Każdy tryb to jeden krok cofania (Ctrl+Z). Po zastosowaniu sprawdź warunki i w
         "dogenerujesz.",
         """Gdy kolorów źródła jest więcej niż akcentów, program dodaje akcenty. Ustawienia globalne i warunki
 zostają bez zmian, więc zadbaj o to, żeby warunki ról pasowały do zablokowanych kolorów (np. kontrast
-z zablokowanym tłem). Potem Ctrl+G liczy tylko kolory bez kłódki.""",
+z zablokowanym tłem). Potem Ctrl+G liczy tylko kolory bez kłódki. Uwaga: warunki dotyczące wyłącznie
+kolorów źródła (wszystkie mają kłódkę) nie pojawią się w panelu naruszeń — ocenisz je w Analizie.""",
         S,
     ),
     "source.mode.character": Topic(
@@ -111,7 +112,7 @@ o co najmniej podaną ΔE (ok) — dostajesz paletę w tym samym stylu, ale z in
         "Ta sama paleta na tle o innej polaryzacji: każdy akcent zachowuje odcień, nasycenie względne "
         "i kontrast z tłem ze źródła.",
         """Program ustawia wybraną polaryzację i dla tekstu oraz każdego akcentu własne warunki: cel
-odcienia ± 8°, nasycenie względne ± 0.08 i kontrast z nowym tłem równy kontrastowi w źródle ±
+odcienia ± 8° (tylko dla kolorów z wyraźnym odcieniem, C ≥ 0.02), nasycenie względne ± 0.08 i kontrast z nowym tłem równy kontrastowi w źródle ±
 tolerancja. Zakres jasności jest wyłączony, bo wynika z kontrastu. Liczba akcentów zostaje dopasowana
 do źródła, układ odcieni wyłączony, kłódki i zależności akcentów zdjęte.
 

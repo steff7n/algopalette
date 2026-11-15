@@ -61,8 +61,8 @@ silnik znalazł lepsze kolory.""",
     # --- panel naruszeń ---
     "window.violations": Topic(
         "Panel naruszeń",
-        "Stała lista warunków, które łamie bieżąca paleta: ✗ twarde, ~ miękkie, z wymaganą i osiągniętą "
-        "wartością.",
+        "Warunki, które łamie bieżąca paleta: ✗ twarde, ~ miękkie, z wymaganą i osiągniętą wartością "
+        "(bez warunków dotyczących wyłącznie kolorów z kłódką).",
         """Panel na dole okna przelicza się po każdej zmianie palety i pokazuje, czego bieżąca paleta nie
 spełnia. Granicę między nim a zakładkami możesz przeciągać.
 
@@ -72,6 +72,11 @@ spełnia. Granicę między nim a zakładkami możesz przeciągać.
 
 Liczone na kolorach **po** dopasowaniu do sRGB, czyli takich, jakie trafią do hexa i eksportu
 ([gamut](help:concept.gamut)). Zielony nagłówek oznacza, że paleta spełnia wszystko.
+
+**Kłódki:** warunek albo zależność, które dotyczą WYŁĄCZNIE kolorów z kłódką (np. kontrast tekstu
+z tłem, gdy oba są zablokowane), nie są ani liczone, ani pokazywane — silnik i tak nie może ich
+zmienić. Żeby je sprawdzić, zdejmij kłódkę z jednego z tych kolorów albo zajrzyj do kolumn listy
+kolorów i do Analizy.
 
 **Co dalej z naruszeniem?** Zmień kolor ręcznie w edytorze Palety, wygeneruj propozycje (Ctrl+G) albo
 poluzuj warunek. Gdy dwa twarde warunki się wykluczają, silnik ich nie pogodzi — trzeba zmienić któryś

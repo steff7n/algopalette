@@ -106,7 +106,8 @@ class Swatch(QFrame):
 
     def set_hex(self, hex_: str) -> None:
         self.hex = hex_
-        self.setStyleSheet(f"background: {hex_}; border: 1px solid palette(mid);")
+        # obwódka neutralna, stała: palette(...) w arkuszu nie śledzi zmiany motywu
+        self.setStyleSheet(f"background: {hex_}; border: 1px solid #808080;")
         key = self.property("help_key")
         if isinstance(key, str) and key:
             from algopalette.gui.help import tooltip_html  # leniwie: help importuje widgets
@@ -423,7 +424,8 @@ class Bar(QWidget):
             x = self._x(v if v is not None else self._default(k))
             center = QPointF(x, self.height() / 2)
             focus = self.hasFocus() and k == self.active
-            p.setPen(QPen(pal.highlight().color() if focus else QColor(tc.handle_ring), 2.5))
+            ring = QColor(tc.handle_ring) if v is not None else pal.windowText().color()
+            p.setPen(QPen(pal.highlight().color() if focus else ring, 2.5))
             p.setBrush(QColor(tc.handle_fill) if v is not None else Qt.BrushStyle.NoBrush)
             r = HANDLE_R if v is not None else HANDLE_R - 2
             p.drawEllipse(center, r, r)

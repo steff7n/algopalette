@@ -43,11 +43,13 @@ nasycenie) rób miękką. Za dużo twardych warunków łatwo się wyklucza.""",
     ),
     "cond.weight": Topic(
         "Waga",
-        "Jak ważny jest warunek miękki względem innych miękkich (domyślnie 1). 0 = nie liczy się. Przy "
-        "warunku twardym ma niewielkie znaczenie.",
-        """Silnik minimalizuje sumę naruszeń miękkich warunków pomnożonych przez wagi. Waga 2 oznacza, że
-naruszenie tego warunku „boli” dwa razy bardziej niż warunku z wagą 1. Puste pole przy wpisie jest
-ignorowane, wartości ujemne są zamieniane na 0.""",
+        "Mnożnik kary za naruszenie (domyślnie 1). Działa też przy warunku twardym — waga 0 wyłącza "
+        "warunek w silniku, choć panel nadal pokaże ✗.",
+        """Silnik minimalizuje sumę naruszeń pomnożonych przez wagi (twarde dodatkowo przez
+[wagę twardych](help:globals.opt.hard_weight)). Waga 2 oznacza, że naruszenie tego warunku „boli” dwa
+razy bardziej niż warunku z wagą 1. Uwaga: przy wadze 0 silnik ignoruje warunek — także twardy
+(z wyjątkiem twardych zakresów jasności, odcienia i nasycenia względnego, które są granicami
+poszukiwań). Puste pole przy wpisie jest ignorowane, wartości ujemne są zamieniane na 0.""",
         C,
     ),
     "cond.reset": Topic(
@@ -310,7 +312,7 @@ Działa dla dowolnych kolorów, nie tylko akcentów — np. tło paneli wyraźni
         "Kolor ma leżeć między celem a drugim kolorem: t = 0 — przy celu, 1 — przy drugim, 0.5 — w połowie "
         "(w OKLab). Tol ΔE = dopuszczalne odchylenie.",
         """Mieszanka liczona jest w OKLab (percepcyjnie równo). Przykład: kolor zaznaczenia w połowie między
-tłem a akcentem — cel: tło, „i”: akcent, t = 0.3, tol ΔE 0.02. Gdy któryś z dwóch kolorów zostanie
+tłem a akcentem — cel: tło, „i”: akcent, t = 0.5, tol ΔE 0.02 (t = 0.3 — bliżej tła). Gdy któryś z dwóch kolorów zostanie
 usunięty, zależność jest [zerwana](help:rel.broken).""",
         C,
     ),

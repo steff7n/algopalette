@@ -22,9 +22,8 @@ def flush(qtbot) -> None:
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
-@pytest.mark.parametrize("mode", ["light", "dark"])
-def test_whole_window_covered(win, qtbot, qapp, mode):
-    theme.apply(qapp, mode)
+def test_whole_window_covered(win, qtbot):
+    # uncovered() nie zależy od motywu — wystarczy jeden przebieg po zakładkach, rolach i widokach
     for view in ("oklch", "hsl"):
         win.set_view_model(view)
         for i in range(win.tabs.count()):

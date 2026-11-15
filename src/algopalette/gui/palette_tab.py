@@ -207,11 +207,10 @@ class SlotTable(QTableWidget):
                         else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
                     )
                 if c == 3:
-                    it.setForeground(
-                        QColor(theme.colors().warn_text)
-                        if fit > 0
-                        else self.palette().text().color()
-                    )
+                    if fit > 0:
+                        it.setForeground(QColor(theme.colors().warn_text))
+                    else:  # bez własnego koloru — idzie za paletą (także po zmianie motywu)
+                        it.setData(Qt.ItemDataRole.ForegroundRole, None)
                     it.setToolTip(
                         f"kolor spoza sRGB — ściągnięty do gamutu o ΔE ok {fit:.3f}" if fit else ""
                     )

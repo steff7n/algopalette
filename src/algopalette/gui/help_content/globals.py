@@ -9,8 +9,8 @@ TOPICS: dict[str, Topic] = {
     # --- nastrój ---
     "globals.mood": Topic(
         "Nastrój",
-        "Gotowy zestaw ustawień globalnych: polaryzacja, układ odcieni, rozrzut jasności i domyślne "
-        "warunki ról. Wybierz z listy i kliknij „Zastosuj nastrój”.",
+        "Gotowy zestaw ustawień: układ odcieni, rozrzut jasności i domyślne warunki ról, dopasowane do "
+        "bieżącej polaryzacji. Wybierz z listy i kliknij „Zastosuj nastrój”.",
         """Nastrój to najszybszy start: jednym kliknięciem wypełnia ustawienia globalne, a wszystko, co
 ustawił, widać niżej i można zmienić (plakietka „nastrój” przy warunkach ról). ★ oznacza nastrój
 wbudowany. „bieżący” pokazuje, który nastrój jest nałożony.
@@ -19,16 +19,22 @@ wbudowany. „bieżący” pokazuje, który nastrój jest nałożony.
 
 - **neutralny** — równo po kole, średnie nasycenie; punkt wyjścia;
 - **chłodny mglisty** — błękity i zielenie, niskie nasycenie, mały rozrzut jasności;
-- **neon** — maksymalne nasycenie w gamucie, odcienie szeroko, bardzo ciemne tło;
+- **neon** — maksymalne nasycenie w gamucie, odcienie szeroko, skrajne tło (bardzo ciemne albo, przy
+  jasnej polaryzacji, prawie białe);
 - **ziemisty** — ciepłe, przygaszone brązy, oliwki i ochry;
 - **pastel** — jasne, mało nasycone akcenty;
-- **nocny wysoki kontrast** — prawie czarne tło, bardzo wysoki kontrast tekstu i akcentów;
+- **nocny wysoki kontrast** — skrajne tło (prawie czarne albo białe), bardzo wysoki kontrast tekstu
+  i akcentów;
 - **monochromatyczny z jednym akcentem** — jeden odcień w wielu jasnościach + pierwszy akcent ciepły;
 - **retro terminal** — fosforowe zielenie i bursztyny, tło z nutą zieleni;
 - **jesienny** — pomarańcze, rudości i złoto.
 
-**Co zmienia zastosowanie nastroju:** ustawia na nowo polaryzację, metrykę kontrastu (gdy nastrój ją
-określa), układ odcieni, rozrzut jasności i WSZYSTKIE domyślne warunki ról — także zmienione ręcznie.
+**Polaryzacji nastrój wbudowany nie zmienia** — jego liczby są liczone dla bieżącej polaryzacji
+i metryki kontrastu, więc jasny motyw ustawiasz polem [polaryzacja](help:globals.polarity) (przed albo
+po wyborze nastroju). Nastrój własny przywraca polaryzację i metrykę, w których go zapisano.
+
+**Co zmienia zastosowanie nastroju:** ustawia na nowo układ odcieni, rozrzut jasności i WSZYSTKIE
+domyślne warunki ról — także zmienione ręcznie.
 Wartości własne poszczególnych kolorów zostają. Ctrl+Z cofa całą zmianę. Kolorów nie przelicza —
 żeby zobaczyć efekt, wygeneruj propozycje (Ctrl+G).""",
         G,
@@ -64,9 +70,11 @@ nakładany ponownie).""",
         "Polaryzacja",
         "Ciemne tło (jasny tekst) albo jasne tło (ciemny tekst). Zmiana przelicza domyślne zakresy jasności "
         "i kontrastu ról.",
-        """Polaryzacja decyduje o domyślnych warunkach tła, tekstu i akcentów. Przy zmianie nastrój wbudowany
-zostaje nałożony ponownie (w nowej polaryzacji), a własny nastrój zdjęty. Ręczne zmiany domyślnych
-warunków ról przepadają (Ctrl+Z je przywraca). Żeby przenieść gotową paletę na tło o odwrotnej
+        """Polaryzacja decyduje o domyślnych warunkach tła, tekstu i akcentów. Nowa paleta startuje z ciemnym
+tłem, a nastroje wbudowane polaryzacji nie zmieniają — jasny motyw ustawiasz tutaj. Przy zmianie
+nastrój wbudowany zostaje nałożony ponownie (w nowej polaryzacji), a własny nastrój zdjęty. Ręczne
+zmiany domyślnych warunków ról — a przy nastroju wbudowanym także układu odcieni i rozrzutu jasności —
+przepadają (Ctrl+Z je przywraca). Żeby przenieść gotową paletę na tło o odwrotnej
 polaryzacji z zachowaniem jej charakteru, użyj zakładki Źródło → przeniesienie.""",
         G,
     ),
@@ -74,8 +82,11 @@ polaryzacji z zachowaniem jej charakteru, użyj zakładki Źródło → przenies
         "Metryka kontrastu",
         "WCAG 2.1 (współczynnik 1–21) albo APCA (|Lc| 0–108). Dotyczy wszystkich warunków i kolumn "
         "kontrastu bez własnej metryki.",
-        """Zmiana metryki przelicza domyślne zakresy ról i własne progi kontrastu kolorów oraz zależności,
-które używają metryki globalnej. Warunki z własną metryką zostają bez zmian.
+        """Zmiana metryki ustawia od nowa domyślne warunki ról (nastrój wbudowany zostaje nałożony ponownie,
+własny — zdjęty), więc ręczne zmiany domyślnych warunków ról, a przy nastroju wbudowanym także układu
+odcieni i rozrzutu jasności, przepadają (Ctrl+Z je przywraca). Własne progi kontrastu kolorów
+i zależności używające metryki globalnej są przeliczane na nową skalę. Warunki z własną metryką
+zostają bez zmian.
 Zobacz [WCAG i APCA](help:concept.contrast).""",
         G,
     ),
@@ -119,7 +130,8 @@ Zobacz [gamut](help:concept.gamut).""",
 - [metoda ΔE](help:globals.delta_e);
 - [gamut (fit)](help:globals.fit).
 
-Zmiana polaryzacji lub metryki przelicza domyślne zakresy ról, a zmiana ΔE — progi odległości.""",
+Zmiana polaryzacji lub metryki ustawia od nowa domyślne warunki ról (ręczne zmiany przepadają,
+Ctrl+Z je przywraca), a zmiana ΔE przelicza progi odległości.""",
         G,
     ),
     # --- układ odcieni ---
@@ -128,7 +140,8 @@ Zmiana polaryzacji lub metryki przelicza domyślne zakresy ról, a zmiana ΔE �
         "Cele odcieni dla akcentów, które nie mają własnego warunku odcienia: równo po kole, analogiczny, "
         "dopełniający, triada…",
         """Układ rozdziela odcienie docelowe między akcenty w kolejności listy. Akcent z własnym warunkiem
-odcienia (cel albo zakres) jest pomijany. Cel to „H ± tolerancja” — domyślnie miękki, więc silnik
+odcienia (cel albo zakres) nie dostaje celu z układu, ale zajmuje swoje miejsce w kolejności —
+pozostałe akcenty się nie przesuwają. Cel to „H ± tolerancja” — domyślnie miękki, więc silnik
 może od niego odejść, gdy koliduje z innymi warunkami.
 
 **Rodzaje:**
@@ -250,7 +263,9 @@ ziarno dają zawsze te same propozycje, bo budżet liczony jest w obliczeniach, 
     "globals.opt.n_proposals": Topic(
         "Liczba propozycji",
         "Ile różnych palet silnik ma policzyć przy jednym generowaniu (domyślnie 6). Więcej = dłużej.",
-        """Każda kolejna propozycja jest odpychana od poprzednich ([różnorodność](help:globals.opt.min_diversity)),
+        """Wszystkie propozycje dzielą jeden [limit czasu](help:globals.opt.time_cap) — przy wielu
+propozycjach i ciężkich warunkach ostatnie mogą się nie zmieścić. Każda kolejna propozycja jest
+odpychana od poprzednich ([różnorodność](help:globals.opt.min_diversity)),
 więc dostajesz realne alternatywy, a nie kopie.""",
         G,
     ),
@@ -271,11 +286,13 @@ komputera. Zwiększ, gdy propozycje często łamią twarde warunki, które da si
     ),
     "globals.opt.time_cap": Topic(
         "Limit czasu (s)",
-        "Bezpiecznik: przerywa propozycję, która liczy się za długo. Taka propozycja jest oznaczona ⏱ "
-        "niepowtarzalna.",
-        """To nie jest budżet — w normalnych warunkach limit nie powinien zadziałać. Propozycja przerwana
-limitem zależy od szybkości komputera, więc nie da się jej odtworzyć tym samym ziarnem.
-Zamiast podnosić limit, zwykle lepiej zmniejszyć budżet albo liczbę akcentów.""",
+        "Bezpiecznik na CAŁE generowanie: po jego przekroczeniu bieżąca propozycja dostaje ⏱ "
+        "niepowtarzalna, a dalszych już nie ma.",
+        """To nie jest budżet — w normalnych warunkach limit nie powinien zadziałać. Liczy się od startu
+generowania dla wszystkich propozycji razem, więc po jego przekroczeniu dostajesz mniej propozycji, niż
+ustawiono. Propozycja przerwana limitem zależy od szybkości komputera, więc nie da się jej odtworzyć tym
+samym ziarnem. Zamiast podnosić limit, zwykle lepiej zmniejszyć liczbę propozycji, budżet albo liczbę
+akcentów.""",
         G,
     ),
     "globals.opt.min_diversity": Topic(

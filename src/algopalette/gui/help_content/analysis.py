@@ -36,8 +36,9 @@ odcienia zaznaczonego koloru — puste pole to kolory spoza sRGB. Zobacz [gamut]
         "Jak czytać wykresy",
         "Koło: kąt = odcień, odległość od środka = nasycenie względne. Przekrój L–C: wysokość = jasność, "
         "w prawo = nasycenie, dla odcienia zaznaczonego koloru.",
-        """Oba wykresy pokazują wszystkie kolory palety jako ponumerowane punkty (numer = miejsce na liście),
-a zaznaczony kolor ma większy punkt. Tło wykresów jest przygaszone, żeby punkty się wyróżniały.
+        """Oba wykresy pokazują kolory palety jako ponumerowane punkty (numer = miejsce na liście), a
+zaznaczony kolor ma większy punkt. Na kole pomijane są prawie szare tło i tekst (C < 0.02), bo ich
+odcień nic nie znaczy. Tło wykresów jest przygaszone, żeby punkty się wyróżniały.
 Zobacz [koło odcieni](help:analysis.wheel) i [przekrój L–C](help:analysis.lc).""",
         A,
     ),
