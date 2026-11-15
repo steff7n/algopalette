@@ -29,7 +29,7 @@ from algopalette import io as aio
 from algopalette.color import to_hex
 from algopalette.constraints import Violation
 from algopalette.forms import current_violations
-from algopalette.gui import theme
+from algopalette.gui import help, theme
 from algopalette.gui.widgets import vbox
 from algopalette.model import History, Session, ViewModel
 from algopalette.pb_export import default_pb_dir, pb_json, write_pb_file
@@ -331,7 +331,6 @@ class MainWindow(QMainWindow):
         self.act_theme_system = self.act_theme["system"]
         self.act_theme_light = self.act_theme["light"]
         self.act_theme_dark = self.act_theme["dark"]
-        self.act_help = self._action("Skróty klawiszowe", self.action_help, "F1")
         for a in (self.act_undo, self.act_redo):
             a.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
 
@@ -371,8 +370,11 @@ class MainWindow(QMainWindow):
             m.addAction(a)
             self.tabs.setTabToolTip(i, f"F{i + 2}")
             self.tabs.setTabText(i, f"{self.tabs.tabText(i)}  (F{i + 2})")
+        self.help = help.install(self)
         m = mb.addMenu("Pomo&c")
-        m.addAction(self.act_help)
+        for a in self.help.actions():
+            m.addAction(a)
+        self.help.watch_menus()
 
         tb = QToolBar("Główne")
         tb.setMovable(False)
@@ -438,9 +440,6 @@ class MainWindow(QMainWindow):
             self.file_path = None
             self._update_title()
             self.replace_session(fresh_session())
-
-    def action_help(self) -> None:
-        QMessageBox.information(self, "AlgoPalette — skróty", HELP_TEXT)
 
     # --- pliki ------------------------------------------------------------------------------
     def _pb_text(self) -> str:
@@ -528,32 +527,11 @@ class MainWindow(QMainWindow):
         return True
 
 
-HELP_TEXT = """\
-Ctrl+G — generuj propozycje
-Ctrl+Z / Ctrl+Y — cofnij / ponów
-Ctrl+S / Ctrl+Shift+S — zapisz / zapisz jako
-Ctrl+O — wczytaj sesję, Ctrl+N — nowa paleta
-Ctrl+E — paleta do schowka dla PaletteBuildera
-Ctrl+Shift+E — plik dla PaletteBuildera
-F2–F6 — zakładki, F7 — widok wartości HSL/OKLCH
-Ctrl+Q — wyjście
-
-Lista kolorów: Ins / A — dodaj akcent, Del — usuń,
-L — kłódka, Alt+↑ / Alt+↓ — przesuń akcent
-
-Suwaki: ←/→ krok, Shift ×10, Ctrl ×0.1, Home/End skraj,
-spacja przełącza uchwyt zakresu, mysz: klik / przeciąganie,
-kółko myszy — krok (gdy suwak ma fokus).
-Pola liczb: Enter zatwierdza, ↑/↓ krok;
-puste pole zakresu = bez ograniczenia.
-"""
-
-
 def run(session: Session, *, notice: str | None = None, file_path: Path | None = None) -> int:
     app = cast(QApplication, QApplication.instance() or QApplication(sys.argv))
     app.setApplicationName("AlgoPalette")
     app.setDesktopFileName("algopalette")
-    app.setStyle("Fusion")
+    help.install_tooltip_style(app)
     theme.apply(app, theme.initial_mode())
     win = MainWindow(session, notice=notice, file_path=file_path)
     win.show()

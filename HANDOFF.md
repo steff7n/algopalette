@@ -31,6 +31,25 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   (`act_theme_system/light/dark`, `set_theme`). Celowo zostały hexy: pierścienie punktów w Analizie (biało-czarne,
   czytelne na każdym tle), placeholder w Źródle, domyślny `Swatch`. Testy: `tests/gui/test_theme.py` 13;
   `tests/gui` 53 passed; ruff/ty zero uwag. Bazowo przed zmianami cały pytest: 336 passed.
+- **T2 ☑ infrastruktura pomocy**: `gui/help.py` — `attach(obj, key, children=, extra=)` (właściwość `help_key` +
+  podpowiedź HTML „tytuł / short / [extra] / F1 — więcej”; `extra` = dopisek kontekstowy, np. hex próbki — NIE
+  nadpisuj potem `setToolTip` gołym tekstem, bo zniknie opis), `attach_header(view, keys|str, vertical=)` —
+  klucze trzymane na WIDOKU (`help_columns`/`help_rows`), podpowiedź sekcji przez filtr zdarzeń na viewport
+  nagłówka → przeżywa `setHorizontalHeaderLabels`; `attach_tab`, `decorative`, `key_at`, `key_for_focus`,
+  `uncovered(root)`: wymaga klucza od QAbstractButton/QComboBox/QLineEdit/QAbstractSlider(bez QScrollBar)/
+  QAbstractItemView (+ każda widoczna kolumna)/QTextEdit/QPlainTextEdit/QLabel z tekstem/własnych widżetów
+  `algopalette.*` z fokusem; pomija wnętrza QComboBox/QAbstractSpinBox/QAbstractItemView/QTabBar/QMenu/QScrollBar/
+  QToolBar, panel pomocy i obiekty `qt_*`. `HelpPanel` (QDockWidget `help-panel`, prawa strona, ukryty na starcie):
+  ◀ ▶ „Spis treści”, wyszukiwarka (`normalize`: NFKD + ł→l + casefold; trafienia w tytule pierwsze), drzewo wg
+  `GROUPS`, `QTextBrowser.setMarkdown`, linki `help:klucz` nawigują w panelu. `HelpController`: F1/Shift+F1 jako
+  `ApplicationShortcut` (działa też w odczepionym panelu), menu Pomoc (`actions()`), `watch_menus()` — F1 w
+  otwartym menu: `ShortcutOverride` przechwycony, inaczej skrót okna zjadłby F1; wyszarzone pozycje menu nie
+  dostają `activeAction` → `actionAt(kursor)`. Tryb Shift+F1: filtr na całej aplikacji, połyka press+release,
+  klawisze poza Esc ignorowane. Proxy-styl (`install_tooltip_style`, 300 ms) ustawiany w `run()` zamiast
+  `setStyle("Fusion")`. Treść: `gui/help_content/` — `topic.py` (`Topic`, `GROUPS`), `general.py`, `concepts.py`
+  gotowe; `window/palette/conditions/globals/proposals/source/analysis.py` puste (T3–T7). `HELP_TEXT` i okno
+  skrótów usunięte → temat `general.shortcuts`. Ruff: `help_content/*` ma wyłączone E501 (proza).
+  Testy: `tests/gui/test_help.py` 18; `tests/gui` 71 passed; ruff/format/ty zero uwag.
 
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 

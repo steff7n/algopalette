@@ -44,3 +44,4 @@ ignore = ["E741", "RUF001", "RUF002", "RUF003"]  # l = lightness; polskie znaki 
 
 [tool.ruff.lint.per-file-ignores]
 "src/algopalette/tui/*" = ["RUF012"]  # BINDINGS / DEFAULT_CSS — idiom Textuala
+"src/algopalette/gui/help_content/*" = ["E501"]  # proza pomocy (Markdown) — łamanie wierszy psułoby akapity
