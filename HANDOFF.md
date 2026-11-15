@@ -68,6 +68,12 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   warunkiem odcienia (nawet wyłączonym) nie dostaje celu z układu odcieni (`constraints.py:472`); min. 1 akcent.
   Testy: `test_help_palette.py` 9 (wszystkie role, oba widoki, 8 warunków, 6 typów zależności + zerwana,
   add/undo/redo/F7); `tests/gui` 84 passed.
+- **T5 ☑ Globalne**: `help_content/globals.py` (`globals.mood(.apply/.delete/.save)`, `globals.metrics/polarity/
+  contrast_metric/delta_e/fit`, `globals.hues(.kind/.rotation/.center/.spread/.tol/.jitter/.custom/.hard)`,
+  `globals.spread`, `globals.cvd`, `globals.optimizer` + `globals.opt.*`, `globals.avoid`, `globals.roles`).
+  W `globals_tab.py`: `group(title, key)` podpina klucz pod `QGroupBox` (F1 gdziekolwiek w sekcji), `keyed(w, key,
+  children=)` zwraca widżet. Listy wyboru (nastroje, układy, ΔE, fit, CVD) opisane w body — test pilnuje, że
+  każda opcja z `forms`/`moods.BUILTIN` występuje w treści. Testy: `test_help_globals.py` 4; `tests/gui` 88.
 
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 

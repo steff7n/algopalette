@@ -30,7 +30,7 @@ from algopalette.forms import (
     SCHEMES,
 )
 from algopalette.globals_logic import change_delta_e, change_polarity_or_metric
-from algopalette.gui import theme
+from algopalette.gui import help, theme
 from algopalette.gui.conditions import ConditionsEditor, combo
 from algopalette.gui.widgets import (
     NumEdit,
@@ -69,10 +69,16 @@ if TYPE_CHECKING:
 HUE_GRADIENT = channel_gradient(OKLCH(0.75, 0.13, 0.0), "h")
 
 
-def group(title: str) -> tuple[QGroupBox, Any]:
+def group(title: str, key: str) -> tuple[QGroupBox, Any]:
     box = QGroupBox(title)
+    help.attach(box, key)
     lay = vbox(box, margins=10, spacing=6)
     return box, lay
+
+
+def keyed(w: QWidget, key: str, *, children: bool = False) -> QWidget:
+    help.attach(w, key, children=children)
+    return w
 
 
 class GlobalsTab(QScrollArea):
@@ -84,6 +90,7 @@ class GlobalsTab(QScrollArea):
         body = QWidget()
         self._lay = vbox(body, margins=10, spacing=10)
         self.setWidget(body)
+        help.attach(self, "window.tab.globals")
         self._shown = None
         self._role_tab = 2
 
@@ -124,51 +131,61 @@ class GlobalsTab(QScrollArea):
 
     # --- sekcje -------------------------------------------------------------------------------
     def _moods_box(self, s) -> QGroupBox:
-        box, lay = group("Nastrój")
+        box, lay = group("Nastrój", "globals.mood")
         try:
             moods = list_moods()
         except ValueError as e:
             self.win.notify(str(e))
             moods = [Mood(n, d, True) for n, (d, _) in BUILTIN.items()]
-        lay.addWidget(QLabel(f"bieżący: <b>{s.mood or '— (własne ustawienia)'}</b>"))
+        lay.addWidget(
+            keyed(QLabel(f"bieżący: <b>{s.mood or '— (własne ustawienia)'}</b>"), "globals.mood")
+        )
         self.mood = combo([(("★ " if m.builtin else "") + m.name, m.name) for m in moods], s.mood)
+        help.attach(self.mood, "globals.mood")
         for i, m in enumerate(moods):
             self.mood.setItemData(i, m.description or m.name, 3)  # 3 = ToolTipRole
         apply_btn = QPushButton("Zastosuj nastrój")
+        help.attach(apply_btn, "globals.mood.apply")
         apply_btn.clicked.connect(self._mood_apply)
         del_btn = QPushButton("Usuń własny")
+        help.attach(del_btn, "globals.mood.delete")
         del_btn.clicked.connect(self._mood_delete)
         lay.addWidget(hbox(self.mood, apply_btn, del_btn))
         self.mood_name = QLineEdit()
         self.mood_name.setPlaceholderText("nazwa nowego nastroju")
         self.mood_name.setMinimumWidth(220)
+        help.attach(self.mood_name, "globals.mood.save")
         save_btn = QPushButton("Zapisz bieżące ustawienia jako nastrój")
+        help.attach(save_btn, "globals.mood.save")
         save_btn.clicked.connect(self._mood_save)
         lay.addWidget(hbox(self.mood_name, save_btn))
         lay.addWidget(
-            hint(
-                "Nastrój wypełnia ustawienia globalne gotowymi wartościami (★ = wbudowany). "
-                "Wszystko, co ustawił, widać niżej i można zmienić."
+            keyed(
+                hint(
+                    "Nastrój wypełnia ustawienia globalne gotowymi wartościami (★ = wbudowany). "
+                    "Wszystko, co ustawił, widać niżej i można zmienić."
+                ),
+                "globals.mood",
             )
         )
         return box
 
     def _metrics_box(self, g: GlobalSettings) -> QGroupBox:
-        box, lay = group("Polaryzacja i metryki")
+        box, lay = group("Polaryzacja i metryki", "globals.metrics")
         w, fl = form()
         pol = combo(POLARITIES, g.polarity)
         pol.currentIndexChanged.connect(
             lambda _: self._polarity_metric("polarity", pol.currentData())
         )
-        fl.addRow("polaryzacja", pol)
+        fl.addRow("polaryzacja", keyed(pol, "globals.polarity"))
         met = combo(CONTRAST_GLOBAL, g.contrast_metric)
         met.currentIndexChanged.connect(
             lambda _: self._polarity_metric("contrast_metric", met.currentData())
         )
-        fl.addRow("kontrast", met)
+        fl.addRow("kontrast", keyed(met, "globals.contrast_metric"))
         de = combo(DELTA_E, g.delta_e)
         de.currentIndexChanged.connect(lambda _: self._delta_e(de.currentData()))
-        fl.addRow("ΔE", de)
+        fl.addRow("ΔE", keyed(de, "globals.delta_e"))
         fit = combo(FITS, g.fit_method)
         fit.currentIndexChanged.connect(
             lambda _: (
@@ -177,24 +194,29 @@ class GlobalsTab(QScrollArea):
                 else None
             )
         )
-        fit.setToolTip("Sposób sprowadzania koloru spoza sRGB do gamutu")
-        fl.addRow("gamut (fit)", fit)
+        fl.addRow("gamut (fit)", keyed(fit, "globals.fit"))
+        help.attach_form_labels(fl)
         lay.addWidget(w)
         lay.addWidget(
-            hint(
-                "Zmiana polaryzacji/metryki przelicza domyślne zakresy ról; zmiana ΔE przelicza "
-                "progi odległości."
+            keyed(
+                hint(
+                    "Zmiana polaryzacji/metryki przelicza domyślne zakresy ról; zmiana ΔE "
+                    "przelicza progi odległości."
+                ),
+                "globals.metrics",
             )
         )
         return box
 
     def _hues_box(self, g: GlobalSettings) -> QGroupBox:
         h = g.hue_scheme
-        box, lay = group("Układ odcieni — cele dla akcentów bez własnego warunku odcienia")
+        box, lay = group(
+            "Układ odcieni — cele dla akcentów bez własnego warunku odcienia", "globals.hues"
+        )
         w, fl = form()
         kind = combo(SCHEMES, h.kind)
         kind.currentIndexChanged.connect(lambda _: self._scheme(kind=kind.currentData()))
-        fl.addRow("rodzaj", kind)
+        fl.addRow("rodzaj", keyed(kind, "globals.hues.kind"))
         for key, label, lo, hi, wrap, grad in (
             ("rotation", "obrót °", 0, 360, True, HUE_GRADIENT),
             ("center", "środek °", 0, 360, True, HUE_GRADIENT),
@@ -212,23 +234,24 @@ class GlobalsTab(QScrollArea):
                 gradient=grad,
             )
             sl.changed.connect(lambda v, key=key: self._scheme_value(key, v))
-            fl.addRow(label, sl)
+            fl.addRow(label, keyed(sl, f"globals.hues.{key}", children=True))
         custom = QLineEdit(", ".join(f"{x:g}" for x in h.custom))
         custom.setPlaceholderText("np. 30, 200, 120")
         custom.editingFinished.connect(lambda: self._custom(custom))
-        fl.addRow("własne °", custom)
+        fl.addRow("własne °", keyed(custom, "globals.hues.custom"))
         hard = QCheckBox("twardy")
         hard.setChecked(h.hard)
         hard.toggled.connect(lambda on: self._scheme(hard=on))
         weight = NumEdit(h.weight, minimum=0.0, step=0.1, width=56)
         weight.committed.connect(lambda v: v is not None and self._scheme(weight=v))
-        fl.addRow("", hbox(hard, QLabel("waga"), weight))
+        fl.addRow("", keyed(hbox(hard, QLabel("waga"), weight), "globals.hues.hard", children=True))
+        help.attach_form_labels(fl)
         lay.addWidget(w)
         return box
 
     def _spread_box(self, g: GlobalSettings) -> QGroupBox:
         sp = g.lightness_spread
-        box, lay = group("Rozrzut jasności akcentów (max L − min L)")
+        box, lay = group("Rozrzut jasności akcentów (max L − min L)", "globals.spread")
         if sp is None:
             add = QPushButton("+ dodaj warunek rozrzutu")
             add.clicked.connect(
@@ -236,7 +259,7 @@ class GlobalsTab(QScrollArea):
                     lightness_spread=Cond(Interval(0.15, None), hard=False), structural=True
                 )
             )
-            lay.addWidget(hbox(add))
+            lay.addWidget(hbox(keyed(add, "globals.spread")))
             lay.addStretch(1)
             return box
         en = QCheckBox("włączony")
@@ -247,31 +270,31 @@ class GlobalsTab(QScrollArea):
         hard.toggled.connect(lambda on: self._spread_flag("hard", on))
         rm = QPushButton("✕ usuń")
         rm.clicked.connect(lambda: self._set(lightness_spread=None, structural=True))
-        lay.addWidget(hbox(en, hard, rm))
+        lay.addWidget(keyed(hbox(en, hard, rm), "globals.spread", children=True))
         rs = RangeSlider(
             sp.value.lo, sp.value.hi, minimum=0, maximum=1, step=0.01, fmt=".2f", allow_none=True
         )
         rs.changed.connect(self._spread)
-        lay.addWidget(rs)
+        lay.addWidget(keyed(rs, "globals.spread", children=True))
         lay.addStretch(1)
         return box
 
     def _cvd_box(self, g: GlobalSettings) -> QGroupBox:
         c = g.cvd
-        box, lay = group("Daltonizm — symulacja dla warunku odróżnialności")
+        box, lay = group("Daltonizm — symulacja dla warunku odróżnialności", "globals.cvd")
         checks = []
         for label, kind in CVD:
             cb = QCheckBox(label)
             cb.setChecked(kind in c.types)
             cb.toggled.connect(lambda on, kind=kind: self._cvd_type(kind, on))
             checks.append(cb)
-        lay.addWidget(hbox(*checks))
+        lay.addWidget(keyed(hbox(*checks), "globals.cvd", children=True))
         w, fl = form()
         method = combo(CVD_METHODS, c.method)
         method.currentIndexChanged.connect(
             lambda _: self._set(cvd=replace(self.g.cvd, method=method.currentData()))
         )
-        fl.addRow("metoda", method)
+        fl.addRow("metoda", keyed(method, "globals.cvd"))
         sev = ValueSlider(c.severity, minimum=0, maximum=1, step=0.05, fmt=".2f")
         sev.changed.connect(
             lambda v: (
@@ -279,16 +302,17 @@ class GlobalsTab(QScrollArea):
                 and self._set(cvd=replace(self.g.cvd, severity=float(v)), coalesce="g:cvd-severity")
             )
         )
-        fl.addRow("nasilenie", sev)
+        fl.addRow("nasilenie", keyed(sev, "globals.cvd", children=True))
+        help.attach_form_labels(fl)
         lay.addWidget(w)
         return box
 
     def _optimizer_box(self, g: GlobalSettings) -> QGroupBox:
         o = g.optimizer
-        box, lay = group("Optymalizator")
+        box, lay = group("Optymalizator", "globals.optimizer")
         w, fl = form()
 
-        def field(name: str, label: str, integer: bool, minimum: float, tip: str = "") -> NumEdit:
+        def field(name: str, label: str, integer: bool, minimum: float, key: str) -> NumEdit:
             e = NumEdit(
                 getattr(o, name),
                 integer=integer,
@@ -296,12 +320,12 @@ class GlobalsTab(QScrollArea):
                 width=96,
                 step=1.0 if integer else 0.0,
             )
-            e.setToolTip(tip)
+            help.attach(e, key)
             e.committed.connect(lambda v, name=name, integer=integer: self._opt(name, v, integer))
             fl.addRow(label, e)
             return e
 
-        field("n_proposals", "propozycje", True, 1)
+        field("n_proposals", "propozycje", True, 1, "globals.opt.n_proposals")
         seed = NumEdit(o.seed, integer=True, minimum=0, width=96)
         seed.committed.connect(lambda v: self._opt("seed", v, True))
         rnd = QPushButton("🎲 losuj")
@@ -310,22 +334,23 @@ class GlobalsTab(QScrollArea):
                 optimizer=replace(self.g.optimizer, seed=secrets.randbelow(2**31)), structural=True
             )
         )
-        fl.addRow("ziarno", hbox(seed, rnd))
+        fl.addRow("ziarno", keyed(hbox(seed, rnd), "globals.opt.seed", children=True))
         field(
             "max_evals",
             "budżet (ewaluacje)",
             True,
             100,
-            "Budżet na propozycję w ewaluacjach — te same ustawienia dają te same wyniki",
+            "globals.opt.max_evals",
         )
-        field("time_cap_s", "limit czasu (s)", False, 0, "Tylko bezpiecznik")
-        field("min_diversity", "różnorodność ΔE", False, 0, "Minimalna różnica między propozycjami")
-        field("hard_weight", "waga twardych", False, 0)
+        field("time_cap_s", "limit czasu (s)", False, 0, "globals.opt.time_cap")
+        field("min_diversity", "różnorodność ΔE", False, 0, "globals.opt.min_diversity")
+        field("hard_weight", "waga twardych", False, 0, "globals.opt.hard_weight")
+        help.attach_form_labels(fl)
         lay.addWidget(w)
         return box
 
     def _avoid_box(self, g: GlobalSettings) -> QGroupBox:
-        box, lay = group("Unikanie kolorów źródła (tryb „charakter”)")
+        box, lay = group("Unikanie kolorów źródła (tryb „charakter”)", "globals.avoid")
         dist = NumEdit(g.avoid_distance, minimum=0.0, step=0.005, width=72)
         dist.committed.connect(
             lambda v: v is not None and v != self.g.avoid_distance and self._set(avoid_distance=v)
@@ -334,21 +359,24 @@ class GlobalsTab(QScrollArea):
         clear.clicked.connect(
             lambda: self._set(avoid_colors=(), avoid_distance=0.0, structural=True)
         )
-        lay.addWidget(hbox(QLabel(f"{len(g.avoid_colors)} kolorów, min ΔE ok"), dist, clear))
+        row = hbox(QLabel(f"{len(g.avoid_colors)} kolorów, min ΔE ok"), dist, clear)
+        lay.addWidget(keyed(row, "globals.avoid", children=True))
         return box
 
     def _roles_box(self) -> QGroupBox:
-        box, lay = group("Domyślne warunki ról (dziedziczone przez kolory)")
+        box, lay = group("Domyślne warunki ról (dziedziczone przez kolory)", "globals.roles")
         legend = hbox(
             source_badge("mood"),
             QLabel("= wartość z nastroju"),
             source_badge("global"),
             QLabel("= zmieniona ręcznie"),
         )
-        lay.addWidget(legend)
+        lay.addWidget(keyed(legend, "cond.badge", children=True))
         self.role_tabs = QTabWidget()
-        for role, title in (("bg", "tło"), ("fg", "tekst"), ("accent", "akcenty")):
+        help.attach(self.role_tabs, "globals.roles")
+        for i, (role, title) in enumerate((("bg", "tło"), ("fg", "tekst"), ("accent", "akcenty"))):
             self.role_tabs.addTab(ConditionsEditor(self.win, "role", role), title)
+            help.attach_tab(self.role_tabs, i, "globals.roles")
         self.role_tabs.setCurrentIndex(self._role_tab)
         lay.addWidget(self.role_tabs)
         return box
