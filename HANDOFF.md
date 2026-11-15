@@ -2,6 +2,55 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
+## 0c. JEDEN PANEL ZASAD + SILNIK W RUST (2026-11-15) — STAN: spec napisany, CZEKA NA AKCEPTACJĘ użytkownika; planu jeszcze nie ma; kodu nie ruszono
+
+- **Gdzie jesteśmy:** brainstorming zakończony pytaniami, spec w
+  `docs/superpowers/specs/2026-11-15-zasady-silnik-design.md` (gałąź `feat/zasady-silnik`, worktree
+  `/home/qrikk/algopalette/.worktrees/zasady-silnik`). Następne kroki, w tej kolejności: (1) akceptacja speca przez
+  użytkownika, (2) **zapytać użytkownika o zasady przeglądu** — jego słowa: „im wiecej subagentow, tym lepiej
+  [wyjatkiem jest review, ale o to mnie zapytaj po napisaniu specyfikacji]” — NIE zakładaj reguły z §2 ani z
+  CLAUDE.md, dopóki nie odpowie, (3) plan (`writing-plans`; kontrakt, nie gotowy kod), (4) wykonanie wg §11 speca.
+- **Jedna kopia repo (pułapka, która kosztowała pół sesji):** do 2026-11-15 `/home/qrikk/algopalette` stało na
+  starym TUI (e7e5abb), a wersja z GUI żyła w `/home/qrikk/Pobrane/.gitclones/algopalette` i stamtąd czytał
+  launcher — zrzuty użytkownika nie zgadzały się z kodem w katalogu sesji. Decyzja użytkownika: „ta z GUI jest
+  wlasciwa, scal to w jedno”. Zrobione: `/home/qrikk/algopalette` fast-forward do 4b71aeb, launcher
+  przeinstalowany `uv tool install --editable . --force` (sprawdzone: `algopalette.__file__` →
+  `/home/qrikk/algopalette/src/...`). Klon w `Pobrane/.gitclones` nie ma nic unikalnego (czysty, `main` i `gui` na
+  4b71aeb = `origin/main`), ale **NIE został skasowany** — użytkownik dwa razy nie odpowiedział na pytanie o
+  skasowanie; nie kasuj bez jego „tak”. Jeśli zrzut nie pasuje do kodu: najpierw sprawdź, skąd czyta launcher.
+- **Katalog główny ma zostać na `main`** przez całą pracę — launcher jest instalacją edytowalną z niego
+  („binarka. zawsze.”). Pracuj w worktree. `.worktrees/` jest w `.git/info/exclude` (lokalnie, nie w repo).
+- **Decyzje użytkownika z tej sesji (WIĄŻĄCE — nie otwieraj ponownie):**
+  - Zakres panelu: „mi nie chodzi w ogole o warstwe pracy z kolorami, ktore juz mamy. ja mam ciagle na mysli
+    workflow sprzed generacji jakiejkolwiek palety” → przebudowa dotyczy ustawiania zasad PRZED generowaniem;
+    zakładka Paleta (wartości, kłódki, HSL/OKLCH, przejmowanie propozycji) zostaje, traci tylko edytor warunków
+    i zależności. Nie tłumacz mu scenariuszy językiem „masz gotowe kolory i chcesz je zmienić” — tak sformułowane
+    pytanie o edycję zbiorczą nie zostało zrozumiane („nie rozumiem pytania? opisz mi scenariusz”).
+  - Edycja zbiorcza: „wybieram A” = zaznaczanie kilku zakładek kolorów naraz, zmiana trafia do zaznaczonych.
+    Odrzucone: zakładka „wspólne dla akcentów” (to dziedziczenie) i samo „skopiuj do…”.
+  - Kontrwarunki: „chodzi o podstawy - odcienie, jasnosc i nasycenie, np w przypadkach, gdy akceptowalny jest
+    bardzo szeroki zakres barw, zalozmy 0-270, z wyjatkiem 60-85 i 140-155” → zakazane przedziały H, L, C.
+  - Pomoc: „w 'kryminale' chodzilo o to w jaki sposob [nie] jest wytlumaczone pojecie C wzglednego i
+    bezwzglednego”; „nazewnictwo typu dziedzicz/usun. Przeciez to jest jedno i to samo”.
+  - Silnik: „wariant silnika 1” = Rust jako biblioteka w procesie GUI (PyO3 + rayon). Argument „Python pod
+    spodem to C” użytkownik z góry odrzucił (doświadczenie z fontset-ui) — nie proponuj optymalizacji numpy.
+  - TUI: „usuwamy” (razem z `textual`, `tests/tui`, `--tui`).
+- **Decyzje agenta w specu (użytkownik ich jeszcze nie widział — może je odwrócić przy akceptacji):** nazwa
+  zakładki „Zasady” i pierwsze miejsce; zakazane przedziały zawsze twarde; przełącznik `use_scheme` per akcent
+  (cel układu odcieni może działać razem z własną zasadą odcienia); nowy akcent kopiuje zasady ostatniego;
+  wybierak także dla listy unikanych kolorów (oznaczony „do skreślenia”); ≥ 48 presetów z listą nazw; teksty
+  naruszeń składa Python, Rust zwraca liczby; budżet = oceny z gradientem na przebieg; cele wydajności W1–W4.
+- **Pomiar bazowy starego silnika (2026-11-15, 10 kolorów, budżet 30 000, 4 propozycje, launcherowy Python
+  3.13):** „neutralny” 0,55 s; „neon” 0,45 s (wczesne wyjście); „chłodny mglisty” **7,35 s = 1,84 s/propozycję**
+  → 128 propozycji ≥ 4 min. Profil (2 propozycje, 3,73 s): `fast.max_chroma` 1,31 s, `objective_batch` 2,0 s
+  łącznie z kontekstem, reszta narzut numpy. Skrypt był w scratchpadzie sesji (nie w repo); odtworzenie:
+  `apply_mood(default_session(), nazwa)` + `replace(optimizer, n_proposals=4, max_evals=30000)` → `generate`.
+- **Narzędzia na maszynie:** cargo/rustc 1.99, gcc 16.2, clang 23.1, cmake 4.4; brak `maturin` (dociągnie uv),
+  16 wątków. Launcherowy Python to 3.13.
+- **NIE zrobione / NIE zweryfikowane:** spec nieprzeczytany przez użytkownika; plan; czy `uv tool install
+  --editable` działa z backendem maturin (ryzyko §12 speca — sprawdzić w K0, zanim cokolwiek na tym stanie);
+  testów w tej sesji nie uruchamiano (stan z 0b: fala napraw GUI też nigdy nie była uruchomiona testami).
+
 ## 0b. TRYB CIEMNY + POMOC KONTEKSTOWA (2026-11-15) — T1–T8 ☑, przegląd + fala napraw, SCALONE do `main` i wypchnięte (bez re-review i bez uruchomienia testów — decyzja użytkownika)
 
 - **STAN NA TERAZ (2026-11-15, koniec dnia):** `gui` scalona do `main` i wypchnięta na `origin`. Ostatni commit
@@ -407,3 +456,6 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-14 — GUI w PySide6 (domyślne), TUI pod `--tui`; `forms.py` wspólne; testy GUI (pytest-qt).
 - 2026-11-15 — tryb ciemny + pomoc kontekstowa (T1–T8), przegląd, fala napraw zacommitowana bez testów (decyzja
   użytkownika); launcher przeinstalowany `--editable`; `gui` scalona do `main`, push.
+- 2026-11-15 — scalenie kopii repo (katalog sesji dociągnięty do 4b71aeb, launcher przepięty); brainstorming
+  przebudowy „jeden panel zasad + silnik w Rust”; pomiar bazowy silnika; spec napisany na gałęzi
+  `feat/zasady-silnik` (worktree `.worktrees/zasady-silnik`), czeka na akceptację. Szczegóły: §0c.
