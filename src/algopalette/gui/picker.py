@@ -266,7 +266,6 @@ class ListPicker(QWidget):
         self.c_slider = ValueSlider(None, minimum=0.0, maximum=0.37, step=0.005, allow_none=True)
         self.css_edit = QLineEdit()
         self.css_edit.setPlaceholderText("#rrggbb albo oklch(0.7 0.1 30)")
-        self.css_edit.setClearButtonEnabled(True)
         form.addRow("jasność L", self.l_slider)
         form.addRow("nasycenie C", self.c_slider)
         form.addRow("kolor", self.css_edit)

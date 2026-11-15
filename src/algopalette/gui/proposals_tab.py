@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
 )
 
 from algopalette import color as col
-from algopalette.constraints import slot_label
-from algopalette.engine import Proposal, apply_proposal, generate
+from algopalette.engine import Proposal, apply_proposal, generate, slot_label
+from algopalette.forms import violation_text
 from algopalette.gui import help, theme
 from algopalette.gui.widgets import hbox, hint, vbox
 from algopalette.model import Session
@@ -326,15 +326,16 @@ class ProposalsTab(QWidget):
         if not p.violations:
             ok = theme.colors().ok
             self.detail_violations.setText(
-                f"<span style='color:{ok}'>✓ propozycja spełnia wszystkie warunki</span>"
+                f"<span style='color:{ok}'>✓ propozycja spełnia wszystkie zasady</span>"
             )
         else:
             lines = []
             for x in p.violations[:12]:
                 mark, c = ("✗", theme.colors().hard) if x.hard else ("~", theme.colors().soft)
+                label, required, achieved = violation_text(x, self.base)
                 lines.append(
-                    f"<span style='color:{c}'>{mark}</span> {x.label}: wymagane {x.required}, "
-                    f"jest {x.achieved}"
+                    f"<span style='color:{c}'>{mark}</span> {html.escape(label)}: wymagane "
+                    f"{html.escape(required)}, jest {html.escape(achieved)}"
                 )
             if len(p.violations) > 12:
                 lines.append(f"… i {len(p.violations) - 12} więcej")

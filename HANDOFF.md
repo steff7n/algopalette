@@ -188,6 +188,46 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   - Taski 5 ☑ (`09de714`) i 6 ☑ (`796c543`) — agent silnikowy, szczegóły w §0d; faza B (14, 16) wysłana po
     commicie 4b. Decyzja kontrolera dla fazy B: ΔE `itp` liczyć po obcięciu kanałów liniowych do ≥ 0 (kolor
     prawie czarny z kanałem ≈ −4e-7 daje w coloraide ΔE ≈ 3e62 — to nie może trafić do panelu naruszeń).
+  - Task 15 ☑ — zakładka „Zasady”. Verify: `QT_QPA_PLATFORM=offscreen uv run --no-sync pytest -q
+    tests/gui/test_rules_tab.py` → **36 passed**; ruff/format/ty czyste na 14 plikach; zrzuty (jeden kolor, dwa
+    kolory z „różne”, cała paleta) obejrzane w obu motywach; `help.uncovered(rules_tab) == []` dla 6 zaznaczeń i
+    po dodaniu zakazu / odcienia listy / zależności. Usunięte `gui/globals_tab.py`, `gui/conditions.py`
+    (`combo` → `gui/widgets.py`; `source_badge` usunięte). **Okno znowu startuje** (5 zakładek: Zasady F2,
+    Propozycje F3, Paleta F4, Analiza F5, Źródło F6).
+    Mapa: `gui/rules_tab.py` — `RulesTab(QWidget)` z `scroll_area` i paskiem z `generate_btn` POZA przewijaniem;
+    `refresh_from_session(force)`: `strip.set_entries` → `_refresh_header` → porównanie `_signature()`:
+    równa → `_sync()` (widżety w miejscu), różna → `_schedule_rebuild()` (`QTimer.singleShot(0, flush)`),
+    `force` (cofnij / wczytanie / przejście z innej zakładki) → `_rebuild_editor()` od razu. Zapisy WYŁĄCZNIE
+    przez `tab.write(new, coalesce=…)` → `win.set_session`. Strony: `_build_colors` (`rows: dict[pole,
+    RuleRow]`, `scheme_row`, `relations`) i `_build_palette` (`palette_widgets: dict[str, QWidget]`, `hue_box`,
+    `custom_picker`, `avoid_picker`). `gui/rule_rows.py` — `row_signature`, `RuleRow` (stany same/mixed/absent;
+    atrybuty `enabled_box`, `hard_box`, `weight_edit`, `slider`, `mode_combo`, `metric_combo`, `extreme_combo`,
+    `add_btn`, `remove_btn`, `unify_btn`, `mixed_label`), `SchemeRow`. `gui/app.py` — `rule_owners(v)`,
+    `ViolationsPanel.activated`, `MainWindow.show_rules(ids)`, `.generate()`, `.show_migration_notes(notes)`
+    (pasek stanu 30 s + NIEMODALNE okno; `win.migration_notes`), `refresh_views` łapie `ValueError` silnika.
+    `forms.rule_summary` — tekst zasady w wierszu „różne”. `help_content/rules.py` — 60 kluczy `rules.*`
+    (krótka treść; pełną pisze Task 18), grupy „Zasady” / „Zasady koloru”; zależności dalej używają `rel.*`
+    z `help_content/conditions.py` (Task 18 musi je przenieść, zanim skasuje ten moduł).
+    **Decyzje:** (1) klik w naruszenie → `show_rules(rule_owners(v))`, nie surowe `v.slot_ids`: kontrast/
+    zależność/cel układu → pierwszy kolor, para akcentów → oba, rozrzut/różnorodność → cała paleta (z surowymi
+    id tło + akcent dawałyby zaznaczenie, w którym wiersza kontrastu w ogóle nie widać); (2) układ odcieni
+    pokazuje tylko pola pasujące do rodzaju (`SCHEME_FIELDS`), własna lista tylko przy „własna lista”;
+    (3) dodanie pierwszego unikanego koloru ustawia odległość 0.05, bo lista z odległością 0 nic nie robi;
+    (4) zmiana trybu nasycenia kasuje zakazy (były w starej skali); (5) preset własny zapisuje się polem nazwy
+    + przyciskiem (bez okna dialogowego) i od razu staje się bieżącym presetem; (6) `ask_polarity()` to osobna
+    metoda zwracająca `"replace"|"mark"|"cancel"` — testy ją podmieniają; (7) Paleta, Propozycje, Analiza i
+    Źródło dostały TYLKO minimum potrzebne do startu okna (importy, `violation_text`, łuk z `rules.hue`,
+    odnośnik „Zasady tego koloru →”) — reszta kryteriów Tasku 17 (zegar zamiast wątku, zakazy na łuku, cele z
+    silnika, testy tych zakładek) jest nadal do zrobienia.
+    **Pułapki z dowodem:** (a) atrybut wiersza nie może się nazywać `metric` (`QWidget.metric`; `ty` to
+    łapie); (b) `clear_layout` używa `deleteLater`, więc `help.uncovered` i `findChildren` widzą jeszcze stare,
+    ukryte widżety — w testach po `flush()` wołaj `QCoreApplication.sendPostedEvents(None,
+    QEvent.Type.DeferredDelete)` (pomocnik `settle(win)` w teście); (c) przycisk czyszczenia w `QLineEdit`
+    (`setClearButtonEnabled`) to `QToolButton` bez klucza pomocy, który powstaje później niż `attach(…,
+    children=True)` — wyłączony w wyszukiwarce presetów i polu koloru wybieraka; (d) widżety dodawane później
+    (pozycje zakazów, wiersze wybieraka) dostają klucz pomocy przez ponowne `help.attach(…, children=True)`
+    po każdej zmianie (`RuleRow._attach_values`, `_custom`, `_avoid`); (e) testy nie mogą importować
+    `tests.test_migrate` (katalog testów nie jest pakietem) — dane v1 bierz z `tests/fixtures/v1_reference`.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -920,3 +960,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 11 ☑: `ColorStrip` (wielokrotne zaznaczenie, klawiatura, zawijanie); 13 testów.
 - 2026-11-16 — Task 13 ☑: `Topic.term`, osiem pojęć wg wzorca z liczbami z programu, rysunek nasycenia w panelu Pomocy; 15 testów.
 - 2026-11-16 — Taski 4 ☑, 5 ☑, 6 ☑: gałąź agenta scalona; nakładka `engine.py`, `violation_text`, 52 pliki kontraktu, stary silnik i scipy usunięte; edytowalna instalacja z maturin sprawdzona w scratchpadzie.
+- 2026-11-16 — Task 15 ☑: zakładka „Zasady” (preset, liczba kolorów, pasek, wiersze z edycją zbiorczą, cała paleta), okno przepięte; 36 testów; faza B silnika (14, 16) u agenta.

@@ -10,6 +10,7 @@ from algopalette.gui.help_content import (
     globals,
     palette,
     proposals,
+    rules,
     source,
     window,
 )
@@ -23,6 +24,7 @@ def _merge() -> dict[str, Topic]:
     for mod in (
         general,
         window,
+        rules,
         palette,
         conditions,
         globals,

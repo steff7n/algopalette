@@ -1,4 +1,4 @@
-"""Edytor zależności slotu od innych kolorów."""
+"""Edytor zależności koloru od innych kolorów (zakładka „Zasady”, jeden zaznaczony kolor)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QCheckBox, QFrame, QGridLayout, QLabel, QPushButton, QWidget
 
-from algopalette.constraints import slot_label
+from algopalette.engine import slot_label
 from algopalette.forms import (
     REL_CHROMA_MODES,
     REL_CHROMA_OPS,
@@ -19,8 +19,7 @@ from algopalette.forms import (
     relation_default_value,
 )
 from algopalette.gui import help, theme
-from algopalette.gui.conditions import combo
-from algopalette.gui.widgets import NumEdit, clear_layout, hbox, hint, vbox
+from algopalette.gui.widgets import NumEdit, clear_layout, combo, hbox, hint, vbox
 from algopalette.model import Relation, broken_relations, slot_index, with_slot
 
 if TYPE_CHECKING:
@@ -198,10 +197,10 @@ class RelationRow(QFrame):
         weight.committed.connect(lambda v: self._num("weight", v))
         weight_label = QLabel("waga")
         for w, key in (
-            (enabled, "cond.enabled"),
-            (hard, "cond.hard"),
-            (weight_label, "cond.weight"),
-            (weight, "cond.weight"),
+            (enabled, "rules.rule.enabled"),
+            (hard, "rules.rule.hard"),
+            (weight_label, "rules.rule.weight"),
+            (weight, "rules.rule.weight"),
         ):
             help.attach(w, key)
         self._lay.addWidget(hbox(enabled, hard, weight_label, weight))

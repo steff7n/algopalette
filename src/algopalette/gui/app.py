@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import sys
 import time
+from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QGuiApplication, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
@@ -28,8 +29,8 @@ from PySide6.QtWidgets import (
 
 from algopalette import io as aio
 from algopalette.color import to_hex
-from algopalette.constraints import Violation
-from algopalette.forms import current_violations
+from algopalette.engine import Violation, current_violations
+from algopalette.forms import violation_text
 from algopalette.gui import help, theme
 from algopalette.gui.widgets import vbox
 from algopalette.model import History, Session, ViewModel
@@ -39,11 +40,28 @@ COALESCE_S = 1.5
 AUTOSAVE_DELAY_MS = 500
 
 
+PAIR_KINDS = ("pair_distance", "pair_cvd")
+PALETTE_KINDS = ("spread", "diversity")
+
+
+def rule_owners(v: Violation) -> tuple[str, ...]:
+    """Kolory, w których zasadach leży przyczyna naruszenia (pusta krotka = cała paleta).
+
+    Zasada kontrastu, zależność czy cel układu należą do pierwszego koloru naruszenia (tło albo
+    cel zależności są tylko punktem odniesienia); próg pary akcentów — do obu."""
+    if v.kind in PALETTE_KINDS:
+        return ()
+    return v.slot_ids[:2] if v.kind in PAIR_KINDS else v.slot_ids[:1]
+
+
 class ViolationsPanel(QWidget):
-    """Naruszenia bieżącej palety: ✗ twarde, ~ miękkie."""
+    """Naruszenia bieżącej palety: ✗ twarde, ~ miękkie. Klik w wiersz prowadzi do zasady."""
+
+    activated = Signal(object)  # Violation
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
+        self.shown: list[Violation] = []
         lay = vbox(self, margins=6, spacing=4)
         self.title = QLabel()
         f = self.title.font()
@@ -51,7 +69,7 @@ class ViolationsPanel(QWidget):
         self.title.setFont(f)
         lay.addWidget(self.title)
         self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["", "warunek", "wymagane", "jest"])
+        self.table.setHorizontalHeaderLabels(["", "zasada", "wymagane", "jest"])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -61,15 +79,22 @@ class ViolationsPanel(QWidget):
         h.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         h.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.cellClicked.connect(self._activate)
+        self.table.cellActivated.connect(self._activate)
         lay.addWidget(self.table, 1)
 
-    def show_violations(self, violations: list[Violation]) -> None:
+    def _activate(self, row: int, _column: int) -> None:
+        if 0 <= row < len(self.shown):
+            self.activated.emit(self.shown[row])
+
+    def show_violations(self, violations: list[Violation], session: Session) -> None:
         hard = [v for v in violations if v.hard]
         soft = [v for v in violations if not v.hard]
+        self.shown = [*hard, *soft]
         c = theme.colors()
         if not violations:
             self.title.setText(
-                f"<span style='color:{c.ok}'>✓ Bieżąca paleta spełnia wszystkie warunki</span>"
+                f"<span style='color:{c.ok}'>✓ Bieżąca paleta spełnia wszystkie zasady</span>"
             )
         else:
             hc = c.hard if hard else c.ok
@@ -82,14 +107,15 @@ class ViolationsPanel(QWidget):
         t = self.table
         t.setRowCount(0)
         t.setRowCount(len(violations))
-        for r, v in enumerate([*hard, *soft]):
+        for r, v in enumerate(self.shown):
+            label, required, achieved = violation_text(v, session)
             mark = QTableWidgetItem("✗" if v.hard else "~")
             mark.setForeground(QColor(c.hard if v.hard else c.soft))
             mark.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             t.setItem(r, 0, mark)
-            t.setItem(r, 1, QTableWidgetItem(v.label))
-            t.setItem(r, 2, QTableWidgetItem(v.required))
-            t.setItem(r, 3, QTableWidgetItem(v.achieved))
+            t.setItem(r, 1, QTableWidgetItem(label))
+            t.setItem(r, 2, QTableWidgetItem(required))
+            t.setItem(r, 3, QTableWidgetItem(achieved))
 
 
 class MainWindow(QMainWindow):
@@ -103,9 +129,9 @@ class MainWindow(QMainWindow):
     ) -> None:
         super().__init__()
         from algopalette.gui.analysis_tab import AnalysisTab
-        from algopalette.gui.globals_tab import GlobalsTab
         from algopalette.gui.palette_tab import PaletteTab
         from algopalette.gui.proposals_tab import ProposalsTab
+        from algopalette.gui.rules_tab import RulesTab
         from algopalette.gui.source_tab import SourceTab
 
         self.history = History(session)
@@ -115,6 +141,8 @@ class MainWindow(QMainWindow):
         self._last_time = 0.0
         self._autosave_pending = False
         self.violations: list[Violation] = []
+        self.migration_notes: tuple[str, ...] = ()
+        self._notes_box: QMessageBox | None = None
 
         self._autosave_timer = QTimer(self)
         self._autosave_timer.setSingleShot(True)
@@ -123,22 +151,23 @@ class MainWindow(QMainWindow):
 
         self.tabs = QTabWidget()
         self.tabs.setDocumentMode(True)
-        self.palette_tab = PaletteTab(self)
-        self.globals_tab = GlobalsTab(self)
+        self.rules_tab = RulesTab(self)
         self.proposals_tab = ProposalsTab(self)
-        self.source_tab = SourceTab(self)
+        self.palette_tab = PaletteTab(self)
         self.analysis_tab = AnalysisTab(self)
+        self.source_tab = SourceTab(self)
         for w, title in (
-            (self.palette_tab, "Paleta"),
-            (self.globals_tab, "Globalne"),
+            (self.rules_tab, "Zasady"),
             (self.proposals_tab, "Propozycje"),
-            (self.source_tab, "Źródło"),
+            (self.palette_tab, "Paleta"),
             (self.analysis_tab, "Analiza"),
+            (self.source_tab, "Źródło"),
         ):
             self.tabs.addTab(w, title)
         self.tabs.currentChanged.connect(self._tab_changed)
 
         self.violations_panel = ViolationsPanel()
+        self.violations_panel.activated.connect(self._violation_activated)
         split = QSplitter(Qt.Orientation.Vertical)
         split.addWidget(self.tabs)
         split.addWidget(self.violations_panel)
@@ -196,7 +225,7 @@ class MainWindow(QMainWindow):
         self.history.replace_current(replace(self.session, view_model=mode))
         self.refresh_views(editor=True)
         self.notify(
-            "Widok wartości: " + ("HSL (warunki dalej w OKLCH)" if mode == "hsl" else "OKLCH")
+            "Widok wartości: " + ("HSL (zasady dalej w OKLCH)" if mode == "hsl" else "OKLCH")
         )
 
     def set_theme(self, mode: theme.ThemeMode) -> None:
@@ -211,7 +240,7 @@ class MainWindow(QMainWindow):
 
     def _theme_changed(self) -> None:
         """Przemalowanie po zmianie motywu: elementy z kolorami liczonymi przy budowie."""
-        self.violations_panel.show_violations(self.violations)
+        self.violations_panel.show_violations(self.violations, self.session)
         self.palette_tab.refresh_from_session(editor=True)
         self.proposals_tab.restyle()
         self._refresh_current_tab()
@@ -225,18 +254,26 @@ class MainWindow(QMainWindow):
             self.history.replace_current(replace(self.session, view_model=mode))
 
     def refresh_views(self, *, editor: bool) -> None:
-        self.violations = current_violations(self.session)
-        self.violations_panel.show_violations(self.violations)
+        """Po każdej zmianie sesji. ``editor``: zmiana przyszła spoza edytowanego właśnie pola
+        (cofnij, wczytanie, zmiana struktury) — widoki budują się od nowa."""
+        try:
+            self.violations = current_violations(self.session)
+        except ValueError as e:  # silnik odrzucił sesję — pokaż, nie wywracaj okna
+            self.violations = []
+            self.notify(f"Silnik nie przyjął zasad: {e}")
+        self.violations_panel.show_violations(self.violations, self.session)
         self.palette_tab.refresh_from_session(editor=editor)
-        if editor:
+        if self.tabs.currentWidget() is self.rules_tab:
+            self.rules_tab.refresh_from_session(force=editor)
+        elif editor:
             self._refresh_current_tab()
         self._update_actions()
         self._schedule_autosave()
 
     def _refresh_current_tab(self) -> None:
         w = self.tabs.currentWidget()
-        if w is self.globals_tab:
-            self.globals_tab.refresh_from_session()
+        if w is self.rules_tab:
+            self.rules_tab.refresh_from_session(force=True)
         elif w is self.analysis_tab:
             self.analysis_tab.refresh_from_session()
         elif w is self.proposals_tab:
@@ -247,6 +284,38 @@ class MainWindow(QMainWindow):
             self.palette_tab.refresh_from_session(editor=True)
         else:
             self._refresh_current_tab()
+
+    def show_rules(self, ids: Sequence[str]) -> None:
+        """Otwiera zakładkę „Zasady” z zaznaczonymi kolorami (pusta lista = cała paleta)."""
+        self.tabs.setCurrentWidget(self.rules_tab)
+        self.rules_tab.strip.select(list(ids))
+        self.rules_tab.flush()
+
+    def _violation_activated(self, v: Violation) -> None:
+        self.show_rules(rule_owners(v))
+
+    def generate(self) -> None:
+        """Start generowania dla kolorów bez kłódki + przejście do Propozycji."""
+        self.tabs.setCurrentWidget(self.proposals_tab)
+        self.proposals_tab.start()
+
+    def show_migration_notes(self, notes: Sequence[str]) -> None:
+        """Co przepadło albo zmieniło się przy wczytaniu pliku w starym formacie (nigdy cicho)."""
+        self.migration_notes = tuple(notes)
+        if not notes:
+            return
+        text = "Plik był w starszym formacie. Przy przenoszeniu zasad:\n• " + "\n• ".join(notes)
+        self.notify(text.replace("\n", " "), timeout=30000)
+        box = QMessageBox(
+            QMessageBox.Icon.Information,
+            "Wczytano starszy plik",
+            text,
+            QMessageBox.StandardButton.Ok,
+            self,
+        )
+        box.setModal(False)
+        box.show()
+        self._notes_box = box
 
     def selected_slot_id(self) -> str | None:
         return self.palette_tab.table.selected_id()
@@ -313,7 +382,7 @@ class MainWindow(QMainWindow):
         self.act_redo = self._action("Ponów", self.action_redo, ["Ctrl+Y", "Ctrl+Shift+Z"])
         self.act_generate = self._action(
             "Generuj propozycje",
-            self.action_generate,
+            self.generate,
             "Ctrl+G",
             "Policz propozycje dla wszystkich kolorów bez kłódki",
         )
@@ -426,10 +495,16 @@ class MainWindow(QMainWindow):
             help.attach(a, key)
         for a in self.act_theme.values():
             help.attach(a, "menu.view.theme")
-        tab_keys = ("palette", "globals", "proposals", "source", "analysis")
+        tab_keys = (
+            "rules.tab",
+            "window.tab.proposals",
+            "window.tab.palette",
+            "window.tab.analysis",
+            "window.tab.source",
+        )
         for i, (a, k) in enumerate(zip(self.act_tabs, tab_keys, strict=True)):
-            help.attach(a, f"window.tab.{k}")
-            help.attach_tab(self.tabs, i, f"window.tab.{k}")
+            help.attach(a, k)
+            help.attach_tab(self.tabs, i, k)
         help.attach(self.toolbar, "window.toolbar")
         vp = self.violations_panel
         help.attach(vp, "window.violations")
@@ -473,10 +548,6 @@ class MainWindow(QMainWindow):
         self._keep_view(mode)
         self._last_key = None
         self.refresh_views(editor=True)
-
-    def action_generate(self) -> None:
-        self.tabs.setCurrentWidget(self.proposals_tab)
-        self.proposals_tab.start()
 
     def action_new(self) -> None:
         from algopalette.__main__ import fresh_session
@@ -562,7 +633,7 @@ class MainWindow(QMainWindow):
 
     def open_path(self, path: Path) -> bool:
         try:
-            s = aio.load_session(path)
+            s, notes = aio.load_session_ex(path)
         except FileNotFoundError:
             self.notify(f"Nie ma pliku {path}", error=True)
             return False
@@ -576,6 +647,7 @@ class MainWindow(QMainWindow):
         self._update_title()
         self.replace_session(s)
         self.notify(f"Wczytano {path}")
+        self.show_migration_notes(notes)
         return True
 
 

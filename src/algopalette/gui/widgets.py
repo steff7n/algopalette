@@ -1,4 +1,4 @@
-"""Widżety GUI: próbki koloru, pola liczb, suwaki wartości i zakresu z gradientem, znacznik źródła.
+"""Widżety GUI: próbki koloru, pola liczb, listy wyboru, suwaki wartości i zakresu z gradientem.
 
 Suwak = pole liczby + pasek [+ drugie pole]. Pasek: ←/→ krok, Shift = ×10, Ctrl = ×0.1, Home/End =
 skraj, spacja = przełącz uchwyt (zakres); mysz: klik/przeciąganie przesuwa najbliższy uchwyt,
@@ -26,6 +26,7 @@ from PySide6.QtGui import (
     QWheelEvent,
 )
 from PySide6.QtWidgets import (
+    QComboBox,
     QFormLayout,
     QFrame,
     QHBoxLayout,
@@ -117,22 +118,15 @@ class Swatch(QFrame):
             self.setToolTip(hex_)
 
 
-SOURCE_LABELS = {"mood": "nastrój", "global": "globalne", "slot": "własne"}
-
-
-def source_badge(src: str | None) -> QLabel:
-    lbl = QLabel("" if src is None else SOURCE_LABELS.get(src, src))
-    if src is not None:
-        theme.style_badge(lbl, src)
-        lbl.setToolTip(
-            {
-                "mood": "wartość ustawił nastrój",
-                "global": "wartość z ustawień globalnych (zmieniona ręcznie)",
-                "slot": "wartość ustawiona w tym kolorze",
-            }.get(src, "")
-        )
-    lbl.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-    return lbl
+def combo(options: Sequence[tuple[str, Any]], value: Any) -> QComboBox:
+    """Lista wyboru z danymi; ``value=None`` = nic niezaznaczone."""
+    c = QComboBox()
+    for label, data in options:
+        c.addItem(label, data)
+    i = c.findData(value)
+    c.setCurrentIndex(max(i, 0) if value is not None else -1)
+    c.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+    return c
 
 
 def section(title: str) -> QLabel:

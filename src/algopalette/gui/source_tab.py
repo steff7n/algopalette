@@ -23,8 +23,7 @@ from algopalette import color as col
 from algopalette import io as aio
 from algopalette.forms import POLARITIES, SOURCE_MODES
 from algopalette.gui import help, theme
-from algopalette.gui.conditions import combo
-from algopalette.gui.widgets import NumEdit, Swatch, clear_layout, form, hbox, hint, vbox
+from algopalette.gui.widgets import NumEdit, Swatch, clear_layout, combo, form, hbox, hint, vbox
 from algopalette.model import OKLCH
 from algopalette.sources import (
     ParseError,
@@ -123,8 +122,8 @@ class SourceTab(QScrollArea):
         bl.addWidget(w)
         modes = hint(
             "uzupełnianie — kolory trafiają do kolejnych miejsc z kłódką, resztę generujesz; "
-            "charakter — profil palety (odcienie, nasycenie, jasność, zabarwienie tła) ustawia "
-            "ustawienia globalne; przeniesienie — każdy akcent zachowuje odcień, nasycenie "
+            "charakter — profil palety (odcienie, nasycenie, jasność, zabarwienie tła) staje się "
+            "zasadami kolorów; przeniesienie — każdy akcent zachowuje odcień, nasycenie "
             "względne i kontrast z nowym tłem."
         )
         help.attach(modes, "source.mode")
@@ -196,7 +195,7 @@ class SourceTab(QScrollArea):
             self.win.notify(str(e), error=True)
             return
         self.win.replace_session(new)
-        self.win.notify("Tryb zastosowany — sprawdź warunki i generuj (Ctrl+G).")
+        self.win.notify("Tryb zastosowany — sprawdź zasady (F2) i generuj (Ctrl+G).")
 
     def _from_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(

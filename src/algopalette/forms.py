@@ -175,6 +175,43 @@ SOURCE_MODES = [
 ]
 
 
+# --- krótki opis zasady (wiersz „różne” przy edycji zbiorczej) ---------------------------------
+
+
+def rule_summary(field: str, rule: Any, session: Session) -> str:
+    """Zasada jednym wierszem tekstu: wartość + odstępstwa od „włączona, twarda, waga 1”."""
+    if rule is None:
+        return "brak"
+    v = rule.value
+    if field == "lightness":
+        text = _fmt_interval(v.lo, v.hi, ".3f")
+    elif field == "chroma":
+        if v.mode == "rel":
+            lo = None if v.lo is None else 100.0 * v.lo
+            hi = None if v.hi is None else 100.0 * v.hi
+            text = _fmt_interval(lo, hi, ".0f") + "%"
+        else:
+            text = _fmt_interval(v.lo, v.hi, ".3f")
+    elif field == "hue":
+        text = f"{v.lo:.0f}°–{v.hi:.0f}°"
+    elif field == "contrast_bg":
+        fmt, unit = _contrast_fmt(v.metric or session.globals.contrast_metric)
+        text = _fmt_interval(v.lo, v.hi, fmt, unit)
+    elif field in ("min_distance", "cvd_min_distance"):
+        fine = session.globals.delta_e in ("ok", "hyab")
+        text = f"ΔE ≥ {float(v):.3f}" if fine else f"ΔE ≥ {float(v):.1f}"
+    else:  # extreme
+        text = "najsłabszy" if v == "weakest" else "najmocniejszy"
+    exclude = getattr(v, "exclude", ())
+    if exclude:
+        text += f", zakazy: {len(exclude)}"
+    if not rule.enabled:
+        text += " · wyłączona"
+    if not rule.hard:
+        text += " · miękka" + ("" if rule.weight == 1.0 else f" (waga {rule.weight:g})")
+    return text
+
+
 # --- teksty naruszeń ---------------------------------------------------------------------------
 
 _CVD_NAMES = {"protan": "protanopii", "deutan": "deuteranopii", "tritan": "tritanopii"}

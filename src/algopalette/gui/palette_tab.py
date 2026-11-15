@@ -1,4 +1,6 @@
-"""Zakładka „Paleta”: lista slotów + edytor zaznaczonego slotu (wartość, warunki, zależności)."""
+"""Zakładka „Paleta”: lista kolorów + edytor zaznaczonego koloru (nazwa, kłódka, wartość).
+
+Zasady kolorów ustawia się na zakładce „Zasady”; stąd prowadzi do niej odnośnik."""
 
 from __future__ import annotations
 
@@ -25,10 +27,8 @@ from PySide6.QtWidgets import (
 )
 
 from algopalette import color as col
-from algopalette.constraints import slot_label
+from algopalette.engine import slot_label
 from algopalette.gui import help, theme
-from algopalette.gui.conditions import ConditionsEditor
-from algopalette.gui.relations import RelationsEditor
 from algopalette.gui.widgets import (
     Swatch,
     ValueSlider,
@@ -323,16 +323,10 @@ class SlotEditor(QScrollArea):
         self._lay.addWidget(w)
         self._update_gradients()
 
-        head = section("Warunki (w OKLCH)" if hsl else "Warunki")
-        help.attach(head, "cond.overview")
-        self._lay.addWidget(head)
-        self.conditions = ConditionsEditor(self.win, "slot", slot.id)
-        self._lay.addWidget(self.conditions)
-        head = section("Zależności od innych kolorów")
-        help.attach(head, "rel.overview")
-        self._lay.addWidget(head)
-        self.relations = RelationsEditor(self.win, slot.id)
-        self._lay.addWidget(self.relations)
+        self.rules_link = QPushButton("Zasady tego koloru →")
+        help.attach(self.rules_link, "rules.palette_link")
+        self.rules_link.clicked.connect(lambda: self.win.show_rules([slot.id]))
+        self._lay.addWidget(hbox(self.rules_link))
         self._lay.addStretch(1)
 
     def _slot(self):
@@ -468,7 +462,7 @@ class PaletteTab(QSplitter):
         gen = QPushButton("Generuj propozycje (Ctrl+G)")
         help.attach(gen, "palette.generate")
         gen.setDefault(True)
-        gen.clicked.connect(win.action_generate)
+        gen.clicked.connect(win.generate)
         lay.addWidget(hbox(*buttons))
         lay.addWidget(hbox(gen))
         tip = hint(

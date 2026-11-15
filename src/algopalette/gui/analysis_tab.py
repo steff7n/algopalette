@@ -27,11 +27,10 @@ from PySide6.QtWidgets import (
 
 from algopalette import color as col
 from algopalette.color import fast
-from algopalette.constraints import slot_label
+from algopalette.engine import slot_label
 from algopalette.gui import help, theme
-from algopalette.gui.conditions import combo
-from algopalette.gui.widgets import hbox, hint, section, vbox
-from algopalette.model import OKLCH, CvdType, Session, effective_conditions
+from algopalette.gui.widgets import combo, hbox, hint, section, vbox
+from algopalette.model import OKLCH, CvdType, Session, slot_index
 
 if TYPE_CHECKING:
     from algopalette.gui.app import MainWindow
@@ -173,25 +172,24 @@ class HueWheel(QWidget):
                 Qt.AlignmentFlag.AlignCenter,
                 f"{deg}°",
             )
-        # łuki warunków zaznaczonego koloru
+        # łuk zasady odcienia zaznaczonego koloru
         if self.selected is not None and self.selected in {x.id for x in s.slots}:
-            eff, _ = effective_conditions(s, self.selected)
-            arcs: list[tuple[float, float, QColor]] = []
-            if eff.hue_range is not None and eff.hue_range.enabled:
-                hr = eff.hue_range.value
-                arcs.append((hr.lo, hr.hi, QColor(theme.colors().arc_range)))
-            if eff.hue_target is not None and eff.hue_target.enabled:
-                ht = eff.hue_target.value
-                arcs.append(
-                    (ht.target - ht.tol, ht.target + ht.tol, QColor(theme.colors().arc_target))
+            rule = s.slots[slot_index(s, self.selected)].rules.hue
+            if rule is not None and rule.enabled:
+                arc = rule.value
+                span = (arc.hi - arc.lo) % 360 or 360
+                rr = R + 6
+                p.setPen(
+                    QPen(
+                        QColor(theme.colors().arc_range),
+                        5,
+                        Qt.PenStyle.SolidLine,
+                        Qt.PenCapStyle.FlatCap,
+                    )
                 )
-            for k, (lo, hi, c) in enumerate(arcs):
-                span = (hi - lo) % 360 or 360
-                rr = R + 6 + 6 * k
-                p.setPen(QPen(c, 5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.FlatCap))
                 p.drawArc(
                     QRectF(center.x() - rr, center.y() - rr, 2 * rr, 2 * rr),
-                    int(lo * 16),
+                    int(arc.lo * 16),
                     int(span * 16),
                 )
         # punkty
@@ -345,8 +343,7 @@ def pair_requirement(session: Session, i: int, j: int, view: str) -> float | Non
     field = "min_distance" if view == "normal" else "cvd_min_distance"
     reqs = []
     for k in (i, j):
-        eff, _ = effective_conditions(session, session.slots[k].id)
-        c = getattr(eff, field)
+        c = getattr(session.slots[k].rules, field)
         if c is not None and c.enabled:
             reqs.append(float(c.value))
     return max(reqs) if reqs else None
