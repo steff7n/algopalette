@@ -74,6 +74,10 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   W `globals_tab.py`: `group(title, key)` podpina klucz pod `QGroupBox` (F1 gdziekolwiek w sekcji), `keyed(w, key,
   children=)` zwraca widżet. Listy wyboru (nastroje, układy, ΔE, fit, CVD) opisane w body — test pilnuje, że
   każda opcja z `forms`/`moods.BUILTIN` występuje w treści. Testy: `test_help_globals.py` 4; `tests/gui` 88.
+  **Uwaga:** commit 60fa271 wszedł z 1 czerwonym testem (`test_search_diacritics` zakładał, że „gamut” trafia
+  pierwszy w `concept.gamut`, a „Gamut (fit)” z Globalnych też ma to w tytule) i E501 w teście — naprawione
+  w kolejnym commicie; test sprawdza teraz tylko, że trafienia w tytule idą przed resztą. Łańcuchy weryfikacji
+  pisz z `&&` aż do commita, nigdy `;`.
 
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 

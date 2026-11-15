@@ -155,7 +155,10 @@ def test_search_diacritics():
     assert hits and all(
         "zrodlo" in gh.normalize(TOPICS[k].title + TOPICS[k].short + TOPICS[k].body) for k in hits
     )
-    assert gh.search("gamut")[0] == "concept.gamut"  # trafienie w tytule pierwsze
+    hits = gh.search("gamut")
+    title_hits = [k for k in hits if "gamut" in TOPICS[k].title.casefold()]
+    assert "concept.gamut" in title_hits
+    assert hits[: len(title_hits)] == title_hits  # trafienia w tytule pierwsze
     assert gh.search("   ") == []
 
 
