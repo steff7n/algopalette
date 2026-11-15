@@ -1,0 +1,232 @@
+{
+ "format": "algopalette.v2",
+ "preset": null,
+ "view_model": "oklch",
+ "globals": {
+  "polarity": "dark",
+  "contrast_metric": "wcag21",
+  "delta_e": "hyab",
+  "cvd": {
+   "types": [],
+   "method": "machado",
+   "severity": 1.0
+  },
+  "fit_method": "oklch-chroma",
+  "hue_scheme": {
+   "kind": "triad",
+   "rotation": 118.40675520474562,
+   "center": 223.21201372965885,
+   "spread": 132.3766595435706,
+   "custom": [],
+   "tol": 13.983157680561153,
+   "jitter": 0.0,
+   "hard": false,
+   "weight": 2.0
+  },
+  "lightness_spread": null,
+  "avoid_colors": [],
+  "avoid_distance": 0.0,
+  "optimizer": {
+   "n_proposals": 6,
+   "seed": 0,
+   "budget": 800,
+   "time_cap_s": 30.0,
+   "min_diversity": 0.05,
+   "hard_weight": 1000.0,
+   "threads": 0
+  }
+ },
+ "slots": [
+  {
+   "id": "c5a4cd7d",
+   "name": "tło",
+   "locked": false,
+   "value": {
+    "l": 0.8294869124397861,
+    "c": 0.00997631694825745,
+    "h": 301.3244222613452
+   },
+   "hex": "#c8c6cd",
+   "use_scheme": true,
+   "rules": {
+    "lightness": {
+     "value": {
+      "lo": 0.29172337960123057,
+      "hi": null,
+      "exclude": []
+     },
+     "enabled": true,
+     "hard": false,
+     "weight": 2.0
+    },
+    "chroma": {
+     "value": {
+      "mode": "abs",
+      "lo": 0.0,
+      "hi": 0.04,
+      "exclude": []
+     },
+     "enabled": true,
+     "hard": true,
+     "weight": 1.0
+    },
+    "hue": {
+     "value": {
+      "lo": 232.20494963564167,
+      "hi": 333.63715819857,
+      "exclude": []
+     },
+     "enabled": true,
+     "hard": false,
+     "weight": 2.0
+    },
+    "contrast_bg": null,
+    "min_distance": null,
+    "cvd_min_distance": null,
+    "extreme": null
+   },
+   "relations": []
+  },
+  {
+   "id": "b38e96d6",
+   "name": "tekst",
+   "locked": false,
+   "value": {
+    "l": 0.7698389329833938,
+    "c": 0.046660175363562345,
+    "h": 123.0368812393903
+   },
+   "hex": "#aeba99",
+   "use_scheme": true,
+   "rules": {
+    "lightness": {
+     "value": {
+      "lo": 0.6653533323344397,
+      "hi": 0.7533158589867991,
+      "exclude": []
+     },
+     "enabled": true,
+     "hard": true,
+     "weight": 0.5
+    },
+    "chroma": {
+     "value": {
+      "mode": "rel",
+      "lo": null,
+      "hi": 0.20818608651944243,
+      "exclude": []
+     },
+     "enabled": true,
+     "hard": true,
+     "weight": 2.0
+    },
+    "hue": null,
+    "contrast_bg": {
+     "value": {
+      "metric": null,
+      "lo": 7.0,
+      "hi": null
+     },
+     "enabled": true,
+     "hard": true,
+     "weight": 1.0
+    },
+    "min_distance": null,
+    "cvd_min_distance": null,
+    "extreme": null
+   },
+   "relations": []
+  },
+  {
+   "id": "31c7422f",
+   "name": "",
+   "locked": false,
+   "value": {
+    "l": 0.9059990759511488,
+    "c": 0.01082834541905598,
+    "h": 82.14830907750199
+   },
+   "hex": "#e3dfd8",
+   "use_scheme": true,
+   "rules": {
+    "lightness": {
+     "value": {
+      "lo": null,
+      "hi": 0.6356012117256441,
+      "exclude": []
+     },
+     "enabled": true,
+     "hard": true,
+     "weight": 1.0
+    },
+    "chroma": {
+     "value": {
+      "mode": "abs",
+      "lo": 0.06,
+      "hi": 0.2,
+      "exclude": []
+     },
+     "enabled": true,
+     "hard": true,
+     "weight": 1.0
+    },
+    "hue": null,
+    "contrast_bg": {
+     "value": {
+      "metric": null,
+      "lo": 4.5,
+      "hi": null
+     },
+     "enabled": true,
+     "hard": true,
+     "weight": 1.0
+    },
+    "min_distance": {
+     "value": 0.23354270206500427,
+     "enabled": true,
+     "hard": false,
+     "weight": 2.0
+    },
+    "cvd_min_distance": {
+     "value": 0.050994610205644046,
+     "enabled": true,
+     "hard": false,
+     "weight": 1.0
+    },
+    "extreme": null
+   },
+   "relations": [
+    {
+     "kind": "lightness",
+     "target": "c5a4cd7d",
+     "op": "ge",
+     "value": -0.23387147309744005,
+     "tol": 0.0897488557180027,
+     "chroma_op": "add",
+     "chroma_mode": "abs",
+     "metric": null,
+     "other": null,
+     "t": 0.5,
+     "enabled": true,
+     "hard": true,
+     "weight": 2.0
+    },
+    {
+     "kind": "hue",
+     "target": "b38e96d6",
+     "op": "le",
+     "value": 27.536590550988564,
+     "tol": 25.572635152065477,
+     "chroma_op": "add",
+     "chroma_mode": "abs",
+     "metric": null,
+     "other": null,
+     "t": 0.5,
+     "enabled": true,
+     "hard": true,
+     "weight": 1.0
+    }
+   ]
+  }
+ ]
+}

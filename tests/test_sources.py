@@ -43,7 +43,7 @@ SRC = [
 
 def _implemented() -> list[str]:
     try:
-        from algopalette import _engine  # ty: ignore[unresolved-import]
+        from algopalette import _engine
     except ImportError:
         return []
     return _engine.build_info()["implemented"]

@@ -7,7 +7,6 @@ dependencies = [
     "coloraide>=8.15",
     "numpy>=2.5.4",
     "pyside6-essentials>=6.10",
-    "scipy>=1.18.1",
 ]
 
 [project.scripts]

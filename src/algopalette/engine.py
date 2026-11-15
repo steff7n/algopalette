@@ -16,7 +16,7 @@ from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, replace
 from typing import Any
 
-from algopalette import _engine  # ty: ignore[unresolved-import]
+from algopalette import _engine
 from algopalette import color as col
 from algopalette import io as aio
 from algopalette.model import OKLCH, Session, role_of

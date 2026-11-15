@@ -158,6 +158,36 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     przed limitem ze starego). Limit podpowiedzi `short` ≤ 200 znaków nadal obowiązuje (pierwsza wersja miała
     215 i padła). **Pułapka:** `# type: ignore[arg-type]` nie działa na `ty` — typuj słowniki literałami
     (`dict[DeltaEMethod, …]`).
+  - Task 4 ☑ (4a agent: `50e56d4`, scalone merge-commitem `881a753`; 4b kontroler) — Verify: `cargo test -p
+    algopalette-core` → **98 passed** (75 + 23 kontrakt; czyta 52 pliki `tests/fixtures/v2_contract/`: 12
+    `manual_*` agenta + 40 `eval_NNN.json`); `uv run --no-sync pytest -q tests/test_engine_api.py` → **20
+    passed**; wszystkie testy nie-GUI razem: 389 passed, 3 skipped. `scipy` usunięte z zależności; usunięte
+    `constraints.py`, `hues.py`, `tests/test_{constraints,engine,hues}.py`. Schemat Rusta zgodził się z
+    `io.session_to_dict` za pierwszym razem (40 dokumentów + 5 przypadków odrzucanych po obu stronach).
+    `engine.py` = nakładka I4: `Violation`, `Proposal`, `Progress`, `Generation` (`poll/cancel/result`),
+    `EngineError`, `to_engine_json`, `start`, `generate` (blokujące, odpytuje co 5 ms), `current_violations`,
+    `objective`, `hue_targets`, `apply_proposal`, `slot_label`. `Generation.result()` już składa `Proposal`
+    (hex, fit_delta, kolory stałe dokładnie jak w sesji) — Task 16 ma tylko podpiąć prawdziwe zadanie.
+    `forms.violation_text(v, session)` → `(etykieta, wymagane, osiągnięte)` dla każdego `kind` z I3.
+    **Decyzje:** etykiety zależności zaczynają się od „zależność:” (w v1 „relacja:” — jedno słowo na jedną
+    rzecz); `avoid` → „unikany kolor (…)”; zakaz odcienia → „poza 60°–85°”; nieznany `kind` pokazuje klucz.
+    Pliki kontraktu `eval_NNN.json` = co siódma sesja wzorcowa (0, 7, …, 273) po `migrate_v1`, zakodowana
+    przez `session_to_dict` z `indent=1` — test zapisuje brakujące, a istniejące porównuje bajt w bajt (dryf
+    kodera = czerwony test; po ŚWIADOMEJ zmianie formatu skasuj `eval_*.json` i puść test dwa razy).
+    **Instalacja narzędzia (ryzyko §12 speca — ZAMKNIĘTE):** `UV_TOOL_DIR=… UV_TOOL_BIN_DIR=… uv tool install
+    --editable .` działa z backendem maturin: `algopalette --help` kod 0 spoza repo, `algopalette.__file__` i
+    `_engine.__file__` wskazują `src/` worktree, `profile == "release"`. Tryb zastępczy niepotrzebny.
+    **Pułapki:** (1) po zmianie pliku Rusta `uv run` sam przebudowuje rozszerzenie (5–25 s) → przekracza limit
+    20 s na pierwszym planie: `uv sync` w tle, potem `uv run --no-sync …`; (2) `ls` w tej powłoce to alias
+    drukujący „→ cel” dla dowiązań — nie podstawiaj jego wyniku do zmiennej; (3) Rust waliduje to samo co
+    `io.py` (wagi, tolerancje ≥ 0, metryka zależności pasująca do rodzaju, `t ∈ [0,1]`) — sesja zbudowana w
+    pamięci przez GUI z pominięciem `io` może dostać `ValueError` z `_engine.evaluate`; edytory muszą trzymać
+    te niezmienniki; (4) `_engine.pyi` jest potrzebny `ty` (bez niego `unresolved-import`).
+    Nowe zależności do zgłoszenia użytkownikowi: `maturin 1.16`, `pyo3 0.30.1`, `rayon 1.12.0`, `serde
+    1.0.229`, `serde_json 1.0.154`, `serde_path_to_error 0.1.20` (ta ostatnia spoza listy w planie).
+  - Taski 5 ☑ (`09de714`) i 6 ☑ (`796c543`) — agent silnikowy, szczegóły w §0d; faza B (14, 16) wysłana po
+    commicie 4b. Decyzja kontrolera dla fazy B: ΔE `itp` liczyć po obcięciu kanałów liniowych do ≥ 0 (kolor
+    prawie czarny z kanałem ≈ −4e-7 daje w coloraide ΔE ≈ 3e62 — to nie może trafić do panelu naruszeń).
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -889,3 +919,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 10 ☑: `ListPicker` (koło odcieni + lista, tryb kolorów z L/C i polem CSS); 20 testów.
 - 2026-11-16 — Task 11 ☑: `ColorStrip` (wielokrotne zaznaczenie, klawiatura, zawijanie); 13 testów.
 - 2026-11-16 — Task 13 ☑: `Topic.term`, osiem pojęć wg wzorca z liczbami z programu, rysunek nasycenia w panelu Pomocy; 15 testów.
+- 2026-11-16 — Taski 4 ☑, 5 ☑, 6 ☑: gałąź agenta scalona; nakładka `engine.py`, `violation_text`, 52 pliki kontraktu, stary silnik i scipy usunięte; edytowalna instalacja z maturin sprawdzona w scratchpadzie.
