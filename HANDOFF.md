@@ -2,14 +2,25 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0c. JEDEN PANEL ZASAD + SILNIK W RUST (2026-11-15) — STAN: spec napisany, CZEKA NA AKCEPTACJĘ użytkownika; planu jeszcze nie ma; kodu nie ruszono
+## 0c. JEDEN PANEL ZASAD + SILNIK W RUST (2026-11-15) — STAN: spec ZAAKCEPTOWANY, plan napisany (20 zadań, 0 wykonanych); kodu nie ruszono
 
-- **Gdzie jesteśmy:** brainstorming zakończony pytaniami, spec w
-  `docs/superpowers/specs/2026-11-15-zasady-silnik-design.md` (gałąź `feat/zasady-silnik`, worktree
-  `/home/qrikk/algopalette/.worktrees/zasady-silnik`). Następne kroki, w tej kolejności: (1) akceptacja speca przez
-  użytkownika, (2) **zapytać użytkownika o zasady przeglądu** — jego słowa: „im wiecej subagentow, tym lepiej
-  [wyjatkiem jest review, ale o to mnie zapytaj po napisaniu specyfikacji]” — NIE zakładaj reguły z §2 ani z
-  CLAUDE.md, dopóki nie odpowie, (3) plan (`writing-plans`; kontrakt, nie gotowy kod), (4) wykonanie wg §11 speca.
+- **Gdzie jesteśmy:** spec `docs/superpowers/specs/2026-11-15-zasady-silnik-design.md` zaakceptowany słowami
+  „wszystko sie zgadza” (razem z decyzjami agenta wymienionymi niżej). Plan:
+  `docs/superpowers/plans/2026-11-15-zasady-silnik.md` + `.tasks.json` (natywne zadania #1–#20 = Task 1–20, z
+  zależnościami). Gałąź `feat/zasady-silnik`, worktree `/home/qrikk/algopalette/.worktrees/zasady-silnik`.
+  **Następny krok:** wybór sposobu wykonania przez użytkownika, potem Task 1 (dane wzorcowe ze STAREGO silnika —
+  musi powstać, zanim cokolwiek zmieni `model.py`/`engine.py`; Task 3 i 4 kasują stary kod).
+- **Kolejność i równoległość (z planu):** łańcuch kontraktów 1 → 3 → 4 (kontroler); od razu równolegle 2, 9, 10,
+  11, 13; po 4 równolegle 5, 6, 7, 8, 12; po 5 → 14; po 7–12 → 15; po 6 i 14 → 16; po 15 → 17, 18; po 8 i 16 →
+  19; na końcu 20. Interfejsy dzielone I1–I6 w planie są wiążące (schemat v2, model, `_engine`, nakładka
+  `engine.py`, rdzeń Rusta, widżety/presety) — zmiana interfejsu = zmiana planu i powiadomienie pozostałych torów.
+- **Przegląd — ZAŁOŻENIE, niepotwierdzone wprost:** na pytanie a/b/c z rekomendacją „a” (dwa przeglądy częściowe
+  Opus xhigh: po silniku = po Tasku 16, po całości = po Tasku 20; pętla napraw z CLAUDE.md) użytkownik
+  odpowiedział tylko „wszystko sie zgadza”. Przyjęto „a” i powiedziano mu to. **Przed pierwszym przeglądem
+  potwierdź jednym zdaniem.** Reguła z §2 (jeden przegląd, Opus high, bez re-review) dotyczyła pierwszego planu.
+- **Znany stan przejściowy podczas wykonania:** po Tasku 3 testy modułów nieprzeniesionych na model v2 są
+  czerwone, a GUI na tej gałęzi nie startuje do końca Tasku 15. Każde zadanie uruchamia tylko testy ze swojego
+  pola Verify; pełny zestaw zielony dopiero w Tasku 20. Launcher użytkownika czyta `main`, więc go to nie dotyka.
 - **Jedna kopia repo (pułapka, która kosztowała pół sesji):** do 2026-11-15 `/home/qrikk/algopalette` stało na
   starym TUI (e7e5abb), a wersja z GUI żyła w `/home/qrikk/Pobrane/.gitclones/algopalette` i stamtąd czytał
   launcher — zrzuty użytkownika nie zgadzały się z kodem w katalogu sesji. Decyzja użytkownika: „ta z GUI jest
@@ -459,3 +470,5 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-15 — scalenie kopii repo (katalog sesji dociągnięty do 4b71aeb, launcher przepięty); brainstorming
   przebudowy „jeden panel zasad + silnik w Rust”; pomiar bazowy silnika; spec napisany na gałęzi
   `feat/zasady-silnik` (worktree `.worktrees/zasady-silnik`), czeka na akceptację. Szczegóły: §0c.
+- 2026-11-15 — spec zaakceptowany („wszystko sie zgadza”); plan 20 zadań + `.tasks.json`, natywne zadania #1–#20
+  z zależnościami; przegląd przyjęty w wariancie „a” jako założenie do potwierdzenia. Kodu nie ruszono.
