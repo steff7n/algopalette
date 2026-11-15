@@ -8,8 +8,16 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   „wszystko sie zgadza” (razem z decyzjami agenta wymienionymi niżej). Plan:
   `docs/superpowers/plans/2026-11-15-zasady-silnik.md` + `.tasks.json` (natywne zadania #1–#20 = Task 1–20, z
   zależnościami). Gałąź `feat/zasady-silnik`, worktree `/home/qrikk/algopalette/.worktrees/zasady-silnik`.
-  **Następny krok:** wybór sposobu wykonania przez użytkownika, potem Task 1 (dane wzorcowe ze STAREGO silnika —
-  musi powstać, zanim cokolwiek zmieni `model.py`/`engine.py`; Task 3 i 4 kasują stary kod).
+  **Sesja planująca zakończona na życzenie użytkownika** — na pytanie o sposób wykonania (subagenci w tej sesji /
+  druga sesja z subagentami / druga sesja bez subagentów) odpowiedział: „zapisz plan, handoffy i zacommituj, na ten
+  moment konczymy”. Sposób wykonania jest więc NIEWYBRANY: po wznowieniu zadaj to pytanie ponownie (jego wcześniejsze
+  słowa: „im wiecej subagentow, tym lepiej”), niczego nie zaczynaj bez odpowiedzi.
+  **Następny krok po wyborze:** Task 1 (dane wzorcowe ze STAREGO silnika — musi powstać, zanim cokolwiek zmieni
+  `model.py`/`engine.py`; Task 3 i 4 kasują stary kod).
+- **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
+  `feat/zasady-silnik` (lokalnej, niewypchniętej), commity `2141daa` (spec) i `069cf2a` (plan) + ten. `HANDOFF.md`
+  na `main` kończy się na §0b i o tej pracy nie wie. Natywne zadania #1–#20 żyły w sesji planującej; trwały zapis
+  to `docs/superpowers/plans/2026-11-15-zasady-silnik.md.tasks.json` (wszystkie `pending`).
 - **Kolejność i równoległość (z planu):** łańcuch kontraktów 1 → 3 → 4 (kontroler); od razu równolegle 2, 9, 10,
   11, 13; po 4 równolegle 5, 6, 7, 8, 12; po 5 → 14; po 7–12 → 15; po 6 i 14 → 16; po 15 → 17, 18; po 8 i 16 →
   19; na końcu 20. Interfejsy dzielone I1–I6 w planie są wiążące (schemat v2, model, `_engine`, nakładka
