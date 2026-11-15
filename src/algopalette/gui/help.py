@@ -278,21 +278,23 @@ def _describe(w: QWidget) -> str:
     return f"{type(w).__name__} {text[:40]!r} w {'/'.join(chain)}"
 
 
-def uncovered(root: QWidget) -> list[str]:
-    """Elementy wymagające opisu, które go nie mają (puste = pełne pokrycie)."""
+def uncovered(root: QWidget, skip: Sequence[QWidget] = ()) -> list[str]:
+    """Elementy wymagające opisu, które go nie mają (puste = pełne pokrycie). ``skip``: poddrzewa
+    sprawdzane osobno (np. zakładki w teście samego okna)."""
     out: list[str] = []
+    skipped = set(map(id, skip))
     for w in [root, *root.findChildren(QWidget)]:
-        if w.objectName() == PANEL_NAME or w.objectName().startswith("qt_"):
+        if w.objectName() == PANEL_NAME or w.objectName().startswith("qt_") or id(w) in skipped:
             continue
-        anc, skip = w.parentWidget(), False
+        anc, skip_w = w.parentWidget(), False
         while anc is not None:
-            if isinstance(anc, _OPAQUE) or anc.objectName() == PANEL_NAME:
-                skip = True
+            if isinstance(anc, _OPAQUE) or anc.objectName() == PANEL_NAME or id(anc) in skipped:
+                skip_w = True
                 break
             if anc is root:
                 break
             anc = anc.parentWidget()
-        if skip or w.property(DECORATIVE_PROP) or not _needs_key(w):
+        if skip_w or w.property(DECORATIVE_PROP) or not _needs_key(w):
             continue
         if isinstance(w, QToolButton) and w.defaultAction() is not None:
             if key_of(w.defaultAction()) is None:

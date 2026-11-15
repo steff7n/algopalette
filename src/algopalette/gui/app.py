@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QSplitter,
     QTableWidget,
@@ -335,7 +336,8 @@ class MainWindow(QMainWindow):
             a.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
 
         mb = self.menuBar()
-        m = mb.addMenu("&Plik")
+        self.menus: dict[str, QMenu] = {}
+        m = self.menus["file"] = mb.addMenu("&Plik")
         for a in (
             self.act_new,
             self.act_open,
@@ -349,29 +351,30 @@ class MainWindow(QMainWindow):
             self.act_quit,
         ):
             m.addSeparator() if a is None else m.addAction(a)
-        m = mb.addMenu("&Edycja")
+        m = self.menus["edit"] = mb.addMenu("&Edycja")
         m.addAction(self.act_undo)
         m.addAction(self.act_redo)
-        m = mb.addMenu("P&aleta")
+        m = self.menus["palette"] = mb.addMenu("P&aleta")
         m.addAction(self.act_generate)
         m.addSeparator()
         for a in self.palette_tab.slot_actions():
             m.addAction(a)
-        m = mb.addMenu("&Widok")
+        m = self.menus["view"] = mb.addMenu("&Widok")
         m.addAction(self.act_view)
         self.theme_menu = m.addMenu("&Motyw")
         for a in self.act_theme.values():
             self.theme_menu.addAction(a)
         m.addSeparator()
+        self.act_tabs: list[QAction] = []
         for i in range(self.tabs.count()):
             a = self._action(
                 self.tabs.tabText(i), lambda _=False, i=i: self.tabs.setCurrentIndex(i), f"F{i + 2}"
             )
             m.addAction(a)
-            self.tabs.setTabToolTip(i, f"F{i + 2}")
+            self.act_tabs.append(a)
             self.tabs.setTabText(i, f"{self.tabs.tabText(i)}  (F{i + 2})")
         self.help = help.install(self)
-        m = mb.addMenu("Pomo&c")
+        m = self.menus["help"] = mb.addMenu("Pomo&c")
         for a in self.help.actions():
             m.addAction(a)
         self.help.watch_menus()
@@ -392,6 +395,53 @@ class MainWindow(QMainWindow):
         ):
             tb.addSeparator() if a is None else tb.addAction(a)
         self.addToolBar(tb)
+        self.toolbar = tb
+        self._attach_help()
+
+    def _attach_help(self) -> None:
+        """Klucze pomocy okna: akcje menu i paska, menu, zakładki, panel naruszeń."""
+        for name, menu in self.menus.items():
+            help.attach(menu.menuAction(), f"menu.{name}")
+        help.attach(self.theme_menu.menuAction(), "menu.view.theme")
+        for a, key in (
+            (self.act_new, "menu.file.new"),
+            (self.act_open, "menu.file.open"),
+            (self.act_save, "menu.file.save"),
+            (self.act_save_as, "menu.file.save_as"),
+            (self.act_export, "menu.file.export"),
+            (self.act_export_file, "menu.file.export_file"),
+            (self.act_quit, "menu.file.quit"),
+            (self.act_undo, "menu.edit.undo"),
+            (self.act_redo, "menu.edit.redo"),
+            (self.act_generate, "menu.generate"),
+            (self.act_view, "menu.view.values"),
+            (self.help.act_help, "general.help"),
+            (self.help.act_click, "general.help"),
+            (self.help.act_start, "general.start"),
+            (self.help.act_shortcuts, "general.shortcuts"),
+            (self.help.act_index, "general.help"),
+        ):
+            help.attach(a, key)
+        for a in self.act_theme.values():
+            help.attach(a, "menu.view.theme")
+        tab_keys = ("palette", "globals", "proposals", "source", "analysis")
+        for i, (a, k) in enumerate(zip(self.act_tabs, tab_keys, strict=True)):
+            help.attach(a, f"window.tab.{k}")
+            help.attach_tab(self.tabs, i, f"window.tab.{k}")
+        help.attach(self.toolbar, "window.toolbar")
+        vp = self.violations_panel
+        help.attach(vp, "window.violations")
+        help.attach(vp.title, "window.violations")
+        help.attach(vp.table, "window.violations")
+        help.attach_header(
+            vp.table,
+            [
+                "concept.hard_soft",
+                "window.violations",
+                "window.violations.values",
+                "window.violations.values",
+            ],
+        )
 
     def _update_actions(self) -> None:
         self.act_undo.setEnabled(self.history.can_undo)

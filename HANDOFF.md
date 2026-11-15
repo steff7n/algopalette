@@ -50,6 +50,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   gotowe; `window/palette/conditions/globals/proposals/source/analysis.py` puste (T3–T7). `HELP_TEXT` i okno
   skrótów usunięte → temat `general.shortcuts`. Ruff: `help_content/*` ma wyłączone E501 (proza).
   Testy: `tests/gui/test_help.py` 18; `tests/gui` 71 passed; ruff/format/ty zero uwag.
+- **T3 ☑ okno**: `help_content/window.py` (zakładki `window.tab.*` — w grupach swoich obszarów, menu `menu.*`,
+  `window.violations(.values)`, `window.toolbar`); `MainWindow._attach_help()` na końcu `_build_actions`
+  (`self.menus` dict, `self.act_tabs`, `self.toolbar`). Akcje listy kolorów (`palette_tab.slot_actions()`) dostają
+  klucze w T4. `uncovered(root, skip=[...])` — poddrzewa sprawdzane osobno. Testy: `test_help_window.py` 4;
+  `tests/gui` 75 passed.
 
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 
