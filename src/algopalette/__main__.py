@@ -1,17 +1,18 @@
 """Punkt wejścia: ``algopalette [PLIK_SESJI] [--fresh]``."""
 
 import argparse
+import contextlib
 import sys
 import time
 from pathlib import Path
 
 from algopalette import io as aio
 from algopalette.model import Session, default_session
-from algopalette.moods import apply_mood
+from algopalette.presets import migrate_user_moods
 
 
 def fresh_session() -> Session:
-    return apply_mood(default_session(), "neutralny")
+    return default_session()  # ma już zasady presetu „neutralny”
 
 
 def _keep_autosave(suffix: str) -> str | None:
@@ -68,6 +69,10 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("plik", nargs="?", type=Path, help="plik sesji AlgoPalette (.json)")
     parser.add_argument("--fresh", action="store_true", help="ignoruj autozapis, zacznij od nowa")
     args = parser.parse_args(argv)
+    # Jednorazowo: dawne nastroje użytkownika → presety. Uszkodzony plik presetów zgłosi
+    # zakładka „Zasady” przy pierwszym użyciu.
+    with contextlib.suppress(ValueError, OSError):
+        migrate_user_moods()
     session, notice, path = startup_session(args.plik, args.fresh)
 
     from algopalette.gui.app import run

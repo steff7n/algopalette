@@ -78,6 +78,26 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     `forms.py`: usunięte `current_violations` i importy starego silnika (część 4b zrobiona tu, bo moduł inaczej
     się nie importował); `violation_text` dojdzie w 4b. Etykiety list: „bezwzględne (C)” / „względne (%
     największego)”, „metryka palety” zamiast „globalna”. `forms.ACCENT_ONLY`, `DISPLAY_ORDER` = stałe z modelu.
+  - Task 8 ☑ (przed 4b) — `presets.py` + `presets_builtin.py`; `moods.py` i `tests/test_moods.py` usunięte.
+    Verify: `uv run pytest -q tests/test_presets.py` → **59 passed** (36 z nich: dawny preset = migracja sesji
+    wzorcowej); ruff/ty czyste. `presets_builtin.BUILTIN` to krotka `PresetDef` (9 dawnych; kategorie już
+    przypisane); budowniczy `(polaryzacja, metryka) → PresetRules(bg, fg, accent, overrides{nr akcentu od 1:
+    AccentOverride(changes, use_scheme)}, hue_scheme, lightness_spread, use_scheme, cvd, contrast_metric)`;
+    pomocnik `_rules(pol, metric, bg={…}, fg={…}, accent={…}, …)` podmienia pola `default_rules`.
+    `presets._resolve(name, polarity, metric, n_slots, strict)` rozwija preset (wbudowany albo użytkownika) do
+    `(zasady, use_scheme)` na pozycję — z niego korzystają `apply_preset` i `is_modified`.
+    **Decyzje:** (1) `CATEGORIES` = 11 kategorii wbudowanych; presety użytkownika mają `USER_CATEGORY`
+    („Własne”) poza tą krotką; (2) `apply_preset(…, polarity=None)` przy polaryzacji nieobsługiwanej przez
+    preset bierze pierwszą obsługiwaną, z jawnym `polarity` rzuca `ValueError`; dodatkowa funkcja publiczna
+    `supports(name, polarity)`; (3) `change_polarity(reapply=True)` bez presetu (albo gdy preset nie obsługuje
+    polaryzacji, np. preset użytkownika zapisany dla drugiej) nakłada „neutralny”; (4) preset użytkownika
+    przywraca też polaryzację i metrykę, przy których go zapisano (zmiana metryki przelicza progi zależności
+    przez `change_metric`); (5) `is_modified`: bez presetu → `False`, preset skasowany albo niepasujący do
+    polaryzacji/metryki sesji → `True`; (6) `presets.json` ma znacznik `"migrated_moods": true` — bez niego
+    usunięty preset pochodzący z nastroju wracałby przy każdym starcie; `migrate_user_moods` buduje sztuczną
+    sesję v1 (tło, tekst, 1 akcent) i puszcza ją przez `migrate_v1`; (7) `__main__.main` woła
+    `migrate_user_moods()` przed startem i połyka `ValueError/OSError` (uszkodzony plik zgłosi zakładka).
+    Opisy dziewięciu dawnych presetów przepisane tak, żeby mówiły, co preset ustawia (wymóg Tasku 19).
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -560,3 +580,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 3 ☑: model v2 (`Rule`, `Band`, `HueArc`, `SlotRules`), plik `algopalette.v2`, `migrate_v1`; 147 testów.
 - 2026-11-16 — Task 7 ☑: źródło, jednostki i logika ustawień na modelu v2; 19 testów + 3 czekające na silnik.
 - 2026-11-16 — Task 12 ☑: logika edycji zbiorczej (`rules_edit.py`), `forms.py` na polach v2; 25 testów.
+- 2026-11-16 — Task 8 ☑: presety zamiast nastrojów (rdzeń, 9 dawnych, presety użytkownika, przeniesienie `moods.json`); 59 testów.
