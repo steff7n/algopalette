@@ -15,8 +15,25 @@ dependencies = [
 algopalette = "algopalette.__main__:main"
 
 [build-system]
-requires = ["uv_build>=0.13.6,<0.14.0"]
-build-backend = "uv_build"
+requires = ["maturin>=1.16,<2.0"]
+build-backend = "maturin"
+
+# Rozszerzenie natywne `algopalette._engine` (Rust, crates/py) budowane razem z paczką.
+[tool.maturin]
+manifest-path = "crates/py/Cargo.toml"
+python-source = "src"
+module-name = "algopalette._engine"
+profile = "release"
+
+# `uv sync` / `uv run` przebudowują paczkę, gdy zmieni się którykolwiek z tych plików.
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "Cargo.lock" },
+    { file = "crates/**/Cargo.toml" },
+    { file = "crates/**/*.rs" },
+]
 
 [dependency-groups]
 dev = [

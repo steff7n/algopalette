@@ -1,0 +1,173 @@
+{
+  "format": "algopalette.v2",
+  "preset": "neutralny",
+  "view_model": "oklch",
+  "globals": {
+    "polarity": "dark",
+    "contrast_metric": "wcag21",
+    "delta_e": "ok",
+    "cvd": {
+      "types": [],
+      "method": "machado",
+      "severity": 1.0
+    },
+    "fit_method": "oklch-chroma",
+    "hue_scheme": {
+      "kind": "none",
+      "rotation": 0.0,
+      "center": 0.0,
+      "spread": 90.0,
+      "custom": [],
+      "tol": 15.0,
+      "jitter": 0.0,
+      "hard": false,
+      "weight": 1.0
+    },
+    "lightness_spread": {
+      "value": {
+        "lo": null,
+        "hi": 0.12
+      },
+      "enabled": true,
+      "hard": false,
+      "weight": 1.0
+    },
+    "avoid_colors": [],
+    "avoid_distance": 0.0,
+    "optimizer": {
+      "n_proposals": 6,
+      "seed": 0,
+      "budget": 3000,
+      "time_cap_s": 30.0,
+      "min_diversity": 0.05,
+      "hard_weight": 1000.0,
+      "threads": 0
+    }
+  },
+  "slots": [
+    {
+      "id": "bg000000",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.18,
+        "c": 0.02,
+        "h": 265.0
+      },
+      "hex": "#0f1117",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    },
+    {
+      "id": "fg000000",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.92,
+        "c": 0.01,
+        "h": 265.0
+      },
+      "hex": "#e3e5ea",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    },
+    {
+      "id": "acc00001",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.7,
+        "c": 0.12,
+        "h": 120
+      },
+      "hex": "#7fb96b",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": {
+          "value": {
+            "lo": 0,
+            "hi": 360,
+            "exclude": []
+          },
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    },
+    {
+      "id": "acc00002",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.7,
+        "c": 0.12,
+        "h": 300
+      },
+      "hex": "#c58fd8",
+      "use_scheme": false,
+      "rules": {
+        "lightness": {
+          "value": {
+            "lo": 0,
+            "hi": 1,
+            "exclude": []
+          },
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        "chroma": null,
+        "hue": {
+          "value": {
+            "lo": 0,
+            "hi": 360,
+            "exclude": [
+              [
+                60,
+                85
+              ],
+              [
+                330,
+                30
+              ]
+            ]
+          },
+          "enabled": true,
+          "hard": true,
+          "weight": 0
+        },
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    }
+  ]
+}

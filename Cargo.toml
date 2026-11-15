@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/py", "crates/cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[workspace.dependencies]
+algopalette-core = { path = "crates/core" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+serde_path_to_error = "0.1.20"
+pyo3 = { version = "0.30.1", features = ["abi3-py313"] }
+
+# Launcher zawsze uruchamia kompilację release (spec §9.6); `build_info()["profile"]` to sprawdza.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+# `panic` zostaje domyślne ("unwind"): panika w silniku ma zostać wyjątkiem Pythona
+# (pyo3 PanicException) albo stanem `failed` zadania, a nie przerwaniem procesu GUI.

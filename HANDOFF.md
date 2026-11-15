@@ -78,8 +78,93 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 
 ## 0d. TOR SILNIKA (Rust) — pisze WYŁĄCZNIE agent silnikowy; kontroler tej sekcji nie edytuje
 
-- Gałąź `feat/silnik-rust`, worktree `/home/qrikk/algopalette/.worktrees/silnik-rust` (odgałęziona od
-  `feat/zasady-silnik`). Stan: faza A (4a, 5, 6) wysłana 2026-11-15; jeszcze nic nie scalono.
+**Stan na 2026-11-16.** Gałąź `feat/silnik-rust`, worktree `/home/qrikk/algopalette/.worktrees/silnik-rust`
+(odgałęziona od `feat/zasady-silnik` @ `bc85502`). Faza A = Task 4a → 5 → 6, osobny commit na każde.
+Zrobione: **4a** (commit `feat: przestrzeń Cargo, moduł _engine (kontrakty)`). W toku: 5. Nie zaczęte: 6.
+Faza B (Task 14, 16) dopiero po scaleniu przez kontrolera modelu v2/migracji/nakładki do tej gałęzi.
+Nic z tej gałęzi nie jest jeszcze scalone do `feat/zasady-silnik`. Raport fazy A dla kontrolera:
+`.worktrees/zasady-silnik/.superpowers/sdd/2026-11-15-zasady-silnik/engine-phaseA-report.md`.
+
+**Podział Tasku 4 (wiążący).** 4a (ten tor): `Cargo.toml`, `crates/`, backend maturin w `pyproject.toml`,
+`.gitignore`, ręczne pliki kontraktu. 4b (kontroler, NIE ruszać stąd): `src/algopalette/engine.py`, `forms.py`,
+`tests/test_engine_api.py`, usunięcie starego silnika i `scipy`/`textual`, 40 plików kontraktu z `eval.json`,
+instalacja narzędzia w scratchpadzie. W `pyproject.toml` ten tor zmienił TYLKO `[build-system]`, `[tool.maturin]`,
+`[tool.uv]`.
+
+**Mapa (4a).**
+- `Cargo.toml` — workspace (`crates/core`, `crates/py`, `crates/cli`), edycja 2024, `[workspace.dependencies]`,
+  profil release: `opt-level = 3`, `lto = "thin"`, `codegen-units = 1`, `panic` domyślne (unwind — panika ma być
+  wyjątkiem Pythona / stanem `failed`, nie przerwaniem procesu). `rustfmt.toml`: `max_width = 100`,
+  `use_small_heuristics = "Max"`.
+- `crates/core/src/schema.rs` — I1. Wyliczenia `schema.rs:48–200` (`DeltaE::Ciede2000` ↔ `"2000"`; `RelMetric` =
+  metryki kontrastu + metody ΔE, `as_contrast`/`as_delta_e` `:182`/`:191`). `required` `:208` (pole wymagane,
+  ale może być `null` — bez tego serde uznaje brak `Option` za `None`). `pairs` `:218` (pary zakazów; patrz
+  pułapka 2). Struktury `:238–430`. `parse` `:438` (serde_path_to_error → ścieżka; błąd składni → ścieżka `$`),
+  `validate` `:560`.
+- `crates/core/src/rng.rs` — ZAMROŻONY: `splitmix64` `:21`, `Rng::new` `:36` (ziarno → 1 krok SplitMix64 → xor
+  `stream · 0xD6E8FEB86659FD93` → 4 kroki SplitMix64 = stan xoshiro256++), `next_u64` `:51`, `uniform` `:65`
+  (górne 53 bity), `range` `:70` (półotwarty). Testy `frozen_*` mają wartości policzone niezależną implementacją
+  w Pythonie + wektor wzorcowy xoshiro256++ dla stanu [1,2,3,4].
+- `crates/core/src/objective.rs` — `FEASIBLE_EPS` `:10`, `Score` `:14`, `trait Objective` `:25` (dokładnie I5).
+- `crates/core/src/violation.rs` — `ViolationKind` `:12` (14 rodzajów z tabeli I3), `Violation` `:53`
+  (`req`/`meta` = `serde_json::Map`), funkcje kluczy `key_*` `:72–110` (formaty kluczy z tabeli I3 zamrożone
+  testem `keys_match_i3_table`).
+- `crates/core/tests/schema_contract.rs` — czyta WSZYSTKIE `tests/fixtures/v2_contract/*.json` (pliki kontrolera
+  dojdą bez zmiany testu; próg „≥ 12 plików”) + 16 testów negatywnych psujących `manual_exclusions.json`.
+- `crates/py/src/lib.rs` — moduł `algopalette._engine` (`#[pymodule(name = "_engine")]` `:135`), `IMPLEMENTED`
+  `:13`. Zaślepki: `evaluate` `:46`, `hue_targets` `:56`, `Job` `:63` (od razu `done`), `start` `:95`, funkcje
+  koloru `:107–133` (`NotImplementedError`). `src/algopalette/_engine.pyi` — typy I3 dla `ty` (bez tego
+  `from algopalette import _engine` to błąd `unresolved-import`).
+- `crates/cli/src/main.rs` — `algopalette-bench --version` (reszta w Tasku 16).
+- `tests/fixtures/v2_contract/manual_*.json` — 12 ręcznych sesji v2 (generator jednorazowy, nie w repo): przykład
+  I1, zakazy w 3 kanałach (odcień przez 0°, zakaz pokrywający cały zakres), pełne koło 0–360 zapisane liczbami
+  całkowitymi, 16 kolorów z ziarnem > 2³², wszystkie zasady `null` + `lightness_spread: null`, 16 zależności
+  (każdy rodzaj/metryka/`op`, zerwana), `avoid_colors` + układ `custom` + 3 typy CVD, po jednym pliku na każdy
+  pozostały `hue_scheme.kind` / `fit_method` / `delta_e`.
+
+**Decyzje (4a).**
+- Walidacja Rusta = lista z I1 + to, co sprawdzał `io.py` v1: `l ∈ [0,1]`, `c ≥ 0` (kolory i `avoid_colors`);
+  wagi ≥ 0 (każda zasada, zależność, układ, rozrzut); `tol`, `jitter`, `severity`, `avoid_distance`, `time_cap_s`,
+  `min_diversity`, `hard_weight` ≥ 0; `n_proposals ≥ 1`, `budget ≥ 1`, `seed`/`threads` nieujemne całkowite;
+  3–16 slotów; unikalne `id` (ścieżka `slots[i].id` drugiego wystąpienia); zakaz L/C `od < do`; zakaz H końce
+  różne mod 360; metryka zależności pasuje do rodzaju (`contrast` ↔ wcag21/apca, `distance` ↔ ΔE, inne rodzaje:
+  tylko `null`); `t ∈ [0,1]`. NIE sprawdza: `lo ≤ hi` zakresów, zakresu wartości odcienia, istnienia celu
+  zależności (zerwana zależność to nie błąd schematu).
+- `hex`, `name`, `preset`, `view_model` opcjonalne (`#[serde(default)]`), `view_model` dowolny tekst — silnik ich
+  nie używa. Wszystkie inne pola wymagane, także o wartości `null`.
+- Opisy błędów po angielsku (jak komunikaty serde, których nie da się spolszczyć); to kanał techniczny, napisy dla
+  użytkownika składa Python.
+- `start` odrzuca nieznane id w `free` (`ValueError("free[k]: unknown slot id")`).
+
+**Zależności (wersje).** Rust: `serde 1.0.229` (derive), `serde_json 1.0.154`, `serde_path_to_error 0.1.20`
+(ścieżka błędu), `pyo3 0.30.1` (`abi3-py313`; cecha `extension-module` już niepotrzebna — maturin ustawia
+`PYO3_BUILD_EXTENSION_MODULE`). Python (budowanie): `maturin 1.16.0` (`requires = ["maturin>=1.16,<2.0"]`).
+rustc/cargo 1.99.0, uv 0.13.6.
+
+**Wyniki policzone (4a).** `cargo test -p algopalette-core`: 32 zielone (9 jednostkowych: 6 rng + 3 violation;
+23 w `schema_contract`). `cargo fmt --check` czysto, `cargo clippy --all-targets -- -D warnings` bez uwag.
+`uv sync` buduje `src/algopalette/_engine.abi3.so` (pierwszy raz ~21 s, potem ~5 s); `build_info()` →
+`{'version': '0.1.0', 'profile': 'release', 'implemented': ['schema']}`; `validate` przyjmuje 12/12 plików
+kontraktu; nieznane pole → `ValueError: slots[2].rules.hue.value.foo: unknown field ...`. `ruff`/`ty` na
+`_engine.pyi` czysto. `pytest tests/test_color.py tests/test_fast.py`: 46 zielonych (paczka importuje się z
+backendem maturin).
+
+**Pułapki, które kosztowały czas.**
+1. pyo3 0.30 ma inne API niż starsze poradniki: moduł deklaratywny `#[pymodule] mod … { #[pymodule_export] use … }`,
+   `Python::detach` zamiast `allow_threads`, `PyDict::new(py)` zwraca `Bound`. Poradnik do TEJ wersji:
+   `~/.cargo/registry/src/*/pyo3-0.30.1/guide/src/`.
+2. `[f64; 2]` z serde przyjmuje za długą tablicę po cichu, a błąd wychodzi dopiero z serde_json jako składniowy
+   („trailing characters”), bez ścieżki. Stąd własny `pairs` w `schema.rs:218` (test
+   `exclusion_pair_must_have_two_numbers`).
+3. `[tool.uv] cache-keys` obejmuje `crates/**/*.rs`: każde `uv run` po zmianie Rusta przebudowuje release
+   (5–25 s). Wzorzec pracy: `uv sync` w tle, potem `uv run --no-sync …` na pierwszym planie.
+4. `ty` nie widzi modułu z pliku `.so` — potrzebny `_engine.pyi`; nowe funkcje `_engine` dopisuj też tam.
+5. `cargo clippy` nie buduje binarki; `./target/debug/algopalette-bench` powstaje dopiero po `cargo build`.
+
+**Czego NIE zweryfikowano (4a).** Instalacji `uv tool install --editable .` (to 4b, kontroler). Zgodności
+`schema.rs` z `io.session_to_dict` v2 (Task 3 powstaje równolegle; wykryje to test kontraktu po dołożeniu 40
+plików z `eval.json`). Pełnego `pytest` (zgodnie z planem każde zadanie uruchamia tylko swoje Verify).
+Budowania na innym systemie niż ta maszyna.
 
 ## 0b. TRYB CIEMNY + POMOC KONTEKSTOWA (2026-11-15) — T1–T8 ☑, przegląd + fala napraw, SCALONE do `main` i wypchnięte (bez re-review i bez uruchomienia testów — decyzja użytkownika)
 

@@ -1,0 +1,416 @@
+{
+  "format": "algopalette.v2",
+  "preset": "neutralny",
+  "view_model": "oklch",
+  "globals": {
+    "polarity": "dark",
+    "contrast_metric": "wcag21",
+    "delta_e": "ok",
+    "cvd": {
+      "types": [],
+      "method": "machado",
+      "severity": 1.0
+    },
+    "fit_method": "oklch-chroma",
+    "hue_scheme": {
+      "kind": "equal",
+      "rotation": 0.0,
+      "center": 0.0,
+      "spread": 90.0,
+      "custom": [],
+      "tol": 15.0,
+      "jitter": 0.0,
+      "hard": false,
+      "weight": 1.0
+    },
+    "lightness_spread": {
+      "value": {
+        "lo": null,
+        "hi": 0.12
+      },
+      "enabled": true,
+      "hard": false,
+      "weight": 1.0
+    },
+    "avoid_colors": [],
+    "avoid_distance": 0.0,
+    "optimizer": {
+      "n_proposals": 6,
+      "seed": 0,
+      "budget": 3000,
+      "time_cap_s": 30.0,
+      "min_diversity": 0.05,
+      "hard_weight": 1000.0,
+      "threads": 0
+    }
+  },
+  "slots": [
+    {
+      "id": "bg000000",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.18,
+        "c": 0.02,
+        "h": 265.0
+      },
+      "hex": "#0f1117",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    },
+    {
+      "id": "fg000000",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.92,
+        "c": 0.01,
+        "h": 265.0
+      },
+      "hex": "#e3e5ea",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    },
+    {
+      "id": "acc00001",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.7,
+        "c": 0.1,
+        "h": 40.0
+      },
+      "hex": "#d99a7c",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": [
+        {
+          "kind": "hue",
+          "target": "acc00002",
+          "op": "eq",
+          "value": 30.0,
+          "tol": 5.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": null,
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "lightness",
+          "target": "bg000000",
+          "op": "ge",
+          "value": 0.4,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": null,
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "lightness",
+          "target": "acc00002",
+          "op": "le",
+          "value": -0.05,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": null,
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": false,
+          "weight": 3.0
+        },
+        {
+          "kind": "chroma",
+          "target": "acc00002",
+          "op": "eq",
+          "value": 0.02,
+          "tol": 0.01,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": null,
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "chroma",
+          "target": "acc00002",
+          "op": "le",
+          "value": 0.8,
+          "tol": 0.0,
+          "chroma_op": "mul",
+          "chroma_mode": "rel",
+          "metric": null,
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "contrast",
+          "target": "fg000000",
+          "op": "ge",
+          "value": 3.0,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": "wcag21",
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "contrast",
+          "target": "bg000000",
+          "op": "ge",
+          "value": 45.0,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": "apca",
+          "other": null,
+          "t": 0.5,
+          "enabled": false,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "contrast",
+          "target": "bg000000",
+          "op": "le",
+          "value": 12.0,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": null,
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "distance",
+          "target": "acc00002",
+          "op": "ge",
+          "value": 0.1,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": null,
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "distance",
+          "target": "acc00003",
+          "op": "ge",
+          "value": 12.0,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": "2000",
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "distance",
+          "target": "acc00003",
+          "op": "ge",
+          "value": 0.1,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": "hyab",
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "distance",
+          "target": "acc00003",
+          "op": "ge",
+          "value": 20.0,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": "itp",
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "distance",
+          "target": "acc00003",
+          "op": "le",
+          "value": 40.0,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": "cam16",
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "distance",
+          "target": "acc00003",
+          "op": "ge",
+          "value": 0.05,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": "ok",
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "mix",
+          "target": "acc00002",
+          "op": "eq",
+          "value": 0.0,
+          "tol": 0.02,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": null,
+          "other": "acc00003",
+          "t": 0.25,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        },
+        {
+          "kind": "hue",
+          "target": "usuniety",
+          "op": "eq",
+          "value": 180.0,
+          "tol": 0.0,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": null,
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "id": "acc00002",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.7,
+        "c": 0.1,
+        "h": 10.0
+      },
+      "hex": "#e0958f",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": []
+    },
+    {
+      "id": "acc00003",
+      "name": "",
+      "locked": false,
+      "value": {
+        "l": 0.6,
+        "c": 0.12,
+        "h": 250.0
+      },
+      "hex": "#6f8fd6",
+      "use_scheme": true,
+      "rules": {
+        "lightness": null,
+        "chroma": null,
+        "hue": null,
+        "contrast_bg": null,
+        "min_distance": null,
+        "cvd_min_distance": null,
+        "extreme": null
+      },
+      "relations": [
+        {
+          "kind": "lightness",
+          "target": "acc00001",
+          "op": "eq",
+          "value": 0.0,
+          "tol": 0.02,
+          "chroma_op": "add",
+          "chroma_mode": "abs",
+          "metric": null,
+          "other": null,
+          "t": 0.5,
+          "enabled": true,
+          "hard": true,
+          "weight": 1.0
+        }
+      ]
+    }
+  ]
+}

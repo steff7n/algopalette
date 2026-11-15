@@ -1,0 +1,15 @@
+[package]
+name = "algopalette-core"
+description = "Rdzeń silnika AlgoPalette: schemat v2, kolor, zasady, optymalizator (czysty Rust)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+name = "algopalette_core"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+serde_path_to_error.workspace = true
