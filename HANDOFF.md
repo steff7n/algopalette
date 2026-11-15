@@ -128,6 +128,18 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     czerwony test. Zaznaczony wiersz rysowany ręcznie kolorem `highlight` z palety aplikacji (ramka `QFrame.Box`
     była w ciemnym motywie niewidoczna). „+ dodaj” wstawia odcień w środku największej przerwy na kole.
     Usuwanie klawiszem Delete działa na przycisku ✕ (jak w `BandSlider`), przestawianie Alt+↑/↓ także z pola.
+  - Task 11 ☑ — `gui/colorstrip.py` (`ColorStrip`, `StripEntry`, `Selection`). Verify:
+    `QT_QPA_PLATFORM=offscreen uv run pytest -q tests/gui/test_colorstrip.py` → **13 passed**; ruff/ty czyste;
+    zrzuty obu motywów obejrzane (16 kolorów zawija się do dwóch wierszy przy 900 px). Budowa:
+    `palette_button`, `chips` (lista `_Chip` z `entry_id`, `hex`), `accents_button`; `_Chip` to
+    `QAbstractButton` malowany ręcznie (kolory z `QApplication.palette()`), `nextCheckState()` puste — stan
+    „zaznaczony” ustawia WYŁĄCZNIE pasek (`_sync`); `_FlowLayout` zawija przyciski (bez przewijania, etykiety
+    w pełnej szerokości `sizeHint`). Pasek jest JEDNYM przystankiem Tab (wędrujący `_tab_stop`: tylko on ma
+    `StrongFocus`, reszta `ClickFocus`); ←/→ przenosi fokus bez zaznaczania. Kotwica Shift+klik = ostatni kolor
+    kliknięty bez Shift. Ctrl+klik przy zaznaczonej „całej palecie” zaznacza sam ten kolor. `accents_button`
+    świeci się, gdy zaznaczone są dokładnie wszystkie akcenty. `select([])` = cała paleta; `select` z tym samym
+    zbiorem nie emituje. `set_entries` z tą samą listą id nie przebudowuje przycisków (aktualizuje próbki i
+    etykiety), a sygnał wysyła tylko, gdy zaznaczenie faktycznie się zmieniło (np. zniknął zaznaczony kolor).
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -613,3 +625,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 8 ☑: presety zamiast nastrojów (rdzeń, 9 dawnych, presety użytkownika, przeniesienie `moods.json`); 59 testów.
 - 2026-11-16 — Task 9 ☑: `BandSlider` (zakres + zakazy + środek ±), zakazy kreskowane na pasku; 20 testów.
 - 2026-11-16 — Task 10 ☑: `ListPicker` (koło odcieni + lista, tryb kolorów z L/C i polem CSS); 20 testów.
+- 2026-11-16 — Task 11 ☑: `ColorStrip` (wielokrotne zaznaczenie, klawiatura, zawijanie); 13 testów.
