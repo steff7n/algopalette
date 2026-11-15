@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from algopalette import color as col
 from algopalette.constraints import slot_label
 from algopalette.engine import Proposal, apply_proposal, generate
-from algopalette.gui import theme
+from algopalette.gui import help, theme
 from algopalette.gui.widgets import hbox, hint, vbox
 from algopalette.model import Session
 
@@ -70,6 +70,7 @@ class ProposalsTab(QWidget):
         self.bridge.failed.connect(self._failed)
 
         lay = vbox(self, margins=8, spacing=6)
+        help.attach(self, "window.tab.proposals")
         self.gen_all = QPushButton("Generuj wszystkie wolne (Ctrl+G)")
         self.gen_all.setDefault(True)
         self.gen_all.clicked.connect(lambda: self.start())
@@ -83,8 +84,16 @@ class ProposalsTab(QWidget):
         self.progress.setValue(0)
         self.progress.setTextVisible(False)
         self.progress.setMaximumWidth(260)
+        for w, key in (
+            (self.gen_all, "proposals.generate_all"),
+            (self.gen_one, "proposals.generate_one"),
+            (self.cancel_btn, "proposals.cancel"),
+            (self.progress, "proposals.progress"),
+        ):
+            help.attach(w, key)
         lay.addWidget(hbox(self.gen_all, self.gen_one, self.cancel_btn, self.progress))
         self.status = QLabel("Brak propozycji — naciśnij Ctrl+G.")
+        help.attach(self.status, "proposals.status")
         lay.addWidget(self.status)
 
         split = QSplitter(Qt.Orientation.Horizontal)
@@ -94,11 +103,23 @@ class ProposalsTab(QWidget):
         self.table.setHorizontalHeaderLabels(["#", "stan", "wynik", "naruszenia", "paleta"])
         self._setup_table(self.table)
         self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        help.attach(self.table, "proposals.list")
+        help.attach_header(
+            self.table,
+            [
+                "proposals.list",
+                "proposals.col.state",
+                "proposals.col.score",
+                "proposals.col.violations",
+                "proposals.col.strip",
+            ],
+        )
         self.table.currentCellChanged.connect(lambda r, *_: self._detail(r))
         self.table.cellDoubleClicked.connect(lambda *_: self.take_whole())
         ll.addWidget(self.table, 1)
         self.take_all_btn = QPushButton("Przejmij całą propozycję")
         self.take_all_btn.clicked.connect(self.take_whole)
+        help.attach(self.take_all_btn, "proposals.take_all")
         ll.addWidget(hbox(self.take_all_btn))
         split.addWidget(left)
 
@@ -108,25 +129,29 @@ class ProposalsTab(QWidget):
         self.detail.setHorizontalHeaderLabels(["kolor", "teraz", "propozycja", "hex", "Δ fit"])
         self._setup_table(self.detail)
         self.detail.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        help.attach(self.detail, "proposals.detail")
+        help.attach_header(self.detail, "proposals.detail")
         self.detail.cellDoubleClicked.connect(lambda *_: self.take_color())
         rl.addWidget(self.detail, 1)
         self.take_color_btn = QPushButton("Przejmij zaznaczony kolor")
         self.take_color_btn.clicked.connect(self.take_color)
+        help.attach(self.take_color_btn, "proposals.take_color")
         rl.addWidget(hbox(self.take_color_btn))
         self.detail_violations = QLabel()
         self.detail_violations.setWordWrap(True)
         self.detail_violations.setTextFormat(Qt.TextFormat.RichText)
+        help.attach(self.detail_violations, "proposals.violations")
         rl.addWidget(self.detail_violations)
         split.addWidget(right)
         split.setSizes([620, 560])
         lay.addWidget(split, 1)
-        lay.addWidget(
-            hint(
-                "Dwuklik na propozycji = przejmij całą (kłódki bez zmian); dwuklik na kolorze = "
-                "przejmij tylko ten kolor. Ctrl+Z cofa. Te same ustawienia i ziarno dają te same "
-                "propozycje."
-            )
+        tip = hint(
+            "Dwuklik na propozycji = przejmij całą (kłódki bez zmian); dwuklik na kolorze = "
+            "przejmij tylko ten kolor. Ctrl+Z cofa. Te same ustawienia i ziarno dają te same "
+            "propozycje."
         )
+        help.attach(tip, "proposals.list")
+        lay.addWidget(tip)
         self._update_buttons()
 
     @staticmethod
@@ -240,7 +265,9 @@ class ProposalsTab(QWidget):
             t.setItem(i, 1, st)
             t.setItem(i, 2, QTableWidgetItem(f"{p.score:.3g}"))
             t.setItem(i, 3, QTableWidgetItem(f"{hard} tw. / {soft} mi."))
-            t.setCellWidget(i, 4, Strip([p.hexes[sid] for sid in ids if sid in p.hexes]))
+            strip = Strip([p.hexes[sid] for sid in ids if sid in p.hexes])
+            help.attach(strip, "proposals.col.strip")
+            t.setCellWidget(i, 4, strip)
         if self.proposals:
             t.setCurrentCell(0, 0)
             self._detail(0)

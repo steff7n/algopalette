@@ -78,6 +78,13 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   pierwszy w `concept.gamut`, a „Gamut (fit)” z Globalnych też ma to w tytule) i E501 w teście — naprawione
   w kolejnym commicie; test sprawdza teraz tylko, że trafienia w tytule idą przed resztą. Łańcuchy weryfikacji
   pisz z `&&` aż do commita, nigdy `;`.
+- **T6 ☑ Propozycje + Źródło**: `help_content/proposals.py` (`proposals.generate_all/generate_one/cancel/progress/
+  status/list/col.*/detail/violations/take_all/take_color`), `help_content/source.py` (`source.colors/paste/parse/
+  from_file/from_current/result/swatch/roles/mode(.complete/.character/.transfer)/avoid/transfer_options/apply`).
+  `Strip` w komórce tabeli dostaje klucz przy każdym `_fill`. `uncovered` wymaga teraz klucza także od
+  `QAbstractSpinBox` (wcześniej spinboxy tło/tekst w Źródle prześlizgiwały się, bo ich wewnętrzny QLineEdit jest
+  w nieprzezroczystym rodzicu). Testy: `test_help_proposals_source.py` 2 (z prawdziwym generowaniem i przejęciem;
+  odczyt poprawny i błędny); `tests/gui` 90.
 
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 

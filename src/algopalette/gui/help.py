@@ -257,6 +257,7 @@ def _needs_key(w: QWidget) -> bool:
         w,
         (
             QAbstractButton,
+            QAbstractSpinBox,
             QComboBox,
             QLineEdit,
             QAbstractSlider,
