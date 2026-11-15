@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
 )
 
 from algopalette.color import fast
+from algopalette.gui import theme
 from algopalette.model import OKLCH
 
 # --- kolory ------------------------------------------------------------------------------------
@@ -110,17 +111,12 @@ class Swatch(QFrame):
 
 
 SOURCE_LABELS = {"mood": "nastrój", "global": "globalne", "slot": "własne"}
-SOURCE_COLORS = {"mood": "#b26bd6", "global": "#3fa7c4", "slot": "#d6a000"}
 
 
 def source_badge(src: str | None) -> QLabel:
     lbl = QLabel("" if src is None else SOURCE_LABELS.get(src, src))
     if src is not None:
-        c = SOURCE_COLORS.get(src, "#888")
-        lbl.setStyleSheet(
-            f"color: {c}; border: 1px solid {c}; border-radius: 6px; padding: 0 6px;"
-            " font-size: 11px;"
-        )
+        theme.style_badge(lbl, src)
         lbl.setToolTip(
             {
                 "mood": "wartość ustawił nastrój",
@@ -240,7 +236,7 @@ class NumEdit(QLineEdit):
             self._show(v)
 
     def _bad(self, bad: bool) -> None:
-        self.setStyleSheet("border: 2px solid #d04040;" if bad else "")
+        theme.mark_error(self, bad)
         self.setProperty("bad", bad)
 
     def _clamp(self, v: float) -> float:
@@ -386,6 +382,7 @@ class Bar(QWidget):
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         t = self._track()
         pal = self.palette()
+        tc = theme.colors()
         if self.gradient is not None:
             if self._stops is None:
                 xs = np.linspace(self.minimum, self.maximum, GRADIENT_STOPS)
@@ -420,8 +417,8 @@ class Bar(QWidget):
             x = self._x(v if v is not None else self._default(k))
             center = QPointF(x, self.height() / 2)
             focus = self.hasFocus() and k == self.active
-            p.setPen(QPen(pal.highlight().color() if focus else QColor("#202020"), 2.5))
-            p.setBrush(QColor("#f4f4f4") if v is not None else Qt.BrushStyle.NoBrush)
+            p.setPen(QPen(pal.highlight().color() if focus else QColor(tc.handle_ring), 2.5))
+            p.setBrush(QColor(tc.handle_fill) if v is not None else Qt.BrushStyle.NoBrush)
             r = HANDLE_R if v is not None else HANDLE_R - 2
             p.drawEllipse(center, r, r)
         p.end()

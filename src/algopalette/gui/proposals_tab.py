@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from algopalette import color as col
 from algopalette.constraints import slot_label
 from algopalette.engine import Proposal, apply_proposal, generate
-from algopalette.gui.app import HARD_COLOR, OK_COLOR, SOFT_COLOR
+from algopalette.gui import theme
 from algopalette.gui.widgets import hbox, hint, vbox
 from algopalette.model import Session
 
@@ -204,7 +204,7 @@ class ProposalsTab(QWidget):
 
     def _failed(self, msg: str) -> None:
         self.running = False
-        self.status.setText(f"<span style='color:{HARD_COLOR}'>Błąd silnika: {msg}</span>")
+        self.status.setText(f"<span style='color:{theme.colors().hard}'>Błąd silnika: {msg}</span>")
         self._update_buttons()
 
     def _done(self, result: list[Proposal]) -> None:
@@ -229,11 +229,11 @@ class ProposalsTab(QWidget):
             hard = sum(v.hard for v in p.violations)
             soft = len(p.violations) - hard
             if p.timed_out:
-                state, color = "⏱ niepowtarzalna", SOFT_COLOR
+                state, color = "⏱ niepowtarzalna", theme.colors().soft
             elif hard:
-                state, color = "✗ łamie twarde", HARD_COLOR
+                state, color = "✗ łamie twarde", theme.colors().hard
             else:
-                state, color = "✓", OK_COLOR
+                state, color = "✓", theme.colors().ok
             t.setItem(i, 0, QTableWidgetItem(str(i + 1)))
             st = QTableWidgetItem(state)
             st.setForeground(QColor(color))
@@ -274,13 +274,14 @@ class ProposalsTab(QWidget):
         d.setColumnWidth(1, 64)
         d.setColumnWidth(2, 64)
         if not p.violations:
+            ok = theme.colors().ok
             self.detail_violations.setText(
-                f"<span style='color:{OK_COLOR}'>✓ propozycja spełnia wszystkie warunki</span>"
+                f"<span style='color:{ok}'>✓ propozycja spełnia wszystkie warunki</span>"
             )
         else:
             lines = []
             for x in p.violations[:12]:
-                mark, c = ("✗", HARD_COLOR) if x.hard else ("~", SOFT_COLOR)
+                mark, c = ("✗", theme.colors().hard) if x.hard else ("~", theme.colors().soft)
                 lines.append(
                     f"<span style='color:{c}'>{mark}</span> {x.label}: wymagane {x.required}, "
                     f"jest {x.achieved}"

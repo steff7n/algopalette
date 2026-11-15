@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from algopalette import color as col
 from algopalette import io as aio
 from algopalette.forms import POLARITIES, SOURCE_MODES
+from algopalette.gui import theme
 from algopalette.gui.conditions import combo
 from algopalette.gui.widgets import NumEdit, Swatch, clear_layout, form, hbox, hint, vbox
 from algopalette.model import OKLCH
@@ -122,7 +123,7 @@ class SourceTab(QScrollArea):
     def set_colors(self, colors: list[OKLCH]) -> None:
         self.source_colors = colors
         self._colors_text = self.paste.toPlainText()
-        self.result.setStyleSheet("")
+        theme.mark_text(self.result, None)
         self.result.setText(f"{len(colors)} kolorów:")
         clear_layout(self._sw_lay)
         fit = self.win.session.globals.fit_method
@@ -139,7 +140,7 @@ class SourceTab(QScrollArea):
         except ParseError as e:
             self.source_colors = []
             clear_layout(self._sw_lay)
-            self.result.setStyleSheet("color: #d04040; font-weight: bold;")
+            theme.mark_text(self.result, "hard", bold=True)
             self.result.setText(f"✗ {e}")
             return False
         self.set_colors(colors)

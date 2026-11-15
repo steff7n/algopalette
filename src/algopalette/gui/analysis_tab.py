@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 from algopalette import color as col
 from algopalette.color import fast
 from algopalette.constraints import slot_label
+from algopalette.gui import theme
 from algopalette.gui.conditions import combo
 from algopalette.gui.widgets import hbox, hint, section, vbox
 from algopalette.model import OKLCH, CvdType, Session, effective_conditions
@@ -44,7 +45,6 @@ VIEWS = [
 ]
 MATRICES = [("ΔE akcentów", "de"), ("kontrast par akcentów", "contrast")]
 AXES = [("C względne", "rel"), ("C bezwzględne", "abs")]
-BAD_BG = QColor("#c03030")
 BG_OPACITY = 0.45
 
 
@@ -173,10 +173,12 @@ class HueWheel(QWidget):
             arcs: list[tuple[float, float, QColor]] = []
             if eff.hue_range is not None and eff.hue_range.enabled:
                 hr = eff.hue_range.value
-                arcs.append((hr.lo, hr.hi, QColor("#f0c419")))
+                arcs.append((hr.lo, hr.hi, QColor(theme.colors().arc_range)))
             if eff.hue_target is not None and eff.hue_target.enabled:
                 ht = eff.hue_target.value
-                arcs.append((ht.target - ht.tol, ht.target + ht.tol, QColor("#ff7a1a")))
+                arcs.append(
+                    (ht.target - ht.tol, ht.target + ht.tol, QColor(theme.colors().arc_target))
+                )
             for k, (lo, hi, c) in enumerate(arcs):
                 span = (hi - lo) % 360 or 360
                 rr = R + 6 + 6 * k
@@ -451,8 +453,8 @@ class AnalysisTab(QScrollArea):
                     it = QTableWidgetItem(format(d, fmt))
                     req = pair_requirement(s, i, j, view)
                     if req is not None and d < req:
-                        it.setBackground(BAD_BG)
-                        it.setForeground(QColor("#ffffff"))
+                        it.setBackground(QColor(theme.colors().bad_cell_bg))
+                        it.setForeground(QColor(theme.colors().bad_cell_fg))
                         it.setToolTip(f"wymagane ≥ {req:g}")
                 it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 m.setItem(r, c, it)

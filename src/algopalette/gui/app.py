@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sys
 import time
 from dataclasses import replace
@@ -10,7 +9,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QAction, QColor, QGuiApplication, QKeySequence, QPalette
+from PySide6.QtGui import QAction, QActionGroup, QColor, QGuiApplication, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -30,16 +29,13 @@ from algopalette import io as aio
 from algopalette.color import to_hex
 from algopalette.constraints import Violation
 from algopalette.forms import current_violations
+from algopalette.gui import theme
 from algopalette.gui.widgets import vbox
 from algopalette.model import History, Session, ViewModel
 from algopalette.pb_export import default_pb_dir, pb_json, write_pb_file
 
 COALESCE_S = 1.5
 AUTOSAVE_DELAY_MS = 500
-
-HARD_COLOR = "#d04040"
-SOFT_COLOR = "#c99400"
-OK_COLOR = "#2e9d4f"
 
 
 class ViolationsPanel(QWidget):
@@ -69,13 +65,14 @@ class ViolationsPanel(QWidget):
     def show_violations(self, violations: list[Violation]) -> None:
         hard = [v for v in violations if v.hard]
         soft = [v for v in violations if not v.hard]
+        c = theme.colors()
         if not violations:
             self.title.setText(
-                f"<span style='color:{OK_COLOR}'>✓ Bieżąca paleta spełnia wszystkie warunki</span>"
+                f"<span style='color:{c.ok}'>✓ Bieżąca paleta spełnia wszystkie warunki</span>"
             )
         else:
-            hc = HARD_COLOR if hard else OK_COLOR
-            sc = SOFT_COLOR if soft else OK_COLOR
+            hc = c.hard if hard else c.ok
+            sc = c.soft if soft else c.ok
             self.title.setText(
                 "Naruszenia bieżącej palety: "
                 f"<span style='color:{hc}'>{len(hard)} twardych</span>, "
@@ -86,7 +83,7 @@ class ViolationsPanel(QWidget):
         t.setRowCount(len(violations))
         for r, v in enumerate([*hard, *soft]):
             mark = QTableWidgetItem("✗" if v.hard else "~")
-            mark.setForeground(QColor(HARD_COLOR if v.hard else SOFT_COLOR))
+            mark.setForeground(QColor(c.hard if v.hard else c.soft))
             mark.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             t.setItem(r, 0, mark)
             t.setItem(r, 1, QTableWidgetItem(v.label))
@@ -153,6 +150,7 @@ class MainWindow(QMainWindow):
         self.resize(1360, 900)
         self._update_title()
         self.refresh_views(editor=True)
+        theme.notifier.changed.connect(self._theme_changed)
         self._ui_ready = True
         if notice:
             self.notify(notice, timeout=12000)
@@ -199,6 +197,23 @@ class MainWindow(QMainWindow):
         self.notify(
             "Widok wartości: " + ("HSL (warunki dalej w OKLCH)" if mode == "hsl" else "OKLCH")
         )
+
+    def set_theme(self, mode: theme.ThemeMode) -> None:
+        """Motyw z menu: stosowany od razu i zapamiętywany (błąd zapisu → pasek stanu)."""
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            theme.apply(app, mode)
+        try:
+            theme.save_mode(mode)
+        except OSError as e:
+            self.notify(f"Nie udało się zapamiętać motywu: {e}")
+
+    def _theme_changed(self) -> None:
+        """Przemalowanie po zmianie motywu: elementy z kolorami liczonymi przy budowie."""
+        self.violations_panel.show_violations(self.violations)
+        self.palette_tab.refresh_from_session(editor=True)
+        self._refresh_current_tab()
+        self._update_actions()
 
     def toggle_view(self) -> None:
         self.set_view_model("oklch" if self.session.view_model == "hsl" else "hsl")
@@ -304,6 +319,18 @@ class MainWindow(QMainWindow):
             "Widok wartości HSL / OKLCH", self.toggle_view, "F7", "Przełącz widok wartości"
         )
         self.act_view.setCheckable(True)
+        self.theme_group = QActionGroup(self)
+        self.act_theme: dict[str, QAction] = {}
+        for mode, text in (("system", "Systemowy"), ("light", "Jasny"), ("dark", "Ciemny")):
+            a = self._action(
+                text, lambda _=False, m=mode: self.set_theme(m), tip=f"Motyw okna: {text.lower()}"
+            )
+            a.setCheckable(True)
+            self.theme_group.addAction(a)
+            self.act_theme[mode] = a
+        self.act_theme_system = self.act_theme["system"]
+        self.act_theme_light = self.act_theme["light"]
+        self.act_theme_dark = self.act_theme["dark"]
         self.act_help = self._action("Skróty klawiszowe", self.action_help, "F1")
         for a in (self.act_undo, self.act_redo):
             a.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
@@ -333,6 +360,9 @@ class MainWindow(QMainWindow):
             m.addAction(a)
         m = mb.addMenu("&Widok")
         m.addAction(self.act_view)
+        self.theme_menu = m.addMenu("&Motyw")
+        for a in self.act_theme.values():
+            self.theme_menu.addAction(a)
         m.addSeparator()
         for i in range(self.tabs.count()):
             a = self._action(
@@ -366,6 +396,7 @@ class MainWindow(QMainWindow):
         self.act_redo.setEnabled(self.history.can_redo)
         self.act_view.setChecked(self.session.view_model == "hsl")
         self.act_view.setText("Widok: HSL" if self.session.view_model == "hsl" else "Widok: OKLCH")
+        self.act_theme[theme.current_mode()].setChecked(True)
 
     def _update_title(self) -> None:
         name = self.file_path.name if self.file_path else "nowa paleta (autozapis)"
@@ -518,44 +549,12 @@ puste pole zakresu = bez ograniczenia.
 """
 
 
-def _apply_theme(app: QApplication) -> None:
-    app.setStyle("Fusion")
-    forced = os.environ.get(
-        "ALGOPALETTE_THEME", ""
-    ).lower()  # dark / light — gdy wykrywanie zawodzi
-    if forced == "light":
-        return
-    if forced != "dark" and QGuiApplication.styleHints().colorScheme() != Qt.ColorScheme.Dark:
-        return
-    p = QPalette()
-    base, window, text = QColor("#1f2125"), QColor("#2a2c31"), QColor("#e6e6e6")
-    R = QPalette.ColorRole
-    p.setColor(R.Window, window)
-    p.setColor(R.WindowText, text)
-    p.setColor(R.Base, base)
-    p.setColor(R.AlternateBase, QColor("#26282d"))
-    p.setColor(R.ToolTipBase, window)
-    p.setColor(R.ToolTipText, text)
-    p.setColor(R.Text, text)
-    p.setColor(R.Button, QColor("#33363c"))
-    p.setColor(R.ButtonText, text)
-    p.setColor(R.Highlight, QColor("#4a7fd4"))
-    p.setColor(R.HighlightedText, QColor("#ffffff"))
-    p.setColor(R.PlaceholderText, QColor("#8a8d93"))
-    p.setColor(R.Mid, QColor("#4a4d54"))
-    p.setColor(R.Dark, QColor("#15161a"))
-    p.setColor(R.Shadow, QColor("#0c0d10"))
-    p.setColor(R.Light, QColor("#55585f"))
-    p.setColor(QPalette.ColorGroup.Disabled, R.Text, QColor("#6f7277"))
-    p.setColor(QPalette.ColorGroup.Disabled, R.ButtonText, QColor("#6f7277"))
-    app.setPalette(p)
-
-
 def run(session: Session, *, notice: str | None = None, file_path: Path | None = None) -> int:
     app = cast(QApplication, QApplication.instance() or QApplication(sys.argv))
     app.setApplicationName("AlgoPalette")
     app.setDesktopFileName("algopalette")
-    _apply_theme(app)
+    app.setStyle("Fusion")
+    theme.apply(app, theme.initial_mode())
     win = MainWindow(session, notice=notice, file_path=file_path)
     win.show()
     return app.exec()

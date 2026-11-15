@@ -30,6 +30,7 @@ from algopalette.forms import (
     SCHEMES,
 )
 from algopalette.globals_logic import change_delta_e, change_polarity_or_metric
+from algopalette.gui import theme
 from algopalette.gui.conditions import ConditionsEditor, combo
 from algopalette.gui.widgets import (
     NumEdit,
@@ -406,9 +407,9 @@ class GlobalsTab(QScrollArea):
             try:
                 vals.append(parse_finite(x) % 360)
             except ValueError:
-                edit.setStyleSheet("border: 2px solid #d04040;")
+                theme.mark_error(edit, True)
                 return
-        edit.setStyleSheet("")
+        theme.mark_error(edit, False)
         self._scheme(custom=tuple(vals))
 
     def _spread(self, lo: float | None, hi: float | None) -> None:

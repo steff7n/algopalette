@@ -32,8 +32,8 @@ from algopalette.forms import (
     fields_for,
     range_spec,
 )
+from algopalette.gui import theme
 from algopalette.gui.widgets import (
-    SOURCE_COLORS,
     SOURCE_LABELS,
     NumEdit,
     RangeSlider,
@@ -203,12 +203,8 @@ class ConditionRow(QFrame):
 
     def _update_badge(self) -> None:
         src = self.src
-        c = SOURCE_COLORS.get(src, "#888")
         self.badge.setText(SOURCE_LABELS.get(src, src))
-        self.badge.setStyleSheet(
-            f"color: {c}; border: 1px solid {c}; border-radius: 6px; padding: 0 6px;"
-            " font-size: 11px;"
-        )
+        theme.style_badge(self.badge, src)
 
     def _update_reset(self) -> None:
         if self.reset is not None:

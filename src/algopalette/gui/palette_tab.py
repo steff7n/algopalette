@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from algopalette import color as col
 from algopalette.constraints import slot_label
+from algopalette.gui import theme
 from algopalette.gui.conditions import ConditionsEditor
 from algopalette.gui.relations import RelationsEditor
 from algopalette.gui.widgets import (
@@ -56,7 +57,6 @@ if TYPE_CHECKING:
     from algopalette.gui.app import MainWindow
 
 ROLE_NAMES = {"bg": "tło", "fg": "tekst", "accent": "akcent"}
-WARN_COLOR = QColor("#c99400")
 
 
 def column_labels(view: str) -> list[str]:
@@ -191,7 +191,11 @@ class SlotTable(QTableWidget):
                         else Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
                     )
                 if c == 3:
-                    it.setForeground(WARN_COLOR if fit > 0 else self.palette().text().color())
+                    it.setForeground(
+                        QColor(theme.colors().warn_text)
+                        if fit > 0
+                        else self.palette().text().color()
+                    )
                     it.setToolTip(
                         f"kolor spoza sRGB — ściągnięty do gamutu o ΔE ok {fit:.3f}" if fit else ""
                     )

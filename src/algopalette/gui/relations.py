@@ -18,6 +18,7 @@ from algopalette.forms import (
     REL_OPS,
     relation_default_value,
 )
+from algopalette.gui import theme
 from algopalette.gui.conditions import combo
 from algopalette.gui.widgets import NumEdit, clear_layout, hbox, hint, vbox
 from algopalette.model import Relation, broken_relations, slot_index, with_slot
@@ -94,7 +95,7 @@ class RelationRow(QFrame):
         self.editor, self.index, self.rel, self.broken = editor, index, rel, broken
         self.setFrameShape(QFrame.Shape.StyledPanel)
         if broken:
-            self.setStyleSheet("RelationRow { border: 2px solid #d04040; }")
+            theme.mark_error(self, True, "RelationRow")
         self._lay = vbox(self, margins=6, spacing=4)
         self.build()
 
@@ -120,7 +121,10 @@ class RelationRow(QFrame):
         delete.setToolTip("usuń zależność")
         delete.setFixedWidth(32)
         delete.clicked.connect(lambda: self.editor.set_relation(self.index, None))
-        warn = QLabel("<span style='color:#d04040'>⚠ zerwana</span>") if self.broken else None
+        warn = None
+        if self.broken:
+            warn = QLabel("⚠ zerwana")
+            theme.mark_text(warn, "hard")
         top = hbox(kind, QLabel("względem"), target, warn, delete)
         self._lay.addWidget(top)
 

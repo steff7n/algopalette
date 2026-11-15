@@ -17,8 +17,20 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   T5 Globalne, T6 Propozycje+Źródło, T7 Analiza} równolegle (rozłączne pliki, treść w osobnych modułach
   `gui/help_content/<obszar>.py`) → T8 integracja (pokrycie całego okna, zrzuty obu motywów, README).
   Potem JEDEN przegląd całości (Opus xhigh), pętla napraw wg CLAUDE.md, scalenie do `main`.
-- Wykonanie: T1 — subagent Sonnet w worktree, T2 — kontroler; T3–T7 — subagenci w worktree + kontroler.
+- **Wykonanie (decyzja użytkownika 2026-11-15): „implementuj całość samodzielnie. na koniec review z opusem xhigh,
+  pojedyncze.”** → kontroler robi T1–T8 sam, sekwencyjnie, bez subagentów-implementatorów; jeden przegląd na końcu.
 - Stan zadań: (aktualizowany po każdym zadaniu niżej)
+- **T1 ☑ motyw**: `gui/theme.py` — `ThemeMode`, `LIGHT`/`DARK` (`Colors`; `badge` = JEDEN kolor tekstu+ramki na
+  źródło, nie para tło/tekst jak w planie — plakietki są obrysowane, bez tła), `load_mode/save_mode/initial_mode`
+  (`gui.json` w `config_dir()`, zapis atomowy, inne klucze zachowane), `apply(app, mode)` ustawia TYLKO paletę
+  (styl Fusion raz w `run()` — `setStyle` w `apply` zgubiłby proxy-styl podpowiedzi z T2), `notifier.changed`,
+  „system” śledzi `colorSchemeChanged`. Kolory w arkuszach stylu WYŁĄCZNIE przez `mark_error(w, bad, selector)` /
+  `mark_text(w, kind, bold)` / `style_badge(w, src)` — dynamiczne właściwości Qt, `restyle_all()` przemalowuje je
+  przy zmianie motywu. Kolory w `QTableWidgetItem` i rysunkach biorą `theme.colors()` przy budowie;
+  `MainWindow._theme_changed` przebudowuje naruszenia, Paletę i bieżącą zakładkę. Menu Widok → Motyw
+  (`act_theme_system/light/dark`, `set_theme`). Celowo zostały hexy: pierścienie punktów w Analizie (biało-czarne,
+  czytelne na każdym tle), placeholder w Źródle, domyślny `Swatch`. Testy: `tests/gui/test_theme.py` 13;
+  `tests/gui` 53 passed; ruff/ty zero uwag. Bazowo przed zmianami cały pytest: 336 passed.
 
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 
