@@ -1,10 +1,11 @@
-"""Opis formularzy interfejsu: etykiety, opcje list, domyślne wartości nowych zasad i zależności
-oraz zakresy suwaków. Bez zależności od bibliotek interfejsu."""
+"""Opis formularzy interfejsu: etykiety, opcje list, domyślne wartości nowych zasad i zależności,
+zakresy suwaków oraz teksty naruszeń. Bez zależności od bibliotek interfejsu."""
 
 from __future__ import annotations
 
 from typing import Any
 
+from algopalette.engine import Violation, slot_label
 from algopalette.model import (
     ACCENT_ONLY_FIELDS,
     RULE_FIELDS,
@@ -172,3 +173,141 @@ SOURCE_MODES = [
     ("charakter — profil palety staje się zasadami kolorów", "character"),
     ("przeniesienie — ta sama paleta na innym tle", "transfer"),
 ]
+
+
+# --- teksty naruszeń ---------------------------------------------------------------------------
+
+_CVD_NAMES = {"protan": "protanopii", "deutan": "deuteranopii", "tritan": "tritanopii"}
+_REL_NAMES = {
+    "hue": "odcień",
+    "lightness": "jasność",
+    "chroma": "nasycenie",
+    "contrast": "kontrast",
+    "distance": "odległość",
+    "mix": "mieszanka",
+}
+_CHANNEL_NAMES = {"lightness": "jasność", "chroma": "nasycenie", "hue": "odcień"}
+
+
+def _fmt_interval(lo: float | None, hi: float | None, fmt: str, unit: str = "") -> str:
+    u = f" {unit}" if unit else ""
+    if lo is not None and hi is not None:
+        return f"{lo:{fmt}}–{hi:{fmt}}{u}"
+    if lo is not None:
+        return f"≥ {lo:{fmt}}{u}"
+    if hi is not None:
+        return f"≤ {hi:{fmt}}{u}"
+    return "—"
+
+
+def _contrast_fmt(metric: str) -> tuple[str, str]:
+    return (".2f", "") if metric == "wcag21" else (".1f", "Lc")
+
+
+def _with_unit(value: float, fmt: str, unit: str) -> str:
+    return f"{value:{fmt}}" + (f" {unit}" if unit else "")
+
+
+def _op_req(op: str, value: float, tol: float, fmt: str, unit: str = "") -> str:
+    u = f" {unit}" if unit else ""
+    if op == "eq":
+        return f"{value:{fmt}} ± {tol:{fmt}}{u}"
+    return f"{'≥' if op == 'ge' else '≤'} {value:{fmt}}{u}"
+
+
+def violation_text(v: Violation, session: Session) -> tuple[str, str, str]:
+    """Naruszenie po polsku: ``(etykieta, wymagane, osiągnięte)``.
+
+    Silnik zwraca same liczby (``Violation.req``/``meta``/``achieved``); tu powstają napisy do
+    panelu naruszeń i szczegółów propozycji.
+    """
+    index = {s.id: i for i, s in enumerate(session.slots)}
+
+    def name(k: int) -> str:
+        sid = v.slot_ids[k] if k < len(v.slot_ids) else ""
+        return slot_label(session, index[sid]) if sid in index else "?"
+
+    req, meta, got = v.req, v.meta, v.achieved
+    kind = v.kind
+    if kind == "lightness":
+        return f"jasność ({name(0)})", _fmt_interval(req["lo"], req["hi"], ".3f"), f"{got:.3f}"
+    if kind == "chroma":
+        unit = "względne" if meta.get("mode") == "rel" else ""
+        return (
+            f"nasycenie ({name(0)})",
+            _fmt_interval(req["lo"], req["hi"], ".3f", unit),
+            f"{got:.3f}",
+        )
+    if kind == "hue":
+        return f"odcień ({name(0)})", f"{req['lo']:.0f}°–{req['hi']:.0f}°", f"{got:.1f}°"
+    if kind == "exclude":
+        channel = meta.get("channel", "")
+        label = f"zakazany przedział: {_CHANNEL_NAMES.get(channel, channel)} ({name(0)})"
+        if channel == "hue":
+            return label, f"poza {req['lo']:.0f}°–{req['hi']:.0f}°", f"{got:.1f}°"
+        unit = " względne" if meta.get("mode") == "rel" else ""
+        return label, f"poza {req['lo']:.3f}–{req['hi']:.3f}{unit}", f"{got:.3f}"
+    if kind == "contrast_bg":
+        fmt, unit = _contrast_fmt(meta.get("metric", "wcag21"))
+        return (
+            "kontrast z tłem",
+            _fmt_interval(req["lo"], req["hi"], fmt, unit),
+            _with_unit(got, fmt, unit),
+        )
+    if kind == "extreme":
+        fmt, unit = _contrast_fmt(meta.get("metric", "wcag21"))
+        weakest = meta.get("which") == "weakest"
+        return (
+            f"{'najsłabszy' if weakest else 'najmocniejszy'} kontrast ({name(0)})",
+            f"{'<' if weakest else '>'} {_with_unit(req['bound'], fmt, unit)}",
+            _with_unit(got, fmt, unit),
+        )
+    if kind == "pair_distance":
+        return f"odległość {name(0)} – {name(1)}", f"ΔE ≥ {req['min']:.3f}", f"{got:.3f}"
+    if kind == "pair_cvd":
+        cvd = _CVD_NAMES.get(meta.get("cvd", ""), "daltonizmie")
+        return (
+            f"odróżnialność przy {cvd}: {name(0)} – {name(1)}",
+            f"ΔE ≥ {req['min']:.3f}",
+            f"{got:.3f}",
+        )
+    if kind == "rel":
+        return _relation_text(v, name)
+    if kind == "spread":
+        return (
+            "rozrzut jasności akcentów",
+            _fmt_interval(req["lo"], req["hi"], ".3f"),
+            f"{got:.3f}",
+        )
+    if kind == "scheme":
+        return (
+            f"układ odcieni ({name(0)})",
+            f"{req['target']:.0f}° ± {req['tol']:.0f}°",
+            f"{got:.1f}°",
+        )
+    if kind == "avoid":
+        return f"unikany kolor ({name(0)})", f"ΔE ≥ {req['min']:.3f}", f"{got:.3f}"
+    if kind == "gamut":
+        return f"gamut sRGB ({name(0)})", f"C ≤ {req['hi']:.3f}", f"{got:.3f}"
+    if kind == "diversity":
+        return "różnorodność", f"średnie ΔE ≥ {req['min']:.3f}", f"{got:.3f}"
+    return v.key, "—", f"{got:g}"  # nieznany rodzaj (nowszy silnik): pokaż chociaż klucz
+
+
+def _relation_text(v: Violation, name: Any) -> tuple[str, str, str]:
+    req, meta, got = v.req, v.meta, v.achieved
+    rel_kind = meta.get("rel_kind", "")
+    op, value, tol = req["op"], req["value"], req["tol"]
+    if rel_kind == "mix":
+        label = f"zależność: mieszanka {name(1)} i {name(2)} ({name(0)})"
+        return label, f"ΔE od mieszanki ≤ {tol:.3f}", f"{got:.3f}"
+    label = f"zależność: {_REL_NAMES.get(rel_kind, rel_kind)} względem {name(1)} ({name(0)})"
+    if rel_kind == "hue":
+        return label, _op_req(op, value, tol, ".0f") + "°", f"{got:.0f}°"
+    if rel_kind == "contrast":
+        fmt, unit = _contrast_fmt(meta.get("metric", "wcag21"))
+        return label, _op_req(op, value, tol, fmt, unit), _with_unit(got, fmt, unit)
+    if rel_kind == "chroma" and meta.get("chroma_op") == "mul":
+        sign = "=" if op == "eq" else "≥" if op == "ge" else "≤"
+        return label, f"{sign} {value:.2f} × {name(1)}", f"{got:.3f}"
+    return label, _op_req(op, value, tol, ".3f"), f"{got:.3f}"  # jasność, nasycenie, odległość
