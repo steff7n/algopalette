@@ -2,6 +2,24 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
+## 0b. TRYB CIEMNY + POMOC KONTEKSTOWA (2026-11-15) — W TOKU, gałąź `gui`
+
+- Prośba: „wprowadź proszę tryb ciemny do tego GUI, Wyjaśnij każdą pojedynczą rzecz wewnątrz aplikacji poprzez
+  szybkie tooltipy z możliwością rozwinięcia do bardziej rozbudowanej zakładki pomocy. Czytelność, przejrzystość
+  i wygoda użytkownika jest wszystkim”.
+- **Decyzje użytkownika (wiążące, nie otwieraj ponownie):** wariant 1 — podpowiedź „F1 — więcej”, F1 nad elementem
+  otwiera pomoc na temacie (spis treści + wyszukiwarka); „na końcu wszystko scal” (→ `gui` do `main` po przeglądzie);
+  „skup się w pomocy na tym, jak działa program, nie na tym, jak działa kolor. na ten temat również napisz, ale
+  relatywnie mniej”. Projekt zaakceptowany „tak”.
+- Spec: `docs/superpowers/specs/2026-11-15-gui-dark-mode-help-design.md`. Plan: `docs/superpowers/plans/
+  2026-11-15-gui-dark-mode-help.md` + `.tasks.json` (8 zadań; natywne zadania #1–#8).
+- Kolejność: {T1 motyw, T2 infrastruktura pomocy} równolegle → {T3 okno, T4 Paleta+warunki+zależności,
+  T5 Globalne, T6 Propozycje+Źródło, T7 Analiza} równolegle (rozłączne pliki, treść w osobnych modułach
+  `gui/help_content/<obszar>.py`) → T8 integracja (pokrycie całego okna, zrzuty obu motywów, README).
+  Potem JEDEN przegląd całości (Opus xhigh), pętla napraw wg CLAUDE.md, scalenie do `main`.
+- Wykonanie: T1 — subagent Sonnet w worktree, T2 — kontroler; T3–T7 — subagenci w worktree + kontroler.
+- Stan zadań: (aktualizowany po każdym zadaniu niżej)
+
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 
 - **Domyślny interfejs to GUI w PySide6** (`pyside6-essentials`), pakiet `src/algopalette/gui/`. Stare TUI zostaje

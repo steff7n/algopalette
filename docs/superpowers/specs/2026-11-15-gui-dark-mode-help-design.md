@@ -11,6 +11,11 @@ użytkownika jest wszystkim.”
 Mechanizm rozwinięcia wybrany przez użytkownika: **wariant 1** — podpowiedź z dopiskiem „F1 — więcej”, F1 nad
 elementem otwiera pomoc na tym temacie; pomoc ma spis treści i wyszukiwarkę.
 
+Akceptacja projektu (2026-11-15, wiążące): „tak, przy czym skup się w pomocy na tym, jak działa program, nie na
+tym, jak działa kolor. na ten temat również napisz, ale relatywnie mniej” → treść pomocy opisuje przede wszystkim
+działanie programu (co robi element, jak wpływa na silnik/propozycje/naruszenia, jak z niego korzystać); tematy
+o teorii koloru (OKLCH, ΔE, WCAG/APCA, daltonizm, gamut) są krótkie i praktyczne.
+
 ## Stan dziś
 
 - `gui/app.py:521` `_apply_theme`: ciemna paleta tylko gdy Qt wykryje ciemny motyw systemu albo
