@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 from algopalette import color as col
 from algopalette.color import fast
 from algopalette.constraints import slot_label
-from algopalette.gui import theme
+from algopalette.gui import help, theme
 from algopalette.gui.conditions import combo
 from algopalette.gui.widgets import hbox, hint, section, vbox
 from algopalette.model import OKLCH, CvdType, Session, effective_conditions
@@ -360,34 +360,38 @@ class AnalysisTab(QScrollArea):
         self.setFrameShape(QScrollArea.Shape.NoFrame)
         body = QWidget()
         self.setWidget(body)
+        help.attach(self, "window.tab.analysis")
         lay = vbox(body, margins=8, spacing=6)
         self.view = combo(VIEWS, "normal")
         self.matrix_kind = combo(MATRICES, "de")
         self.axis = combo(AXES, "rel")
         for c in (self.view, self.matrix_kind, self.axis):
             c.currentIndexChanged.connect(lambda _: self.redraw())
-        lay.addWidget(
-            hbox(
-                QLabel("widok:"),
-                self.view,
-                QLabel("macierz:"),
-                self.matrix_kind,
-                QLabel("oś C:"),
-                self.axis,
-            )
-        )
+        controls = []
+        for text, w, key in (
+            ("widok:", self.view, "analysis.view"),
+            ("macierz:", self.matrix_kind, "analysis.matrix_kind"),
+            ("oś C:", self.axis, "analysis.axis"),
+        ):
+            label = QLabel(text)
+            help.attach(label, key)
+            help.attach(w, key)
+            controls += [label, w]
+        lay.addWidget(hbox(*controls))
         self.wheel = HueWheel()
+        help.attach(self.wheel, "analysis.wheel")
         self.lc = LCPlot()
+        help.attach(self.lc, "analysis.lc")
         plots = hbox(self.wheel, self.lc, stretch=False, spacing=16)
         plots.setFixedHeight(380)
         lay.addWidget(plots)
-        lay.addWidget(
-            hint(
-                "Koło: 0° po prawej, promień = nasycenie względne; łuki = zakres (żółty) "
-                "i cel ± tolerancja (pomarańczowy) odcienia zaznaczonego koloru. "
-                "Wykres L–C: przekrój gamutu sRGB przez odcień zaznaczonego koloru."
-            )
+        legend = hint(
+            "Koło: 0° po prawej, promień = nasycenie względne; łuki = zakres (żółty) "
+            "i cel ± tolerancja (pomarańczowy) odcienia zaznaczonego koloru. "
+            "Wykres L–C: przekrój gamutu sRGB przez odcień zaznaczonego koloru."
         )
+        help.attach(legend, "analysis.overview")
+        lay.addWidget(legend)
         self.matrix_title = section("")
         lay.addWidget(self.matrix_title)
         self.matrix = QTableWidget()
@@ -395,9 +399,16 @@ class AnalysisTab(QScrollArea):
         self.matrix.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.matrix.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.matrix.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        for w in (self.matrix, self.matrix_title):
+            help.attach(w, "analysis.matrix.de")
+        help.attach_header(self.matrix, "analysis.matrix.de")
+        help.attach_header(self.matrix, "analysis.matrix.de", vertical=True)
         lay.addWidget(self.matrix)
-        lay.addWidget(section("Próbki na tle"))
+        samples_title = section("Próbki na tle")
+        help.attach(samples_title, "analysis.samples")
+        lay.addWidget(samples_title)
         self.samples = Samples()
+        help.attach(self.samples, "analysis.samples")
         lay.addWidget(self.samples)
 
     def refresh_from_session(self) -> None:
@@ -411,8 +422,14 @@ class AnalysisTab(QScrollArea):
         self.lc.set_state(s, sel, view, self.axis.currentData())
         if self.matrix_kind.currentData() == "contrast":
             self._contrast_matrix(s, view)
+            key = "analysis.matrix.contrast"
         else:
             self._de_matrix(s, view)
+            key = "analysis.matrix.de"
+        for w in (self.matrix, self.matrix_title):
+            help.attach(w, key)
+        help.attach_header(self.matrix, key)
+        help.attach_header(self.matrix, key, vertical=True)
         self.samples.set_state(s, view)
         m = self.matrix
         m.resizeRowsToContents()

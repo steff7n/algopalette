@@ -85,6 +85,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `QAbstractSpinBox` (wcześniej spinboxy tło/tekst w Źródle prześlizgiwały się, bo ich wewnętrzny QLineEdit jest
   w nieprzezroczystym rodzicu). Testy: `test_help_proposals_source.py` 2 (z prawdziwym generowaniem i przejęciem;
   odczyt poprawny i błędny); `tests/gui` 90.
+- **T7 ☑ Analiza**: `help_content/analysis.py` (`analysis.view/matrix_kind/axis/overview/wheel/lc/matrix.de/
+  matrix.contrast/samples`). Macierz i jej tytuł dostają klucz rodzaju macierzy przy każdym `redraw` (i startowo
+  `analysis.matrix.de` w `__init__`), nagłówki poziome i pionowe przez `attach_header(..., vertical=True)`.
+  Wykresy (`HueWheel`, `LCPlot`, `Samples`) mają NoFocus, więc `uncovered` ich nie wymaga — klucze sprawdza osobny
+  test. Testy: `test_help_analysis.py` 2 (wszystkie 4×2×2 kombinacje przełączników); `tests/gui` 92.
 
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 
