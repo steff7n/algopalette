@@ -17,6 +17,18 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `migrate_v1`), usunięcie starego silnika i `scipy`, instalacja narzędzia w scratchpadzie — kontroler, po Tasku 3
   i scaleniu gałęzi agenta. Zakres agenta silnikowego: 4a, 5, 6 (faza A), potem 14, 16 (faza B, po scaleniu
   Tasków 1, 3, 4b do jego gałęzi). Tor agenta opisuje §0d.
+- **Postęp zadań (kontroler aktualizuje po każdym zadaniu; tor silnika → §0d):**
+  - Task 1 ☑ — `tools/make_v1_reference.py` + `tests/fixtures/v1_reference/{eval,quality}.json,README.md`.
+    `--check` → „eval: 300 przypadków, quality: 36 przypadków, pokrycie kluczy OK” (najrzadszy rodzaj:
+    `lightness_spread` 64, `avoid` 79; łącznie 10 218 naruszeń). Dwa zapisy `eval.json` dały identyczny plik
+    (sha256). `quality.json` liczył się 4 min 36 s na 6 procesach (stary silnik). Wzorzec jakości do pobicia:
+    32/36 przypadków ma 6/6 ok; słabe: „chłodny mglisty” dark/apca 5, „ziemisty” dark/apca 4, „nocny wysoki
+    kontrast” dark/apca **0** (best 1,9e5) i light/apca 5. **Pułapki:** (a) sesje wzorcowe NIGDY nie mają naraz
+    `hue_range` i `hue_target` w warunkach obowiązujących kolor — także wyłączonych (ostrzej niż w planie), bo
+    inaczej migracja musiałaby zgłosić komunikat; (b) wszystkie 37 naruszeń `gamut` w `eval.json` to szum
+    bisekcji starego `max_chroma` (wielkości < 1e-5) — test zgodności Tasku 14 nie może ich porównywać
+    względnie ani jako zbioru kluczy; (c) trybu zapisu generatora nie da się już uruchomić po Tasku 4 (stary
+    silnik zniknie) — zostaje `--check`; (d) `# type: ignore[kod-mypy]` NIE wycisza `ty` — typuj przez `Any`.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -494,3 +506,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-15 — start wykonania: tryb = agent silnikowy Fable high (Rust) + kontroler inline (reszta), przeglądy
   Opus xhigh po Tasku 16 i 20; Task 4 podzielony na 4a (agent) i 4b (kontroler); natywne zadania #1–#20
   odtworzone; ledger w `.superpowers/sdd/`; gałąź `feat/silnik-rust` założona.
+- 2026-11-16 — Task 1 ☑: dane wzorcowe v1 (eval 300, quality 36), generator z `--check`; README danych.
