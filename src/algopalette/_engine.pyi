@@ -41,3 +41,14 @@ def contrast(text: Sequence[float], bg: Sequence[float], metric: str) -> float:
 
 def simulate_cvd(c: Sequence[float], kind: str, method: str, severity: float) -> list[float]:
     """Symulacja daltonizmu koloru OKLCH; wynik OKLCH bez przycinania do gamutu."""
+
+# -- dodatki ponad I3 (testy zgodności z wyrocznią, narzędzia) --
+
+def oklch_to_linear_srgb(c: Sequence[float]) -> list[float]:
+    """OKLCH ``[l, c, h]`` → liniowy sRGB ``[r, g, b]`` (bez obcinania)."""
+
+def linear_srgb_to_oklch(rgb: Sequence[float]) -> list[float]:
+    """Liniowy sRGB ``[r, g, b]`` → OKLCH ``[l, c, h]``."""
+
+def in_gamut(c: Sequence[float]) -> bool:
+    """Czy kolor OKLCH mieści się w sRGB (kanały liniowe w [−1e-6, 1 + 1e-6])."""

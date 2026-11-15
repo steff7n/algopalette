@@ -200,6 +200,12 @@ impl RelMetric {
     }
 }
 
+/// Wartość wyliczenia po nazwie z dokumentu, np. `"2000"` → [`DeltaE::Ciede2000`].
+pub fn enum_from_name<'a, T: Deserialize<'a>>(name: &'a str) -> Option<T> {
+    use serde::de::value::{BorrowedStrDeserializer, Error};
+    T::deserialize(BorrowedStrDeserializer::<Error>::new(name)).ok()
+}
+
 // ---------------------------------------------------------------------------
 // Struktury dokumentu
 // ---------------------------------------------------------------------------
@@ -579,4 +585,22 @@ fn validate(s: &Session) -> Result<(), SchemaError> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn enums_are_found_by_document_name() {
+        assert_eq!(enum_from_name::<DeltaE>("2000"), Some(DeltaE::Ciede2000));
+        assert_eq!(enum_from_name::<DeltaE>("ok"), Some(DeltaE::Ok));
+        assert_eq!(enum_from_name::<ContrastMetric>("apca"), Some(ContrastMetric::Apca));
+        assert_eq!(enum_from_name::<CvdKind>("tritan"), Some(CvdKind::Tritan));
+        assert_eq!(enum_from_name::<CvdMethod>("vienot"), Some(CvdMethod::Vienot));
+        assert_eq!(enum_from_name::<FitMethod>("oklch-chroma"), Some(FitMethod::OklchChroma));
+        assert_eq!(enum_from_name::<DeltaE>("76"), None);
+        assert_eq!(enum_from_name::<DeltaE>("Ok"), None);
+        assert_eq!(enum_from_name::<CvdKind>(""), None);
+    }
 }

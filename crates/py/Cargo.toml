@@ -13,3 +13,4 @@ crate-type = ["cdylib"]
 [dependencies]
 algopalette-core.workspace = true
 pyo3.workspace = true
+serde.workspace = true
