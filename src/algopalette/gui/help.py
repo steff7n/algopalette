@@ -22,6 +22,7 @@ from PySide6.QtGui import (
     QKeyEvent,
     QKeySequence,
     QMouseEvent,
+    QTextDocument,
 )
 from PySide6.QtWidgets import (
     QAbstractButton,
@@ -56,7 +57,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from algopalette.gui import theme
+from algopalette.gui import help_figures, theme
 from algopalette.gui.help_content import GROUPS, TOPICS
 from algopalette.gui.widgets import hbox, vbox
 
@@ -382,6 +383,19 @@ def search(text: str) -> list[str]:
 
 
 # --- panel ---------------------------------------------------------------------------------------
+FIGURE = re.compile(r"\(figure:([a-z0-9_]+)\)")
+
+
+class _Browser(QTextBrowser):
+    """Przeglądarka treści: adresy ``figure:nazwa`` rysuje ``help_figures`` (kolory z motywu)."""
+
+    def loadResource(self, kind: int, name: QUrl | str) -> Any:
+        url = QUrl(name)
+        if url.scheme() == "figure":
+            return help_figures.render(url.path())
+        return super().loadResource(kind, name)
+
+
 class HelpPanel(QDockWidget):
     """Panel Pomocy przypięty z prawej: wstecz/dalej, wyszukiwarka, spis tematów, treść."""
 
@@ -421,7 +435,7 @@ class HelpPanel(QDockWidget):
         # klik w KDE) tylko otwiera temat — inaczej grupa przełączałaby się dwa razy
         self.tree.itemClicked.connect(self._pick)
         self.tree.itemActivated.connect(self._pick_topic)
-        self.text = QTextBrowser()
+        self.text = _Browser()
         self.text.setOpenLinks(False)
         self.text.anchorClicked.connect(self._link)
         split = QSplitter(Qt.Orientation.Vertical)
@@ -533,6 +547,15 @@ class HelpPanel(QDockWidget):
             return
         t = TOPICS[key]
         self.text.setMarkdown(f"## {t.title}\n\n*{t.short}*\n\n{t.body}\n")
+        # Dokument pamięta raz wczytany obraz — po zmianie motywu rysunek trzeba podmienić jawnie.
+        doc = self.text.document()
+        for name in FIGURE.findall(t.body):
+            url = QUrl(f"figure:{name}")
+            doc.addResource(
+                QTextDocument.ResourceType.ImageResource, url, help_figures.render(name)
+            )
+        if FIGURE.search(t.body):
+            doc.markContentsDirty(0, doc.characterCount())
         it = self._items.get(key)
         if it is not None:
             parent = it.parent()

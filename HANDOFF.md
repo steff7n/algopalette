@@ -140,6 +140,24 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     świeci się, gdy zaznaczone są dokładnie wszystkie akcenty. `select([])` = cała paleta; `select` z tym samym
     zbiorem nie emituje. `set_entries` z tą samą listą id nie przebudowuje przycisków (aktualizuje próbki i
     etykiety), a sygnał wysyła tylko, gdy zaznaczenie faktycznie się zmieniło (np. zniknął zaznaczony kolor).
+  - Task 13 ☑ — pomoc: wzorzec terminu, pojęcia, rysunek. Verify: `QT_QPA_PLATFORM=offscreen uv run pytest -q
+    tests/gui/test_help_terms.py` → **15 passed**; `tests/gui/test_help.py` → 9 passed + 9 błędów kolekcji
+    (testy z `MainWindow`, stan przejściowy); ruff/ty czyste; temat `concept.chroma_modes` obejrzany w panelu
+    (ciemny motyw: tabela i rysunek mieszczą się w 470 px). `Topic.term` (`help_content/topic.py`), grupy
+    „Zasady” i „Zasady koloru” dopisane przed starymi (puste do Tasków 15/18 — panel pomija puste grupy).
+    `help_content/concepts.py`: osiem tematów `term=True` (`chroma_modes`, `delta_e`, `contrast`, `cvd`,
+    `gamut`, `hard_soft`, `exclusion`, `hue_arc`); WSZYSTKIE liczby w przykładach liczy moduł przy imporcie z
+    `algopalette.color` (tabele `_chroma_table`, `_delta_table`, `_fit_table`, `_cvd`) — test porównuje je
+    niezależnie. `gui/help_figures.py`: `FIGURES`, `render(name)`, `chroma_modes()` (396×136 px, 12 próbek ×
+    2 rzędy, podpisy kolorem tekstu z palety aplikacji), `chroma_modes_rows()` dla testu. `gui/help.py`:
+    `_Browser.loadResource` obsługuje adresy `figure:nazwa`, a `HelpPanel._render` po `setMarkdown` jawnie
+    podmienia obraz (`addResource` + `markContentsDirty`) — dokument pamięta raz wczytany obraz, więc bez tego
+    po zmianie motywu zostawałby rysunek ze starym kolorem tekstu (test `test_figure_follows_theme_change…`).
+    **Zmiana poza listą plików:** `tests/gui/test_help.py` — limit długości pojęć: 140 słów zostaje dla zwykłych,
+    tematy `term=True` mają 330 (przykład z liczbami nie mieści się w 140; nowy spec §7.6 ma pierwszeństwo
+    przed limitem ze starego). Limit podpowiedzi `short` ≤ 200 znaków nadal obowiązuje (pierwsza wersja miała
+    215 i padła). **Pułapka:** `# type: ignore[arg-type]` nie działa na `ty` — typuj słowniki literałami
+    (`dict[DeltaEMethod, …]`).
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -626,3 +644,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 9 ☑: `BandSlider` (zakres + zakazy + środek ±), zakazy kreskowane na pasku; 20 testów.
 - 2026-11-16 — Task 10 ☑: `ListPicker` (koło odcieni + lista, tryb kolorów z L/C i polem CSS); 20 testów.
 - 2026-11-16 — Task 11 ☑: `ColorStrip` (wielokrotne zaznaczenie, klawiatura, zawijanie); 13 testów.
+- 2026-11-16 — Task 13 ☑: `Topic.term`, osiem pojęć wg wzorca z liczbami z programu, rysunek nasycenia w panelu Pomocy; 15 testów.

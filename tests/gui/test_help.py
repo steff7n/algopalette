@@ -47,7 +47,9 @@ def test_general_and_concept_topics_present():
         assert k in TOPICS
     for k, t in TOPICS.items():
         if k.startswith("concept."):
-            assert len(t.body.split()) <= 140, k  # pojęcia krótko (decyzja użytkownika)
+            # pojęcia krótko (decyzja użytkownika); tematy wg wzorca terminu mają przykład z
+            # liczbami, więc dostają więcej miejsca
+            assert len(t.body.split()) <= (330 if t.term else 140), k
 
 
 def test_attach_unknown_key_raises(qapp):
