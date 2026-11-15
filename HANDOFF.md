@@ -2,18 +2,23 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0c. JEDEN PANEL ZASAD + SILNIK W RUST (2026-11-15) — STAN: spec ZAAKCEPTOWANY, plan napisany (20 zadań, 0 wykonanych); kodu nie ruszono
+## 0c. JEDEN PANEL ZASAD + SILNIK W RUST (2026-11-15) — STAN: WYKONANIE W TOKU (plan 20 zadań; postęp w dzienniku §5 i w `.tasks.json`)
 
 - **Gdzie jesteśmy:** spec `docs/superpowers/specs/2026-11-15-zasady-silnik-design.md` zaakceptowany słowami
-  „wszystko sie zgadza” (razem z decyzjami agenta wymienionymi niżej). Plan:
-  `docs/superpowers/plans/2026-11-15-zasady-silnik.md` + `.tasks.json` (natywne zadania #1–#20 = Task 1–20, z
-  zależnościami). Gałąź `feat/zasady-silnik`, worktree `/home/qrikk/algopalette/.worktrees/zasady-silnik`.
-  **Sesja planująca zakończona na życzenie użytkownika** — na pytanie o sposób wykonania (subagenci w tej sesji /
-  druga sesja z subagentami / druga sesja bez subagentów) odpowiedział: „zapisz plan, handoffy i zacommituj, na ten
-  moment konczymy”. Sposób wykonania jest więc NIEWYBRANY: po wznowieniu zadaj to pytanie ponownie (jego wcześniejsze
-  słowa: „im wiecej subagentow, tym lepiej”), niczego nie zaczynaj bez odpowiedzi.
-  **Następny krok po wyborze:** Task 1 (dane wzorcowe ze STAREGO silnika — musi powstać, zanim cokolwiek zmieni
-  `model.py`/`engine.py`; Task 3 i 4 kasują stary kod).
+  „wszystko sie zgadza”. Plan: `docs/superpowers/plans/2026-11-15-zasady-silnik.md` + `.tasks.json`. Gałąź
+  `feat/zasady-silnik`, worktree `/home/qrikk/algopalette/.worktrees/zasady-silnik`.
+- **Tryb wykonania — DECYZJA UŻYTKOWNIKA (2026-11-15, WIĄŻĄCA, nie otwieraj ponownie):** „Do implementacji silnika
+  oddeleguj specjalnego Fable'a 5.2 high. Cala reszte robisz ty, a review wykonuje opus xhigh.” Czyli: silnik w
+  Ruście robi JEDEN subagent (Agent `model: "fable"`, `effort: "high"`), wszystko inne kontroler sam, inline
+  (skill `executing-plans`), bez Sonnetów. To nadpisuje punkt „Modele wykonawców” z Global Constraints planu.
+- **Podział Tasku 4 (decyzja kontrolera):** 4a = część Rust (workspace Cargo, `crates/*`, backend maturin w
+  `pyproject.toml`, `.gitignore`) — agent silnikowy, od razu, równolegle z łańcuchem 1 → 3; 4b = nakładka
+  `engine.py`, `forms.violation_text`, `tests/test_engine_api.py`, pliki `tests/fixtures/v2_contract/` (z
+  `migrate_v1`), usunięcie starego silnika i `scipy`, instalacja narzędzia w scratchpadzie — kontroler, po Tasku 3
+  i scaleniu gałęzi agenta. Zakres agenta silnikowego: 4a, 5, 6 (faza A), potem 14, 16 (faza B, po scaleniu
+  Tasków 1, 3, 4b do jego gałęzi). Tor agenta opisuje §0d.
+- **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
+  worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
   `feat/zasady-silnik` (lokalnej, niewypchniętej), commity `2141daa` (spec) i `069cf2a` (plan) + ten. `HANDOFF.md`
   na `main` kończy się na §0b i o tej pracy nie wie. Natywne zadania #1–#20 żyły w sesji planującej; trwały zapis
@@ -22,10 +27,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   11, 13; po 4 równolegle 5, 6, 7, 8, 12; po 5 → 14; po 7–12 → 15; po 6 i 14 → 16; po 15 → 17, 18; po 8 i 16 →
   19; na końcu 20. Interfejsy dzielone I1–I6 w planie są wiążące (schemat v2, model, `_engine`, nakładka
   `engine.py`, rdzeń Rusta, widżety/presety) — zmiana interfejsu = zmiana planu i powiadomienie pozostałych torów.
-- **Przegląd — ZAŁOŻENIE, niepotwierdzone wprost:** na pytanie a/b/c z rekomendacją „a” (dwa przeglądy częściowe
-  Opus xhigh: po silniku = po Tasku 16, po całości = po Tasku 20; pętla napraw z CLAUDE.md) użytkownik
-  odpowiedział tylko „wszystko sie zgadza”. Przyjęto „a” i powiedziano mu to. **Przed pierwszym przeglądem
-  potwierdź jednym zdaniem.** Reguła z §2 (jeden przegląd, Opus high, bez re-review) dotyczyła pierwszego planu.
+- **Przegląd:** dwa przeglądy częściowe, reviewer Opus xhigh (Agent `model: "opus"`, `effort: "xhigh"`): po
+  silniku (po Tasku 16; zakres: Taski 4–6, 14, 16) i po całości (po Tasku 20); pętla napraw z `~/.claude/CLAUDE.md`
+  (krytyczny → napraw cały raport → zawężony re-review; bez krytycznych → konsultacja z użytkownikiem). Słowa
+  użytkownika „review wykonuje opus xhigh” przyjęte jako potwierdzenie wariantu „a” (wcześniej było to założenie).
+  Reguła z §2 (jeden przegląd, Opus high, bez re-review) dotyczyła pierwszego planu.
 - **Znany stan przejściowy podczas wykonania:** po Tasku 3 testy modułów nieprzeniesionych na model v2 są
   czerwone, a GUI na tej gałęzi nie startuje do końca Tasku 15. Każde zadanie uruchamia tylko testy ze swojego
   pola Verify; pełny zestaw zielony dopiero w Tasku 20. Launcher użytkownika czyta `main`, więc go to nie dotyka.
@@ -69,6 +75,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 - **NIE zrobione / NIE zweryfikowane:** spec nieprzeczytany przez użytkownika; plan; czy `uv tool install
   --editable` działa z backendem maturin (ryzyko §12 speca — sprawdzić w K0, zanim cokolwiek na tym stanie);
   testów w tej sesji nie uruchamiano (stan z 0b: fala napraw GUI też nigdy nie była uruchomiona testami).
+
+## 0d. TOR SILNIKA (Rust) — pisze WYŁĄCZNIE agent silnikowy; kontroler tej sekcji nie edytuje
+
+- Gałąź `feat/silnik-rust`, worktree `/home/qrikk/algopalette/.worktrees/silnik-rust` (odgałęziona od
+  `feat/zasady-silnik`). Stan: faza A (4a, 5, 6) wysłana 2026-11-15; jeszcze nic nie scalono.
 
 ## 0b. TRYB CIEMNY + POMOC KONTEKSTOWA (2026-11-15) — T1–T8 ☑, przegląd + fala napraw, SCALONE do `main` i wypchnięte (bez re-review i bez uruchomienia testów — decyzja użytkownika)
 
@@ -480,3 +491,6 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
   `feat/zasady-silnik` (worktree `.worktrees/zasady-silnik`), czeka na akceptację. Szczegóły: §0c.
 - 2026-11-15 — spec zaakceptowany („wszystko sie zgadza”); plan 20 zadań + `.tasks.json`, natywne zadania #1–#20
   z zależnościami; przegląd przyjęty w wariancie „a” jako założenie do potwierdzenia. Kodu nie ruszono.
+- 2026-11-15 — start wykonania: tryb = agent silnikowy Fable high (Rust) + kontroler inline (reszta), przeglądy
+  Opus xhigh po Tasku 16 i 20; Task 4 podzielony na 4a (agent) i 4b (kontroler); natywne zadania #1–#20
+  odtworzone; ledger w `.superpowers/sdd/`; gałąź `feat/silnik-rust` założona.
