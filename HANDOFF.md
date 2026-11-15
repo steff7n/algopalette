@@ -2,7 +2,7 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0b. TRYB CIEMNY + POMOC KONTEKSTOWA (2026-11-15) — W TOKU, gałąź `gui`
+## 0b. TRYB CIEMNY + POMOC KONTEKSTOWA (2026-11-15) — T1–T8 ☑, przed przeglądem całości (Opus xhigh) i scaleniem do `main`, gałąź `gui`
 
 - Prośba: „wprowadź proszę tryb ciemny do tego GUI, Wyjaśnij każdą pojedynczą rzecz wewnątrz aplikacji poprzez
   szybkie tooltipy z możliwością rozwinięcia do bardziej rozbudowanej zakładki pomocy. Czytelność, przejrzystość
@@ -90,6 +90,24 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `analysis.matrix.de` w `__init__`), nagłówki poziome i pionowe przez `attach_header(..., vertical=True)`.
   Wykresy (`HueWheel`, `LCPlot`, `Samples`) mają NoFocus, więc `uncovered` ich nie wymaga — klucze sprawdza osobny
   test. Testy: `test_help_analysis.py` 2 (wszystkie 4×2×2 kombinacje przełączników); `tests/gui` 92.
+- **T8 ☑ integracja**: `tests/gui/test_help_coverage.py` — `uncovered(win) == []` dla każdej zakładki, ról
+  tło/tekst/akcent na Palecie, obu widoków i obu motywów; każdy temat osiągalny (klucz na elemencie/nagłówku/
+  zakładce/akcji albo link `help:` z innego tematu). Zrzuty obu motywów obejrzane → naprawione 2 usterki ciemnego
+  motywu: (1) `widgets.hint()` miał `color: palette(placeholder-text)` w arkuszu — Qt rozwiązuje `palette(...)`
+  RAZ, przy polerowaniu, więc po zmianie motywu wskazówki zostawały w kolorze jasnego motywu (prawie niewidoczne)
+  → teraz `theme.mark_text(lbl, "hint")` + `Colors.hint`; (2) tło koła odcieni w Analizie było cache’owane bez
+  koloru okna (szare rogi z jasnego motywu) → klucz cache zawiera kolor okna, a obrazy biorą
+  `QApplication.palette()` (`_window_color()`), bo `widget.palette()` dostaje nową paletę z opóźnieniem.
+  **Pułapka na przyszłość:** nie używaj `palette(...)` w arkuszach stylu dla kolorów, które mają śledzić motyw —
+  tylko `theme.mark_*` / `theme.colors()` przy budowie + przebudowa w `_theme_changed`. README: motyw + sekcja
+  „Pomoc w programie”.
+- **Weryfikacja policzona (2026-11-15, po T8):** cały `uv run pytest -q` **393 passed** (bazowo 336), `tests/gui`
+  97; `ruff check`, `ruff format --check`, `ty check` — zero uwag.
+- **NIE zweryfikowane:** prawdziwy pulpit (Wayland/X11, KDE/GNOME): czy „systemowy” wykrywa ciemny motyw Manjaro
+  (`QStyleHints.colorScheme()` bywa Unknown → jasny; wtedy wybór ręczny w menu), opóźnienie podpowiedzi 300 ms
+  na żywo, wygląd natywnej podpowiedzi Qt (zrzut robiony na QLabel z paletą ToolTip), F1 w menu na prawdziwym
+  pulpicie (offscreen test przechodzi), HiDPI. Treść pomocy porównana z kodem przez kontrolera, ale nie przez
+  drugą osobę — to robi przegląd.
 
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 

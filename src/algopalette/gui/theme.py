@@ -38,6 +38,7 @@ class Colors:
     warn_text: str  # ostrzeżenie w tekście (np. kolor poza gamutem)
     bad_cell_bg: str  # komórka macierzy poniżej wymagania (tło)
     bad_cell_fg: str  # … i jej tekst
+    hint: str  # przygaszony tekst objaśnień (hint)
     badge: dict[str, str] = field(default_factory=dict)  # źródło wartości → kolor tekstu i ramki
     # rysunki na kolorowym tle (gradienty, koło odcieni) — te same w obu motywach
     handle_ring: str = "#202020"
@@ -54,6 +55,7 @@ LIGHT = Colors(
     warn_text="#7d5800",
     bad_cell_bg="#b3261e",
     bad_cell_fg="#ffffff",
+    hint="#575a60",
     badge={"mood": "#8a3cb0", "global": "#1a6d87", "slot": "#7d5800"},
 )
 DARK = Colors(
@@ -64,6 +66,7 @@ DARK = Colors(
     warn_text="#f2c14e",
     bad_cell_bg="#9e2b25",
     bad_cell_fg="#ffffff",
+    hint="#a9acb2",
     badge={"mood": "#d6a0f0", "global": "#6cc8e3", "slot": "#f2c14e"},
 )
 

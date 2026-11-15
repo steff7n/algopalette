@@ -49,7 +49,7 @@ def test_semantic_contrast(dark):
     pal = theme.dark_palette() if dark else theme.light_palette()
     c = theme.DARK if dark else theme.LIGHT
     for bg in (pal.window().color().name(), pal.base().color().name()):
-        for name in ("hard", "soft", "ok", "warn_text", *(f"badge:{k}" for k in c.badge)):
+        for name in ("hard", "soft", "ok", "warn_text", "hint", *(f"badge:{k}" for k in c.badge)):
             fg = c.badge[name[6:]] if name.startswith("badge:") else getattr(c, name)
             assert contrast_hex(fg, bg, "wcag21") >= 4.5, (name, fg, bg)
         assert contrast_hex(c.error_border, bg, "wcag21") >= 3.0
@@ -116,3 +116,24 @@ def test_system_follows_scheme(qapp, monkeypatch):
     theme.apply(qapp, "light")
     theme._system_changed()  # tryb jasny ignoruje zmianę systemu
     assert not theme.current_is_dark()
+
+
+def test_hint_follows_theme(qtbot, qapp):
+    from algopalette.gui.widgets import hint
+
+    lbl = hint("objaśnienie")
+    qtbot.addWidget(lbl)
+    theme.apply(qapp, "dark")
+    assert theme.DARK.hint in lbl.styleSheet()
+    theme.apply(qapp, "light")
+    assert theme.LIGHT.hint in lbl.styleSheet()
+
+
+def test_wheel_background_follows_theme(win, qtbot, qapp):
+    tab = win.analysis_tab
+    win.tabs.setCurrentWidget(tab)
+    tab.refresh_from_session()
+    light = tab.wheel._background(64).pixelColor(0, 0)
+    theme.apply(qapp, "dark")
+    dark = tab.wheel._background(64).pixelColor(0, 0)
+    assert dark.lightness() < light.lightness()

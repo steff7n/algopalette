@@ -15,6 +15,7 @@ import numpy as np
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QImage, QPainter, QPen, QPixmap
 from PySide6.QtWidgets import (
+    QApplication,
     QHeaderView,
     QLabel,
     QScrollArea,
@@ -72,6 +73,11 @@ def view_value(session: Session, c: OKLCH, view: str) -> OKLCH:
     return col.simulate_cvd(c, cast(CvdType, view), cvd.method, cvd.severity)
 
 
+def _window_color() -> QColor:
+    """Kolor okna z palety aplikacji (widżet dostaje nową paletę z opóźnieniem)."""
+    return QApplication.palette().window().color()
+
+
 def _hex(session: Session, c: OKLCH) -> str:
     return col.to_hex(c, session.globals.fit_method)
 
@@ -121,7 +127,7 @@ class HueWheel(QWidget):
     def _background(self, size: int) -> QImage:
         assert self.session is not None
         g = self.session.globals.cvd
-        key = (size, self.view, g.method, g.severity)
+        key = (size, self.view, g.method, g.severity, _window_color().rgb())
         if self._bg is not None and self._bg_key == key:
             return self._bg
         ys, xs = np.mgrid[0:size, 0:size]
@@ -133,7 +139,7 @@ class HueWheel(QWidget):
         maxc = fast.max_chroma(np.full(360, L), np.arange(360.0))
         c = np.minimum(r, 1.0) * maxc[np.round(h).astype(int) % 360]
         lch = np.stack([np.full_like(r, L), c, h], axis=-1)
-        img = _to_image(lch, r <= 1.0, self.session, self.view, self.palette().window().color())
+        img = _to_image(lch, r <= 1.0, self.session, self.view, _window_color())
         self._bg, self._bg_key = img, key
         return img
 
@@ -248,7 +254,7 @@ class LCPlot(QWidget):
             c = t * 0.37
             mask = fast.in_gamut(np.stack([L, c, np.full_like(L, hue)], axis=-1))
         lch = np.stack([L, c, np.full_like(L, hue)], axis=-1)
-        return _to_image(lch, mask, self.session, self.view, self.palette().window().color())
+        return _to_image(lch, mask, self.session, self.view, _window_color())
 
     def paintEvent(self, _e) -> None:
         if self.session is None:

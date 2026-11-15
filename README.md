@@ -20,7 +20,19 @@ algopalette --tui            # stary interfejs w terminalu (Textual)
 Z kodu źródłowego: `uv run algopalette`. Instalacja komendy: `uv tool install --editable .` (po zmianie
 zależności: `uv tool install --editable . --force`).
 
-Motyw okna idzie za motywem systemu (jasny/ciemny); gdy wykrywanie zawodzi: `ALGOPALETTE_THEME=dark algopalette`.
+**Motyw okna:** Widok → Motyw → systemowy / jasny / ciemny. Zmienia się od razu i zostaje zapamiętany
+(`~/.config/algopalette/gui.json`). „Systemowy” idzie za motywem pulpitu, także po zmianie w trakcie pracy.
+`ALGOPALETTE_THEME=dark|light` wymusza motyw na starcie, gdy wykrywanie motywu pulpitu zawodzi.
+
+## Pomoc w programie
+
+Każdy element okna ma podpowiedź — wystarczy zatrzymać nad nim kursor (ok. 0,3 s). **F1** otwiera panel Pomocy
+(przypięty z prawej, można go odczepić) na pełnym opisie elementu pod kursorem; ponowne F1 zamyka panel. Gdy
+kursor nie wskazuje elementu z opisem, pomoc dotyczy pola z fokusem, a w ostateczności pokazuje spis treści.
+F1 działa też w otwartym menu. **Shift+F1** zmienia kursor w znak zapytania: następne kliknięcie niczego nie
+zmienia, tylko otwiera pomoc klikniętego elementu (Esc anuluje). Panel ma spis tematów według zakładek,
+wyszukiwarkę (bez względu na polskie znaki: „jasnosc” znajdzie „jasność”), linki między tematami i wstecz/dalej.
+Menu Pomoc: Pierwsze kroki, Skróty klawiszowe, Spis treści.
 
 ## Zakładki
 
@@ -33,7 +45,7 @@ Motyw okna idzie za motywem systemu (jasny/ciemny); gdy wykrywanie zawodzi: `ALG
 | F6 | **Analiza** | koło odcieni, przekrój gamutu jasność–nasycenie, macierz odległości ΔE i kontrastu (także przy daltonizmie), próbki „Aa” |
 
 Na dole zawsze widać **panel naruszeń bieżącej palety** (✗ twarde, ~ miękkie; granicę z zakładkami można
-przeciągać). F1 pokazuje wszystkie skróty.
+przeciągać). F1 — pomoc dla elementu pod kursorem, wszystkie skróty: Pomoc → Skróty klawiszowe.
 
 **F7 (albo pole „widok wartości” nad listą kolorów) przełącza widok OKLCH ↔ HSL.** W HSL tabela pokazuje H°, S%,
 L%, a suwaki „Wartość” w edytorze edytują kolor w HSL (zapis i tak trafia do sesji jako OKLCH). Warunki,
@@ -41,7 +53,7 @@ zależności, nastroje, silnik i koło odcieni w Analizie zostają w OKLCH — o
 koloru potrafią różnić się o kilkadziesiąt stopni. Przełączenie widoku nie jest krokiem cofania; zapamiętuje się
 w sesji.
 
-Najważniejsze skróty: `Ctrl+G` generuj, `Ctrl+Z` / `Ctrl+Y` cofnij / ponów, `Ctrl+S` zapisz
+Najważniejsze skróty: `F1` pomoc, `Shift+F1` wskaż element, `Ctrl+G` generuj, `Ctrl+Z` / `Ctrl+Y` cofnij / ponów, `Ctrl+S` zapisz
 (`Ctrl+Shift+S` jako…), `Ctrl+O` wczytaj, `Ctrl+N` nowa paleta, `Ctrl+E` paleta do schowka dla PaletteBuildera
 (`Ctrl+Shift+E` — do pliku), `Ctrl+Q` wyjście. Na liście kolorów (gdy ma fokus): `Ins`/`A` dodaj akcent,
 `Del` usuń, `L` kłódka, `Alt+↑/↓` przesuń — te same akcje są pod listą jako przyciski. Suwaki: przeciąganie

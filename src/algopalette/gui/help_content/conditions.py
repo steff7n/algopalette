@@ -189,6 +189,10 @@ w metryce z Globalnych, bez sztywnego progu.""",
 - „podobny do akcentu 3, ale nie identyczny” — dwie zależności odległości: `≥ 0.03` i `≤ 0.08`;
 - „w połowie między akcentem 1 a 4” — mieszanka, t = 0.5, tol ΔE 0.02.
 
+**Elementy wiersza:** [typ](help:rel.kind), [względem](help:rel.target), [operator](help:rel.op),
+wartość (znaczenie zależy od typu), [tolerancja](help:rel.tol), [metryka](help:rel.metric) (kontrast
+i odległość), [✕ usuń](help:rel.delete); pod spodem włączona / twarda / waga.
+
 Zależność trzyma się koloru-celu, nie jego numeru. Po usunięciu celu zostaje oznaczona jako
 [zerwana](help:rel.broken). Twarda/miękka i waga działają jak w warunkach
 ([twarde i miękkie](help:concept.hard_soft)).""",

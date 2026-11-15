@@ -147,7 +147,7 @@ def section(title: str) -> QLabel:
 def hint(text: str) -> QLabel:
     lbl = QLabel(text)
     lbl.setWordWrap(True)
-    lbl.setStyleSheet("color: palette(placeholder-text);")
+    theme.mark_text(lbl, "hint")  # kolor z motywu — palette(...) w arkuszu nie śledzi zmiany motywu
     return lbl
 
 

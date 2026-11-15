@@ -169,7 +169,8 @@ jest gradientem prawdziwych kolorów: od lewej do prawej widać kolor po zmianie
 kanału. Obsługa: przeciąganie, klik, ←/→ (Shift ×10, Ctrl ×0.1), Home/End, kółko myszy, albo wpis
 w polu liczbowym i Enter.
 
-Widok OKLCH edytuje L, C, H wprost. Widok HSL edytuje H, S, L, a wynik zapisuje jako OKLCH.
+Widok OKLCH edytuje [L](help:palette.value.l), [C](help:palette.value.c), [H](help:palette.value.h)
+wprost. [Widok HSL](help:palette.value.hsl) edytuje H, S, L, a wynik zapisuje jako OKLCH.
 Wartość wyprowadzona poza sRGB zostanie dopasowana ([gamut](help:concept.gamut)). Kolor z kłódką też
 możesz zmieniać ręcznie.""",
         P,
