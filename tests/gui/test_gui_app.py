@@ -357,25 +357,6 @@ def test_autosave_flush_on_close(qtbot):
     assert saved.slots[2].locked
 
 
-def test_main_tui_flag_parses(monkeypatch):
-    import algopalette.__main__ as m
-
-    called = {}
-
-    class Fake:
-        def __init__(self, *a, **k):
-            called["tui"] = True
-
-        def run(self):
-            pass
-
-    import algopalette.tui.app as tapp
-
-    monkeypatch.setattr(tapp, "AlgoPaletteApp", Fake)
-    m.main(["--fresh", "--tui"])
-    assert called == {"tui": True}
-
-
 def test_main_runs_gui(monkeypatch):
     import algopalette.__main__ as m
     import algopalette.gui.app as gapp

@@ -14,7 +14,6 @@ PaletteBuildera** (w jedną stronę).
 algopalette                  # przywraca ostatnią sesję (autozapis) albo zaczyna od nowej palety
 algopalette moja.json        # otwiera zapisany plik sesji
 algopalette --fresh          # ignoruje autozapis
-algopalette --tui            # stary interfejs w terminalu (Textual)
 ```
 
 Z kodu źródłowego: `uv run algopalette`. Instalacja komendy: `uv tool install --editable .` (po zmianie

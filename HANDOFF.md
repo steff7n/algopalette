@@ -29,6 +29,12 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     bisekcji starego `max_chroma` (wielkości < 1e-5) — test zgodności Tasku 14 nie może ich porównywać
     względnie ani jako zbioru kluczy; (c) trybu zapisu generatora nie da się już uruchomić po Tasku 4 (stary
     silnik zniknie) — zostaje `--check`; (d) `# type: ignore[kod-mypy]` NIE wycisza `ty` — typuj przez `Any`.
+  - Task 2 ☑ — TUI usunięte (`src/algopalette/tui/`, `tests/tui/`, flaga `--tui`, `textual`, `pytest-asyncio`,
+    `asyncio_*` w pytest, wpis ruff `per-file-ignores` dla tui). Verify: grep `textual|--tui|algopalette.tui`
+    w `src tests pyproject.toml README.md` → nic; `algopalette --help | grep -c tui` → 0, kod 0;
+    `tests/gui/test_gui_app.py` → 29 passed (usunięty `test_main_tui_flag_parses`, plik spoza listy zadania —
+    wymagał tego grep). `scipy` zostaje do Tasku 4b. W docstringach `model.py`, `io.py`, `forms.py` zostało
+    słowo „TUI” — znikną przy przepisywaniu tych plików (Task 3, 12).
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -507,3 +513,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
   Opus xhigh po Tasku 16 i 20; Task 4 podzielony na 4a (agent) i 4b (kontroler); natywne zadania #1–#20
   odtworzone; ledger w `.superpowers/sdd/`; gałąź `feat/silnik-rust` założona.
 - 2026-11-16 — Task 1 ☑: dane wzorcowe v1 (eval 300, quality 36), generator z `--check`; README danych.
+- 2026-11-16 — Task 2 ☑: usunięte TUI i zależności textual/pytest-asyncio; 29 testów GUI aplikacji zielonych.

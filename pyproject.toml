@@ -1,14 +1,13 @@
 [project]
 name = "algopalette"
 version = "0.1.0"
-description = "Generator palet kolorów w OKLCH (GUI Qt; TUI pod --tui)"
+description = "Generator palet kolorów w OKLCH (GUI Qt)"
 requires-python = ">=3.13"
 dependencies = [
     "coloraide>=8.15",
     "numpy>=2.5.4",
     "pyside6-essentials>=6.10",
     "scipy>=1.18.1",
-    "textual>=8.2.8",
 ]
 
 [project.scripts]
@@ -21,7 +20,6 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "pytest>=9.2.0",
-    "pytest-asyncio>=1.5.0",
     "pytest-qt>=4.4",
     "ruff>=0.17.5",
     "ty>=0.0.104",
@@ -29,8 +27,6 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
 markers = ["slow: wolniejsze testy (wydajność)"]
 
 [tool.ruff]
@@ -43,5 +39,4 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 ignore = ["E741", "RUF001", "RUF002", "RUF003"]  # l = lightness; polskie znaki i symbole
 
 [tool.ruff.lint.per-file-ignores]
-"src/algopalette/tui/*" = ["RUF012"]  # BINDINGS / DEFAULT_CSS — idiom Textuala
 "src/algopalette/gui/help_content/*" = ["E501"]  # proza pomocy (Markdown) — łamanie wierszy psułoby akapity

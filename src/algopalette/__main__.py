@@ -67,15 +67,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument("plik", nargs="?", type=Path, help="plik sesji AlgoPalette (.json)")
     parser.add_argument("--fresh", action="store_true", help="ignoruj autozapis, zacznij od nowa")
-    parser.add_argument("--tui", action="store_true", help="stary interfejs w terminalu (Textual)")
     args = parser.parse_args(argv)
     session, notice, path = startup_session(args.plik, args.fresh)
-
-    if args.tui:
-        from algopalette.tui.app import AlgoPaletteApp
-
-        AlgoPaletteApp(session, notice=notice, file_path=path).run()
-        return
 
     from algopalette.gui.app import run
 
