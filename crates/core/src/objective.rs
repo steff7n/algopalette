@@ -4,6 +4,8 @@
 //! wartość z gradientem i sposób mierzenia różnorodności. Prawdziwą funkcję celu palety
 //! (`rules::Problem`) buduje kompilacja sesji; testy optymalizatora używają funkcji syntetycznych.
 
+use std::sync::Arc;
+
 use crate::rng::Rng;
 
 /// Próg, powyżej którego twardy term uznaje się za naruszony.
@@ -48,4 +50,40 @@ pub trait Objective: Sync {
     /// Kara odpychająca od rozwiązań `others` bliższych niż `min_div`. Zwraca wartość kary
     /// i DODAJE jej gradient do `grad` (nie zeruje go).
     fn repulsion(&self, x: &[f64], others: &[Vec<f64>], min_div: f64, grad: &mut [f64]) -> f64;
+}
+
+/// Funkcja celu za `Arc`: zadanie w tle bierze funkcję na własność, a wywołujący zachowuje
+/// swój uchwyt (np. do odkodowania wyniku).
+impl<T: Objective + Send + ?Sized> Objective for Arc<T> {
+    fn dim(&self) -> usize {
+        (**self).dim()
+    }
+
+    fn bounds(&self) -> (&[f64], &[f64]) {
+        (**self).bounds()
+    }
+
+    fn sample(&self, rng: &mut Rng, out: &mut [f64]) {
+        (**self).sample(rng, out);
+    }
+
+    fn current(&self, out: &mut [f64]) {
+        (**self).current(out);
+    }
+
+    fn value_grad(&self, x: &[f64], grad: &mut [f64]) -> f64 {
+        (**self).value_grad(x, grad)
+    }
+
+    fn score(&self, x: &[f64]) -> Score {
+        (**self).score(x)
+    }
+
+    fn distance(&self, a: &[f64], b: &[f64]) -> f64 {
+        (**self).distance(a, b)
+    }
+
+    fn repulsion(&self, x: &[f64], others: &[Vec<f64>], min_div: f64, grad: &mut [f64]) -> f64 {
+        (**self).repulsion(x, others, min_div, grad)
+    }
 }

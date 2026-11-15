@@ -80,11 +80,27 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 
 **Stan na 2026-11-16.** Gałąź `feat/silnik-rust`, worktree `/home/qrikk/algopalette/.worktrees/silnik-rust`
 (odgałęziona od `feat/zasady-silnik` @ `bc85502`). Faza A = Task 4a → 5 → 6, osobny commit na każde.
-Zrobione: **4a** (`50e56d4` `feat: przestrzeń Cargo, moduł _engine (kontrakty)`), **5** (commit
-`feat(engine): matematyka koloru w Ruście z pochodnymi`). W toku: 6.
+**Faza A ZAKOŃCZONA:** 4a (`50e56d4` `feat: przestrzeń Cargo, moduł _engine (kontrakty)`), 5 (`09de714`
+`feat(engine): matematyka koloru w Ruście z pochodnymi`), 6 (`feat(engine): optymalizator, sterownik
+równoległy, zadanie z postępem` — ostatni commit gałęzi). Następne: czekać na wiadomość kontrolera z fazą B (Task 14: `rules/` —
+`Problem`, funkcja celu, gradienty, ocena; Task 16: spięcie `_engine.evaluate/hue_targets/start`, benchmark,
+progi W1–W4). `_engine.start` jest nadal zaślepką (prawdziwy `optim::Job` podpina Task 16).
 Faza B (Task 14, 16) dopiero po scaleniu przez kontrolera modelu v2/migracji/nakładki do tej gałęzi.
 Nic z tej gałęzi nie jest jeszcze scalone do `feat/zasady-silnik`. Raport fazy A dla kontrolera:
 `.worktrees/zasady-silnik/.superpowers/sdd/2026-11-15-zasady-silnik/engine-phaseA-report.md`.
+
+**O co najłatwiej się potknąć w fazie B.**
+- Odcień w całym rdzeniu jest w STOPNIACH (`oklch_to_oklab`, `max_chroma(l, h)`); zmienna okresowa optymalizatora
+  ma granice ±inf — skaluj zmienne tak, żeby wszystkie były rzędu 1 (pierwszy krok minimalizacji ma długość 1).
+- Gradient termu licz liczbami dualnymi (`Dual<3>` na kolor, `Dual<6>` na parę) i składaj regułą łańcuchową do
+  zmiennych; `max_chroma(Dual, Dual)` daje od razu pochodne po L i H. Żadnych różnic skończonych.
+- `Objective` nie może mieć stanu zmienianego w wywołaniach (determinizm); `repulsion` DODAJE do `grad`.
+- `Job::spawn(Arc::clone(&problem), opts)` — `Arc<Problem>` jest `Objective`; zachowaj `Arc` do `decode`.
+- Nowa funkcja `_engine` = wpis w `IMPLEMENTED` (`crates/py/src/lib.rs:15`), w `#[pymodule]` na końcu pliku i w
+  `src/algopalette/_engine.pyi`. Konwersję `Violation` → `dict` trzeba dopisać (crate `py` nie ma jeszcze
+  `serde_json`; `Violation.req/meta` to `serde_json::Map`).
+- ΔE `itp` przy czerni na brzegu gamutu: patrz pułapka 6.
+- Po każdej zmianie Rusta: `uv sync` w tle, dopiero potem `uv run --no-sync pytest …`.
 
 **Podział Tasku 4 (wiążący).** 4a (ten tor): `Cargo.toml`, `crates/`, backend maturin w `pyproject.toml`,
 `.gitignore`, ręczne pliki kontraktu. 4b (kontroler, NIE ruszać stąd): `src/algopalette/engine.py`, `forms.py`,
@@ -147,6 +163,52 @@ instalacja narzędzia w scratchpadzie. W `pyproject.toml` ten tor zmienił TYLKO
 - `tests/test_engine_color.py` — 69 testów wobec wyroczni (`algopalette.color`, `algopalette.color.fast`), 2000
   losowych kolorów w gamucie (ziarno 20261115) + 11 kolorów brzegowych; `skipif("color" not in implemented)`.
 
+**Mapa (6: optymalizator).**
+- `crates/core/src/objective.rs` — `impl Objective for Arc<T>` `:57` (zadanie bierze funkcję na własność,
+  wywołujący zachowuje `Arc` do odkodowania wyniku).
+- `optim/mod.rs` — `DriverOpts` `:24`, `Control` `:41` (`cancel`, `is_cancelled`, `evals_done`, `evals_planned`,
+  `candidates`, `progress` `:83`; wewnętrzne `plan`/`add_done`/`add_candidate`/`finish` `:91–106`), `Candidate`
+  `:111`, `Outcome` `:125`; `testutil::Wells` `:147` (tylko testy: „studnie” `min_k(‖x − c_k‖² + depth_k)`, z
+  opóźnieniem, paniką i licznikiem wywołań).
+- `optim/lbfgsb.rs` — `Settings` `:26` (domyślnie pamięć 10, `pg_tol = 1e-9`, `f_tol = 1e-13`), `Stop` `:45`,
+  `Minimum` `:58`, `minimize` `:72`, `Memory` `:221` (`push`, `direction` — rekurencja dwupętlowa po zmiennych
+  wolnych).
+- `optim/select.rs` — `rank` `:11`, `pick_diverse` `:22`, `assemble` `:44`.
+- `optim/driver.rs` — `MAX_WAVES = 3` `:29`, `first_wave_runs` `:32`, `refill_runs` `:37`, `pool_size` `:42`,
+  `generate` `:48`, `thread_pool` `:110`, `run_one` `:129`.
+- `optim/job.rs` — `JobState` `:19` (`as_str` = nazwy z I3), `JobStatus` `:49`, `JobResult` `:61` (`outcome`,
+  `elapsed`), `JobError` `:69`, `Job` `:95` (`spawn` `:101`, `poll` `:133`, `cancel` `:152`, `result` `:157`,
+  `Drop` anuluje `:169`).
+
+**Decyzje (6).**
+- Minimalizacja = L-BFGS z rzutowaniem na pudełko (metoda dwóch metryk), NIE pełny L-BFGS-B Byrda–Lu–Nocedala
+  (bez punktu Cauchy'ego i minimalizacji w podprzestrzeni): zmienne na granicy z gradientem wypychającym są
+  zamrażane, kierunek −H·g na wolnych (iloczyny w rekurencji tylko po wolnych, para z niedodatnią krzywizną w tej
+  podprzestrzeni pomijana), przeszukiwanie z nawrotami wzdłuż łuku rzutowanego z warunkiem Armijo (1e-4)
+  względem faktycznego przesunięcia, interpolacja kwadratowa kroku w [0.1, 0.5], najwyżej 30 nawrotów. Gdy
+  kierunek quasi-Newtona zawodzi → pamięć czyszczona, krok rzutowanym gradientem (zawsze spadek); gdy i ten
+  zawodzi → `Stop::Stalled`. Pierwszy krok bez pamięci ma długość 1 (albo 2 × ostatni przyjęty). Zbieżność:
+  `‖P(x − g) − x‖∞ ≤ 1e-9` albo spadek w kroku `≤ 1e-13 · max(|f|, |f′|, 1)`. Wartość nieskończona/NaN w próbie
+  = nawrót ×0.1. Wynik nigdy nie jest gorszy niż start; liczba wywołań ≤ `max_evals`; `known` oszczędza
+  ponowne liczenie najlepszego punktu puli. Parametry `pg_tol`/`f_tol`/pamięć są stałymi w `Settings::default`
+  — do strojenia pomiarem w Tasku 16.
+- Przebieg: pula `min(clamp(budget/8, 8, 128) + [przebieg 0: 1], budget)` punktów (przebieg 0 zaczyna od
+  `current`), najlepszy wg wartości (w falach 2–3 wartość zawiera karę odpychającą) → `minimize` resztą budżetu.
+  Przebieg przerwany (anulowanie/limit czasu) nie daje kandydata.
+- Wybór po KAŻDEJ fali od zera na wszystkich dotychczasowych kandydatach (sort `rank`, zachłannie
+  `pick_diverse`), nie „dokładanie do wybranych” — wynik jest wtedy funkcją zbioru ukończonych przebiegów.
+  Kandydat z fali 2–3 odepchnięty poza dno minimum jest pełnoprawnym różnorodnym rozwiązaniem (ocena `score`
+  bez kary). Odległość dokładnie równa progowi liczy się jako różnorodna; `min_diversity = 0` → każdy różny.
+- `Outcome.runs` = liczba UKOŃCZONYCH przebiegów (przy pełnym przebiegu = suma fal). `cancelled` =
+  `ctl.is_cancelled()` na końcu; `timed_out` ustawia pierwszy wątek, który zobaczył przekroczony termin.
+  `time_cap = 0` to natychmiastowy limit (odwzorowanie „0 = bez limitu”, jeśli potrzebne, należy do Tasku 16).
+- Postęp: `evals_done / evals_planned`, a zwracane jest maksimum z dotychczasowych odczytów (`fetch_max` na
+  bitach `f64`); ukończony przebieg dolicza niewykorzystany budżet, więc po pełnym przebiegu `done == planned` i
+  postęp = 1. Po przerwaniu postęp zostaje < 1.
+- Pula wątków rayon tworzona na jedno `generate` (`threads = 0` → `available_parallelism`, `threads = 1` → bez
+  puli, w wątku wywołującym). Panika w funkcji celu wychodzi z puli do `Job`, który łapie ją `catch_unwind` →
+  stan `failed` z tekstem paniki.
+
 **Decyzje (5).**
 - `max_chroma` (`gamut.rs:162`): wartość = ta sama bisekcja co wyrocznia (przedział [0, 0.5], środek, kanały
   liniowe w [−1e-6, 1 + 1e-6]) przez 20 kroków (przedział 4.8e-7), potem Newton na kanale przekroczonym w górnym
@@ -183,9 +245,18 @@ instalacja narzędzia w scratchpadzie. W `pyproject.toml` ten tor zmienił TYLKO
 - `start` odrzuca nieznane id w `free` (`ValueError("free[k]: unknown slot id")`).
 
 **Zależności (wersje).** Rust: `serde 1.0.229` (derive), `serde_json 1.0.154`, `serde_path_to_error 0.1.20`
-(ścieżka błędu), `pyo3 0.30.1` (`abi3-py313`; cecha `extension-module` już niepotrzebna — maturin ustawia
+(ścieżka błędu), `rayon 1.12.0` (fale przebiegów), `pyo3 0.30.1` (`abi3-py313`; cecha `extension-module` już niepotrzebna — maturin ustawia
 `PYO3_BUILD_EXTENSION_MODULE`). Python (budowanie): `maturin 1.16.0` (`requires = ["maturin>=1.16,<2.0"]`).
 rustc/cargo 1.99.0, uv 0.13.6.
+
+**Wyniki policzone (6).** `cargo test -p algopalette-core optim`: 35 zielonych w module `optim` (13 `lbfgsb`, 4
+`select`, 12 `driver`, 6 `job`) + 1 trafiony filtrem w `schema_contract`; 32 uruchomienia bez porażki po
+poprawce z pułapki 11, w tym 20 pod sztucznym obciążeniem procesora (32–96 pętli na 16 wątkach); testy czasowe
+mają opóźnienie 1 ms/wywołanie, anulowanie po 80 ms, limit czasu 80 ms. Całość `cargo test -p
+algopalette-core`: 98 (75 jednostkowych + 23 `schema_contract`). `cargo fmt --check` czysto, `cargo clippy
+--all-targets -- -D warnings` bez uwag. Zmierzone: Rosenbrock 10-D ze startu (−1.2, 1, …) → f = 1.4e-16 po 97
+wywołaniach (wymóg: ≤ 1e-8 w ≤ 2000); kwadratowa z granicami zbieżna w < 60 wywołań. Po przebudowie
+rozszerzenia `pytest tests/test_engine_color.py` nadal 69 zielonych.
 
 **Wyniki policzone (5).** `cargo test -p algopalette-core color`: 24 zielone; całość `cargo test -p
 algopalette-core`: 63 (40 jednostkowych + 23 `schema_contract`). `uv run pytest -q tests/test_engine_color.py`: 69
@@ -222,6 +293,27 @@ backendem maturin).
    zgłosić wybór kontrolerowi.
 7. Wzorcowe liczby do testów Rusta bierz z wyroczni (`uv run --no-sync python -c …`), nie z pamięci: wartości
    OKLCH czerwieni sRGB wpisane „z głowy” różniły się na 15. cyfrze.
+
+8. Test „budżet 100 → `Stop::Budget`” dla Rosenbrocka był błędny: metoda zbiega w 97 wywołaniach. Założenia o
+   liczbie wywołań sprawdzaj pomiarem, zanim wpiszesz je w test.
+9. W teście „więcej rozwiązań niż minimów” kara odpychająca tworzy dodatkowe różnorodne rozwiązania poza dnem
+   studni — to poprawne zachowanie, nie błąd; „N − 1 nieróżnorodnych” zachodzi tylko dla funkcji, której
+   `repulsion` nic nie robi (`Wells::single`). Siła i zasięg kary to decyzja `Problem::repulsion` (Task 14).
+11. Test zadania migotał pod obciążeniem maszyny (1 porażka na ~20 uruchomień, gdy równolegle szła inna
+   kompilacja; odtworzone 2/5 przy 24 pętlach zajmujących procesor): `JobResult.elapsed` było liczone od startu
+   WĄTKU, który pod obciążeniem rusza z opóźnieniem, a test zakładał „≥ 80 ms od `spawn`”. Naprawione w kodzie
+   (`elapsed` liczone od wywołania `spawn`, `job.rs:101`) — po poprawce 20 uruchomień pod obciążeniem 32–96
+   pętli bez porażki. Wniosek: testy czasowe uruchamiaj także pod obciążeniem, zanim uznasz je za stabilne.
+10. `f64::max` ignoruje NaN — norma rzutowanego gradientu liczona `fold(max)` nie wykryje NaN w gradiencie;
+   taki przypadek kończy się i tak `Stalled` (kierunek z NaN nie jest spadkowy).
+
+**Czego NIE zweryfikowano (6).** Optymalizatora na prawdziwej funkcji celu palety (`Problem` powstaje w Tasku
+14): jakości wobec wzorca §9.5, progów W1–W4, zachowania na załamaniach funkcji (zmiana kanału `max_chroma`,
+progi APCA). Kosztu tworzenia puli wątków na każde `generate` (istotne dla W1 ≤ 0,15 s; do pomiaru w Tasku 16).
+Testy czasowe (`cancel ≤ 100 ms`, `poll < 20 ms`, limit czasu ≤ 180 ms) zależą od planisty systemu — przy
+skrajnym obciążeniu mogą paść mimo poprawnego kodu. Limitu 100 ms reakcji na przerwanie przy funkcji celu
+wolniejszej niż 1 ms/wywołanie (reakcja następuje przed
+kolejnym wywołaniem `value_grad`, więc zależy od czasu jednego wywołania). Zachowania na Windows/macOS.
 
 **Czego NIE zweryfikowano (5).** Gałęzi coloraide „ujemna barwność M → ponowne przeliczenie” w CAM16 (kolory
 daleko poza gamutem; w Ruście jej nie ma — udokumentowane w nagłówku `delta_e.rs`). Zgodności ΔE dla kolorów
