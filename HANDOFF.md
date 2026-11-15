@@ -69,6 +69,15 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     tylko `change_metric` i `change_delta_e`; zmiana polaryzacji przechodzi do `presets.change_polarity` (Task 8).
     `rescale_contrast_metric` NIE ustawia metryki (robi to `change_metric`); `avoid_distance` nie jest
     przeliczane (zawsze ΔE ok).
+  - Task 12 ☑ (przed 4b) — `rules_edit.py` (bez Qt) + `forms.py` pod pola I2. Verify: `uv run pytest -q
+    tests/test_rules_edit.py` → **25 passed**; ruff/ty czyste. `Merged.rule` przy `mixed` = zasada pierwszego
+    zaznaczonego koloru, KTÓRY JĄ MA (pierwszy może jej nie mieć). `merged_rule`, `set_rule`, `update_rule`
+    rzucają `ValueError` dla pola niedotyczącego któregoś koloru, nieznanego pola, pustego zaznaczenia i
+    nieznanego id; `merged_use_scheme`/`set_use_scheme` — dla nie-akcentu. Funkcje zapisujące zwracają TĘ SAMĄ
+    sesję (`is`), gdy nic się nie zmienia — GUI może po tym poznać, że nie ma czego wkładać do historii.
+    `forms.py`: usunięte `current_violations` i importy starego silnika (część 4b zrobiona tu, bo moduł inaczej
+    się nie importował); `violation_text` dojdzie w 4b. Etykiety list: „bezwzględne (C)” / „względne (%
+    największego)”, „metryka palety” zamiast „globalna”. `forms.ACCENT_ONLY`, `DISPLAY_ORDER` = stałe z modelu.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -550,3 +559,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 2 ☑: usunięte TUI i zależności textual/pytest-asyncio; 29 testów GUI aplikacji zielonych.
 - 2026-11-16 — Task 3 ☑: model v2 (`Rule`, `Band`, `HueArc`, `SlotRules`), plik `algopalette.v2`, `migrate_v1`; 147 testów.
 - 2026-11-16 — Task 7 ☑: źródło, jednostki i logika ustawień na modelu v2; 19 testów + 3 czekające na silnik.
+- 2026-11-16 — Task 12 ☑: logika edycji zbiorczej (`rules_edit.py`), `forms.py` na polach v2; 25 testów.

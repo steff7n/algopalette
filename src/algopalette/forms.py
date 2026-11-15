@@ -1,86 +1,65 @@
-"""Opis formularzy wspólny dla interfejsów (GUI i TUI): etykiety, opcje list, domyślne wartości
-nowych warunków i relacji, zakresy suwaków oraz naruszenia bieżącej palety. Bez zależności od
-bibliotek interfejsu."""
+"""Opis formularzy interfejsu: etykiety, opcje list, domyślne wartości nowych zasad i zależności
+oraz zakresy suwaków. Bez zależności od bibliotek interfejsu."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from algopalette.color import fitted
-from algopalette.constraints import Violation, compile_terms, evaluate
-from algopalette.hues import targets_for_session
 from algopalette.model import (
-    CONDITION_FIELDS,
-    ChromaRange,
+    ACCENT_ONLY_FIELDS,
+    RULE_FIELDS,
+    Band,
+    ChromaBand,
     ContrastBound,
-    HueRange,
-    HueTarget,
-    Interval,
+    HueArc,
     Role,
     Session,
+    rule_fields_for,
 )
 from algopalette.units import default_distance
 
-
-def current_violations(session: Session) -> list[Violation]:
-    """Naruszenia bieżącej palety — na kolorach po fit, czyli takich, jakie trafią do hexa."""
-    terms = compile_terms(session, hue_targets=targets_for_session(session))
-    fit = session.globals.fit_method
-    return evaluate(terms, {s.id: fitted(s.value, fit) for s in session.slots})
-
-
-# --- warunki slotu / roli ----------------------------------------------------------------------
+# --- zasady koloru -----------------------------------------------------------------------------
 
 LABELS = {
     "lightness": "jasność L",
     "chroma": "nasycenie C",
-    "hue_range": "zakres odcienia",
-    "hue_target": "cel odcienia",
+    "hue": "odcień",
     "contrast_bg": "kontrast z tłem",
-    "min_distance": "odległość od akcentów",
+    "min_distance": "odległość od innych akcentów",
     "cvd_min_distance": "odróżnialność (daltonizm)",
     "extreme": "skrajny kontrast",
 }
 
 DESCRIPTIONS = {
     "lightness": "Dozwolony zakres jasności OKLCH (0 = czerń, 1 = biel).",
-    "chroma": "Zakres nasycenia: bezwzględne C albo ułamek największego C możliwego w sRGB.",
-    "hue_range": "Dozwolony łuk odcienia w stopniach; lo > hi = łuk przez 0°.",
-    "hue_target": "Odcień docelowy ± tolerancja.",
+    "chroma": (
+        "Dozwolony zakres nasycenia: w jednostkach C albo jako część największego nasycenia, "
+        "jakie ekran pokaże przy tej jasności i odcieniu."
+    ),
+    "hue": "Dozwolony łuk odcienia w stopniach; „od” większe niż „do” to łuk przez 0°.",
     "contrast_bg": "Kontrast tego koloru z tłem (WCAG 2.1 albo APCA |Lc|).",
-    "min_distance": "Minimalna odległość ΔE od każdego innego akcentu.",
-    "cvd_min_distance": "Minimalna odległość ΔE od innych akcentów przy symulacji daltonizmu.",
-    "extreme": "Ten akcent ma najsłabszy / najmocniejszy kontrast z tłem spośród akcentów.",
+    "min_distance": "Najmniejsza odległość ΔE od każdego innego akcentu.",
+    "cvd_min_distance": "Najmniejsza odległość ΔE od innych akcentów przy symulacji daltonizmu.",
+    "extreme": "Ten akcent ma najsłabszy albo najmocniejszy kontrast z tłem spośród akcentów.",
 }
 
 DEFAULTS: dict[str, Any] = {
-    "lightness": Interval(0.5, 0.8),
-    "chroma": ChromaRange("abs", 0.05, 0.15),
-    "hue_range": HueRange(0.0, 60.0),
-    "hue_target": HueTarget(0.0, 15.0),
+    "lightness": Band(0.5, 0.8),
+    "chroma": ChromaBand("abs", 0.05, 0.15),
+    "hue": HueArc(0.0, 60.0),
     "contrast_bg": ContrastBound(None, 4.5, None),
     "min_distance": 0.08,
     "cvd_min_distance": 0.04,
     "extreme": "weakest",
 }
 
-ACCENT_ONLY = {"min_distance", "cvd_min_distance", "extreme"}
+ACCENT_ONLY = ACCENT_ONLY_FIELDS
 
-DISPLAY_ORDER = (
-    "lightness",
-    "chroma",
-    "hue_range",
-    "hue_target",
-    "contrast_bg",
-    "min_distance",
-    "cvd_min_distance",
-    "extreme",
-)
-assert set(DISPLAY_ORDER) == set(CONDITION_FIELDS)
+DISPLAY_ORDER = RULE_FIELDS
 
 
 def default_for(field: str, session: Session) -> Any:
-    """Wartość nowego warunku w jednostkach bieżącej metryki / metody ΔE."""
+    """Wartość nowej zasady w jednostkach bieżącej metryki kontrastu / metody ΔE."""
     g = session.globals
     if field == "contrast_bg":
         return ContrastBound(None, 4.5 if g.contrast_metric == "wcag21" else 60.0, None)
@@ -90,18 +69,11 @@ def default_for(field: str, session: Session) -> Any:
 
 
 def fields_for(role: Role) -> list[str]:
-    out = []
-    for f in DISPLAY_ORDER:
-        if role != "accent" and f in ACCENT_ONLY:
-            continue
-        if role == "bg" and f == "contrast_bg":
-            continue
-        out.append(f)
-    return out
+    return list(rule_fields_for(role))
 
 
 def range_spec(field: str, cond_value: Any, session: Session) -> dict[str, Any]:
-    """Zakres, krok i format suwaka wartości warunku."""
+    """Zakres, krok i format suwaka wartości zasady."""
     g = session.globals
     if field == "lightness":
         return {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "fmt": ".3f", "allow_none": True}
@@ -109,7 +81,7 @@ def range_spec(field: str, cond_value: Any, session: Session) -> dict[str, Any]:
         if cond_value.mode == "rel":
             return {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "fmt": ".2f", "allow_none": True}
         return {"minimum": 0.0, "maximum": 0.37, "step": 0.005, "fmt": ".3f", "allow_none": True}
-    if field in ("hue_range", "hue_target"):
+    if field == "hue":
         return {"minimum": 0.0, "maximum": 360.0, "step": 1.0, "fmt": ".0f", "wrap": True}
     if field == "contrast_bg":
         metric = cond_value.metric or g.contrast_metric
@@ -122,11 +94,11 @@ def range_spec(field: str, cond_value: Any, session: Session) -> dict[str, Any]:
     return {"minimum": 0.0, "maximum": 100.0, "step": 0.5, "fmt": ".1f"}
 
 
-CHROMA_MODES = [("bezwzględne", "abs"), ("względne (ułamek max sRGB)", "rel")]
-CONTRAST_METRICS = [("globalna", "global"), ("WCAG 2.1", "wcag21"), ("APCA", "apca")]
+CHROMA_MODES = [("bezwzględne (C)", "abs"), ("względne (% największego)", "rel")]
+CONTRAST_METRICS = [("metryka palety", "global"), ("WCAG 2.1", "wcag21"), ("APCA", "apca")]
 EXTREMES = [("najsłabszy z akcentów", "weakest"), ("najmocniejszy z akcentów", "strongest")]
 
-# --- relacje -----------------------------------------------------------------------------------
+# --- zależności między kolorami ----------------------------------------------------------------
 
 REL_KINDS = [
     ("odcień (różnica °)", "hue"),
@@ -147,9 +119,9 @@ REL_DEFAULT_VALUE = {
 }
 REL_CHROMA_OPS = [("+ różnica", "add"), ("× mnożnik", "mul")]
 REL_CHROMA_MODES = [("bezwzgl.", "abs"), ("względne", "rel")]
-REL_CONTRAST_METRICS = [("globalna", "global"), ("WCAG", "wcag21"), ("APCA", "apca")]
+REL_CONTRAST_METRICS = [("metryka palety", "global"), ("WCAG", "wcag21"), ("APCA", "apca")]
 REL_DISTANCE_METRICS = [
-    ("globalna", "global"),
+    ("metoda palety", "global"),
     ("ok", "ok"),
     ("2000", "2000"),
     ("hyab", "hyab"),
@@ -168,7 +140,7 @@ def relation_default_value(kind: str, session: Session) -> float:
     return value
 
 
-# --- ustawienia globalne -----------------------------------------------------------------------
+# --- ustawienia całej palety -------------------------------------------------------------------
 
 SCHEMES = [
     ("równo po kole", "equal"),
@@ -197,6 +169,6 @@ CONTRAST_GLOBAL = [("WCAG 2.1 (1–21)", "wcag21"), ("APCA |Lc| (0–108)", "apc
 
 SOURCE_MODES = [
     ("uzupełnianie — podane kolory z kłódką, reszta generowana", "complete"),
-    ("charakter — profil palety ustawia ustawienia globalne", "character"),
+    ("charakter — profil palety staje się zasadami kolorów", "character"),
     ("przeniesienie — ta sama paleta na innym tle", "transfer"),
 ]
