@@ -98,6 +98,18 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     sesję v1 (tło, tekst, 1 akcent) i puszcza ją przez `migrate_v1`; (7) `__main__.main` woła
     `migrate_user_moods()` przed startem i połyka `ValueError/OSError` (uszkodzony plik zgłosi zakładka).
     Opisy dziewięciu dawnych presetów przepisane tak, żeby mówiły, co preset ustawia (wymóg Tasku 19).
+  - Task 9 ☑ — `gui/band.py` (`BandSlider`) + `Bar.set_excluded` w `gui/widgets.py`. Verify:
+    `QT_QPA_PLATFORM=offscreen uv run pytest -q tests/gui/test_band.py` → **20 passed**; `test_gui_widgets.py`
+    nadal 9 passed; ruff/ty czyste; zrzut obu motywów obejrzany (kreskowanie zakazów widać na gradiencie i na
+    gładkim pasku). Budowa: `self.range` (`RangeSlider`), `self.bar`, `self.items` (lista `_Item` z `lo_edit`,
+    `hi_edit`, `remove_button`), `self.add_button`, `self.center_edit`/`self.half_edit` (albo `None`).
+    Model zakazów trzymany w kolejności wyświetlania (`_exclude`), a `values()` i sygnał oddają posortowane wg
+    „od” — po rundzie przez sesję pola mogą zamienić się treścią (świadomie; widżety nie są przestawiane, żeby
+    fokus nie uciekał). Zła para: pole dostaje `property("bad") is True`, model i sygnał bez zmian.
+    „+ zakaz”: `_free_gaps()` liczy luki dozwolonego zakresu (na osi okrężnej łącznie z luką przez 0° na pełnym
+    kole); szerokość 10% osi, a gdy luka jest mniejsza — połowa luki. Delete działa na przycisku ✕ pozycji
+    (filtr zdarzeń) — w polach liczbowych Delete kasuje znak, więc „Delete na pozycji” = fokus na ✕.
+    Dodane ponad plan: `RangeSlider.set_values(lo, hi)` (programowo, bez sygnału), `BandSlider.set_gradient`.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -581,3 +593,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 7 ☑: źródło, jednostki i logika ustawień na modelu v2; 19 testów + 3 czekające na silnik.
 - 2026-11-16 — Task 12 ☑: logika edycji zbiorczej (`rules_edit.py`), `forms.py` na polach v2; 25 testów.
 - 2026-11-16 — Task 8 ☑: presety zamiast nastrojów (rdzeń, 9 dawnych, presety użytkownika, przeniesienie `moods.json`); 59 testów.
+- 2026-11-16 — Task 9 ☑: `BandSlider` (zakres + zakazy + środek ±), zakazy kreskowane na pasku; 20 testów.

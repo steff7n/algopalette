@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
 
 from algopalette.color import fast
 from algopalette.gui import theme
-from algopalette.model import OKLCH
+from algopalette.model import OKLCH, Exclusions
 
 # --- kolory ------------------------------------------------------------------------------------
 
@@ -316,7 +316,8 @@ class Bar(QWidget):
     """Pasek z jednym albo dwoma uchwytami; tło może być gradientem koloru.
 
     ``moved(handle, value)`` przy każdej zmianie myszą/klawiaturą. ``wrap``: oś okrężna (odcień);
-    przy dwóch uchwytach lo > hi oznacza zakres przez 0.
+    przy dwóch uchwytach lo > hi oznacza zakres przez 0. Zakazane przedziały (``set_excluded``)
+    są kreskowane na pasku; na osi okrężnej przedział z od > do rysuje się na obu końcach.
     """
 
     moved = Signal(int, float)
@@ -337,6 +338,7 @@ class Bar(QWidget):
         self.minimum, self.maximum, self.step, self.wrap = minimum, maximum, step, wrap
         self.gradient = gradient
         self._stops: list[QColor] | None = None
+        self.excluded: Exclusions = ()
         self.active = 0
         self._drag = False
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -351,6 +353,11 @@ class Bar(QWidget):
 
     def set_values(self, values: Sequence[float | None]) -> None:
         self.values = list(values)
+        self.update()
+
+    def set_excluded(self, excluded: Exclusions) -> None:
+        """Zakazane przedziały do pokazania na pasku (pary ``od, do`` w jednostkach osi)."""
+        self.excluded = tuple(excluded)
         self.update()
 
     # geometria
@@ -420,6 +427,7 @@ class Bar(QWidget):
                 p.setBrush(hl)
                 for lo, hi in self._inside(a, b):
                     p.drawRect(QRectF(self._x(lo), t.top(), self._x(hi) - self._x(lo), t.height()))
+        self._paint_excluded(p, t)
         for k, v in enumerate(vals):
             x = self._x(v if v is not None else self._default(k))
             center = QPointF(x, self.height() / 2)
@@ -430,6 +438,24 @@ class Bar(QWidget):
             r = HANDLE_R if v is not None else HANDLE_R - 2
             p.drawEllipse(center, r, r)
         p.end()
+
+    def _paint_excluded(self, p: QPainter, t: QRectF) -> None:
+        """Zakazy: przyciemnienie + ukośne kreski (czytelne na gradiencie i na gładkim tle)."""
+        for a, b in self.excluded:
+            for lo, hi in self._inside(a, b) if a != b else []:
+                x0 = self._x(min(max(lo, self.minimum), self.maximum))
+                x1 = self._x(min(max(hi, self.minimum), self.maximum))
+                if x1 <= x0:
+                    continue
+                rect = QRectF(x0, t.top(), x1 - x0, t.height())
+                p.setPen(Qt.PenStyle.NoPen)
+                p.setBrush(QColor(0, 0, 0, 120))
+                p.drawRect(rect)
+                p.setBrush(QBrush(QColor(255, 255, 255, 210), Qt.BrushStyle.BDiagPattern))
+                p.drawRect(rect)
+                p.setPen(QPen(QColor(0, 0, 0, 200), 1))
+                p.setBrush(Qt.BrushStyle.NoBrush)
+                p.drawRect(rect)
 
     def _inside(self, a: float, b: float) -> list[tuple[float, float]]:
         if a <= b or not self.wrap:
@@ -617,6 +643,11 @@ class RangeSlider(QWidget):
     def values(self) -> tuple[float | None, float | None]:
         lo, hi = self.bar.values
         return lo, hi
+
+    def set_values(self, lo: float | None, hi: float | None) -> None:
+        """Programowo (bez sygnału)."""
+        self.bar.set_values([lo, hi])
+        self._sync_edits()
 
     def _sync_edits(self) -> None:
         lo, hi = self.bar.values
