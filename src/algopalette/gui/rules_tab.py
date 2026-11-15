@@ -271,7 +271,7 @@ class RulesTab(QWidget):
     def _schedule_rebuild(self) -> None:
         if not self._pending:
             self._pending = True
-            QTimer.singleShot(0, self.flush)
+            QTimer.singleShot(0, self, self.flush)  # z kontekstem: nie odpali po zniszczeniu
 
     def flush(self) -> None:
         """Wykonuje odłożoną przebudowę (zegar pętli zdarzeń; testy wołają wprost)."""
@@ -301,7 +301,7 @@ class RulesTab(QWidget):
             self._build_palette()
         else:
             self._build_colors()
-        QTimer.singleShot(0, lambda: bar.setValue(scroll))
+        QTimer.singleShot(0, bar, lambda: bar.setValue(scroll))
 
     # --- zasady zaznaczonych kolorów -----------------------------------------------------------
 
@@ -337,7 +337,7 @@ class RulesTab(QWidget):
         self.flush()
         box = self.hue_box
         if box is not None:
-            QTimer.singleShot(0, lambda: self.scroll_area.ensureWidgetVisible(box))
+            QTimer.singleShot(0, box, lambda: self.scroll_area.ensureWidgetVisible(box))
 
     # --- liczba kolorów ------------------------------------------------------------------------
 

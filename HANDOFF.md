@@ -205,7 +205,7 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     `add_btn`, `remove_btn`, `unify_btn`, `mixed_label`), `SchemeRow`. `gui/app.py` — `rule_owners(v)`,
     `ViolationsPanel.activated`, `MainWindow.show_rules(ids)`, `.generate()`, `.show_migration_notes(notes)`
     (pasek stanu 30 s + NIEMODALNE okno; `win.migration_notes`), `refresh_views` łapie `ValueError` silnika.
-    `forms.rule_summary` — tekst zasady w wierszu „różne”. `help_content/rules.py` — 60 kluczy `rules.*`
+    `forms.rule_summary` — tekst zasady w wierszu „różne”. `help_content/rules.py` — 57 kluczy `rules.*`
     (krótka treść; pełną pisze Task 18), grupy „Zasady” / „Zasady koloru”; zależności dalej używają `rel.*`
     z `help_content/conditions.py` (Task 18 musi je przenieść, zanim skasuje ten moduł).
     **Decyzje:** (1) klik w naruszenie → `show_rules(rule_owners(v))`, nie surowe `v.slot_ids`: kontrast/
@@ -228,6 +228,28 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     (pozycje zakazów, wiersze wybieraka) dostają klucz pomocy przez ponowne `help.attach(…, children=True)`
     po każdej zmianie (`RuleRow._attach_values`, `_custom`, `_avoid`); (e) testy nie mogą importować
     `tests.test_migrate` (katalog testów nie jest pakietem) — dane v1 bierz z `tests/fixtures/v1_reference`.
+  - Task 17 ☑ — Paleta, Propozycje, Analiza, Źródło na modelu v2. Verify: `QT_QPA_PLATFORM=offscreen uv run
+    --no-sync pytest -q tests/gui/test_gui_app.py tests/gui/test_review_fixes.py tests/gui/test_gui_widgets.py`
+    → **59 passed, 2 skipped** (pominięte czekają na `"evaluate"` / `"generate"` w silniku: panel naruszeń na
+    prawdziwej ocenie, prawdziwe generowanie); razem z `test_rules_tab.py`: 95 passed, 2 skipped; ruff/ty
+    czyste. Zrzut koła Analizy obejrzany (żółty łuk, czerwone kropkowane zakazy, pomarańczowy cel układu).
+    `gui/proposals_tab.py`: ŻADNYCH wątków Pythona — `start()` woła `engine.start`, `QTimer` co 33 ms woła
+    `_tick()` (`poll()` → postęp → wynik / błąd / „(przerwano)”); `cancel()` tylko prosi silnik, wynik odbiera
+    zegar; `shutdown()` (z `MainWindow.closeEvent`) przerywa i przestaje odpytywać bez czekania; `wait(timeout)`
+    dla testów i narzędzi. Błąd z `engine.start` (odrzucona sesja) i stan `failed` lądują w etykiecie stanu.
+    `take_whole` pomija kolory, których już nie ma, i mówi ile; `_detail` nie zakłada, że propozycja zna każdy
+    kolor. `gui/analysis_tab.py`: `hue_segments(arc)` → `(dozwolone, zakazane)` kawałki łuku; `HueWheel.targets`
+    z `engine.hue_targets` (cel rysowany tylko dla akcentu z `use_scheme`). `gui/palette_tab.py`: edytor =
+    nazwa, kłódka, wartość, `rules_link` („Zasady tego koloru →”).
+    Testy: `tests/gui/conftest.py` ma teraz `FakeGeneration` / `FakeEngine` i fiksturę `fake_engine`
+    (podmienia `engine.start`; `gen.finish(n, hard=…)` kończy zadanie z propozycjami) — testy okna NIE zależą
+    od prawdziwego silnika. Kontrola mutacją: usunięcie `cancel()` z `shutdown` i obsługi stanu `failed`
+    wywraca odpowiednio `test_closing_window_cancels…` i `test_engine_failure_is_shown_in_tab`.
+    **Pułapka z dowodem:** `QTimer.singleShot(0, lambda: …)` bez obiektu-kontekstu odpala się także po
+    zniszczeniu okna (`RuntimeError: Internal C++ object (QScrollBar) already deleted` w kolejnych testach) →
+    wszędzie forma z kontekstem `QTimer.singleShot(0, obiekt, funkcja)` (`rules_tab.py`, `relations.py`).
+    `tests/gui/test_review_fixes.py::test_content_matches_engine` sprawdza jeszcze stare tematy `globals.*` —
+    przejdzie do Tasku 18 razem z treścią pomocy.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -961,3 +983,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 13 ☑: `Topic.term`, osiem pojęć wg wzorca z liczbami z programu, rysunek nasycenia w panelu Pomocy; 15 testów.
 - 2026-11-16 — Taski 4 ☑, 5 ☑, 6 ☑: gałąź agenta scalona; nakładka `engine.py`, `violation_text`, 52 pliki kontraktu, stary silnik i scipy usunięte; edytowalna instalacja z maturin sprawdzona w scratchpadzie.
 - 2026-11-16 — Task 15 ☑: zakładka „Zasady” (preset, liczba kolorów, pasek, wiersze z edycją zbiorczą, cała paleta), okno przepięte; 36 testów; faza B silnika (14, 16) u agenta.
+- 2026-11-16 — Task 17 ☑: Propozycje na zadaniu silnika i QTimer, łuk z zakazami i cele układu w Analizie, Paleta bez edytora zasad; 59 testów (+2 czekające na silnik).

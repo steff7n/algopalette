@@ -69,24 +69,24 @@ def test_click_mode_blocks_shortcuts(win, qtbot):
 
 
 # I3a
-def test_hex_column_follows_theme(win, qtbot):
+def test_hex_column_follows_theme(win, qtbot, qapp):
     t = win.palette_tab.table
-    theme.apply(QApplication.instance(), "dark")  # type: ignore[arg-type]
+    theme.apply(qapp, "dark")
     flush(qtbot)
     it = t.item(1, 3)
     assert it is not None and it.data(Qt.ItemDataRole.ForegroundRole) is None
 
 
 # I3b
-def test_proposal_state_recolored(win, qtbot, qapp):
+def test_proposal_state_recolored(win, qapp, fake_engine):
     tab = win.proposals_tab
     tab.start()
-    qtbot.waitUntil(lambda: not tab.running, timeout=30000)
+    fake_engine.gen.finish(2, hard=True)
+    tab._tick()
+    assert tab.table.item(0, 1).foreground().color().name() == theme.LIGHT.hard
     theme.apply(qapp, "dark")
-    it = tab.table.item(0, 1)
-    assert it is not None
-    fg = it.foreground().color().name()
-    assert fg in {theme.DARK.ok, theme.DARK.hard, theme.DARK.soft}
+    assert tab.table.item(0, 1).foreground().color().name() == theme.DARK.hard
+    assert tab.table.item(1, 1).foreground().color().name() == theme.DARK.ok
 
 
 def test_engine_error_recolored(win, qapp):

@@ -26,11 +26,12 @@ from PySide6.QtWidgets import (
 )
 
 from algopalette import color as col
+from algopalette import engine
 from algopalette.color import fast
 from algopalette.engine import slot_label
 from algopalette.gui import help, theme
 from algopalette.gui.widgets import combo, hbox, hint, section, vbox
-from algopalette.model import OKLCH, CvdType, Session, slot_index
+from algopalette.model import OKLCH, CvdType, HueArc, Session, arc_width, role_of, slot_index
 
 if TYPE_CHECKING:
     from algopalette.gui.app import MainWindow
@@ -46,6 +47,35 @@ VIEWS = [
 MATRICES = [("ΔE akcentów", "de"), ("kontrast par akcentów", "contrast")]
 AXES = [("C względne", "rel"), ("C bezwzględne", "abs")]
 BG_OPACITY = 0.45
+
+
+def hue_segments(arc: HueArc) -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
+    """Łuk zasady odcienia pocięty zakazami: ``(dozwolone, zakazane)`` jako pary
+    ``(początek°, rozpiętość°)``, w kolejności wzdłuż łuku (od ``lo`` w stronę rosnących kątów)."""
+    width = arc_width(arc.lo, arc.hi)
+    taken: list[tuple[float, float]] = []
+    for a, b in arc.exclude:
+        offset, span = (a - arc.lo) % 360.0, (b - a) % 360.0
+        for shift in (-360.0, 0.0):
+            x0, x1 = max(0.0, offset + shift), min(width, offset + shift + span)
+            if x1 > x0:
+                taken.append((x0, x1))
+    allowed: list[tuple[float, float]] = []
+    banned: list[tuple[float, float]] = []
+    cursor = 0.0
+    for x0, x1 in sorted(taken):
+        if x0 > cursor:
+            allowed.append((cursor, x0))
+        if x1 > cursor:
+            banned.append((max(x0, cursor), x1))
+            cursor = x1
+    if cursor < width or not taken:
+        allowed.append((cursor, width))
+
+    def place(parts: list[tuple[float, float]]) -> list[tuple[float, float]]:
+        return [((arc.lo + x0) % 360.0, x1 - x0) for x0, x1 in parts]
+
+    return place(allowed), place(banned)
 
 
 def draw_point(p: QPainter, pt: QPointF, hex_: str, label: str, selected: bool) -> None:
@@ -110,14 +140,28 @@ class HueWheel(QWidget):
         self.session: Session | None = None
         self.selected: str | None = None
         self.view: str = "normal"
+        self.targets: dict[str, float] = {}
         self._bg: QImage | None = None
         self._bg_key: tuple | None = None
         self.setMinimumSize(QSize(320, 320))
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-    def set_state(self, session: Session, selected: str | None, view: str) -> None:
+    def set_state(
+        self,
+        session: Session,
+        selected: str | None,
+        view: str,
+        targets: dict[str, float] | None = None,
+    ) -> None:
         self.session, self.selected, self.view = session, selected, view
+        self.targets = dict(targets or {})
         self.update()
+
+    def _arc(self, p: QPainter, radius: float, start: float, span: float, pen: QPen) -> None:
+        center, _ = self._geometry()
+        p.setPen(pen)
+        box = QRectF(center.x() - radius, center.y() - radius, 2 * radius, 2 * radius)
+        p.drawArc(box, int(start * 16), int(max(span, 1.0) * 16))  # choćby 1°, żeby było widać
 
     def _geometry(self) -> tuple[QPointF, float]:
         r = min(self.width(), self.height()) / 2 - 26
@@ -172,26 +216,26 @@ class HueWheel(QWidget):
                 Qt.AlignmentFlag.AlignCenter,
                 f"{deg}°",
             )
-        # łuk zasady odcienia zaznaczonego koloru
+        # zasada odcienia zaznaczonego koloru: dozwolone kawałki łuku i wycięte z niego zakazy;
+        # dalej od koła — cel z układu odcieni ± tolerancja (gdy kolor go stosuje)
         if self.selected is not None and self.selected in {x.id for x in s.slots}:
-            rule = s.slots[slot_index(s, self.selected)].rules.hue
+            index = slot_index(s, self.selected)
+            slot = s.slots[index]
+            tc = theme.colors()
+            flat = Qt.PenCapStyle.FlatCap
+            rule = slot.rules.hue
             if rule is not None and rule.enabled:
-                arc = rule.value
-                span = (arc.hi - arc.lo) % 360 or 360
-                rr = R + 6
-                p.setPen(
-                    QPen(
-                        QColor(theme.colors().arc_range),
-                        5,
-                        Qt.PenStyle.SolidLine,
-                        Qt.PenCapStyle.FlatCap,
-                    )
-                )
-                p.drawArc(
-                    QRectF(center.x() - rr, center.y() - rr, 2 * rr, 2 * rr),
-                    int(arc.lo * 16),
-                    int(span * 16),
-                )
+                allowed, banned = hue_segments(rule.value)
+                for start, span in allowed:
+                    pen = QPen(QColor(tc.arc_range), 5, Qt.PenStyle.SolidLine, flat)
+                    self._arc(p, R + 6, start, span, pen)
+                for start, span in banned:
+                    self._arc(p, R + 6, start, span, QPen(QColor(tc.hard), 3, Qt.PenStyle.DotLine))
+            target = self.targets.get(slot.id)
+            scheme = s.globals.hue_scheme
+            if target is not None and role_of(index) == "accent" and slot.use_scheme:
+                pen = QPen(QColor(tc.arc_target), 4, Qt.PenStyle.SolidLine, flat)
+                self._arc(p, R + 13, target - scheme.tol, 2 * scheme.tol, pen)
         # punkty
         f = QFont(self.font())
         f.setBold(True)
@@ -339,7 +383,7 @@ class Samples(QWidget):
 
 def pair_requirement(session: Session, i: int, j: int, view: str) -> float | None:
     if view != "normal" and view not in session.globals.cvd.types:
-        return None  # ten typ daltonizmu nie jest włączony — warunek nie działa
+        return None  # ten typ daltonizmu nie jest włączony — zasada nie działa
     field = "min_distance" if view == "normal" else "cvd_min_distance"
     reqs = []
     for k in (i, j):
@@ -389,8 +433,9 @@ class AnalysisTab(QScrollArea):
         plots.setFixedHeight(380)
         lay.addWidget(plots)
         legend = hint(
-            "Koło: 0° po prawej, promień = nasycenie względne; łuki = zakres (żółty) "
-            "i cel ± tolerancja (pomarańczowy) odcienia zaznaczonego koloru. "
+            "Koło: 0° po prawej, promień = nasycenie względne; żółty łuk = zasada odcienia "
+            "zaznaczonego koloru (czerwone kropki = zakazane przedziały), pomarańczowy = cel "
+            "z układu odcieni ± tolerancja. "
             "Wykres L–C: przekrój gamutu sRGB przez odcień zaznaczonego koloru."
         )
         help.attach(legend, "analysis.overview")
@@ -421,7 +466,11 @@ class AnalysisTab(QScrollArea):
         s = self.win.session
         sel = self.win.selected_slot_id()
         view = self.view.currentData()
-        self.wheel.set_state(s, sel, view)
+        try:
+            targets = engine.hue_targets(s)
+        except ValueError:  # silnik nie przyjął sesji — naruszenia pokażą dlaczego
+            targets = {}
+        self.wheel.set_state(s, sel, view, targets)
         self.lc.set_state(s, sel, view, self.axis.currentData())
         if self.matrix_kind.currentData() == "contrast":
             self._contrast_matrix(s, view)

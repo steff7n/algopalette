@@ -1,13 +1,17 @@
-"""Zakładka „Propozycje”: generowanie w tle, przegląd, przejmowanie palety lub jednego koloru."""
+"""Zakładka „Propozycje”: generowanie, przegląd, przejmowanie palety lub jednego koloru.
+
+Generowanie liczy silnik natywny na własnych wątkach (``engine.start``); zakładka tylko odpytuje
+zadanie zegarem Qt (``poll()`` ok. 30 razy na sekundę) — postęp, przerwanie, wynik albo błąd.
+"""
 
 from __future__ import annotations
 
 import html
-import threading
+import time
 from collections.abc import Collection
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QRectF, QSize, Qt, Signal
+from PySide6.QtCore import QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import (
     QHeaderView,
@@ -21,7 +25,8 @@ from PySide6.QtWidgets import (
 )
 
 from algopalette import color as col
-from algopalette.engine import Proposal, apply_proposal, generate, slot_label
+from algopalette import engine
+from algopalette.engine import Proposal, apply_proposal, slot_label
 from algopalette.forms import violation_text
 from algopalette.gui import help, theme
 from algopalette.gui.widgets import hbox, hint, vbox
@@ -48,12 +53,7 @@ class Strip(QWidget):
         p.end()
 
 
-class _Bridge(QObject):
-    """Sygnały z wątku silnika do wątku GUI (połączenie kolejkowane)."""
-
-    progress = Signal(float)
-    done = Signal(list)
-    failed = Signal(str)
+POLL_MS = 33  # odpytywanie zadania silnika: ok. 30 Hz
 
 
 class ProposalsTab(QWidget):
@@ -62,14 +62,12 @@ class ProposalsTab(QWidget):
         self.win = win
         self.proposals: list[Proposal] = []
         self.base: Session | None = None
-        self._cancel = False
         self.running = False
         self._error: str | None = None
-        self._thread: threading.Thread | None = None
-        self.bridge = _Bridge()
-        self.bridge.progress.connect(self._set_progress)
-        self.bridge.done.connect(self._done)
-        self.bridge.failed.connect(self._failed)
+        self._gen: engine.Generation | None = None
+        self._timer = QTimer(self)
+        self._timer.setInterval(POLL_MS)
+        self._timer.timeout.connect(self._tick)
 
         lay = vbox(self, margins=8, spacing=6)
         help.attach(self, "window.tab.proposals")
@@ -185,32 +183,19 @@ class ProposalsTab(QWidget):
         if self.running:
             self.win.notify("Generowanie już trwa.")
             return
-        self.running = True
-        self._cancel = False
         self._error = None
         self.base = self.win.session
+        ids = None if slot_ids is None else set(slot_ids)
+        try:
+            self._gen = engine.start(self.base, ids)
+        except (ValueError, RuntimeError) as e:  # silnik odrzucił sesję — pokaż, nie wywracaj GUI
+            self._failed(str(e))
+            return
+        self.running = True
         self.progress.setValue(0)
         self.status.setText("Generowanie…")
         self._update_buttons()
-        ids = None if slot_ids is None else set(slot_ids)
-        session = self.base
-        bridge = self.bridge
-
-        def work() -> None:
-            try:
-                result = generate(
-                    session,
-                    slot_ids=ids,
-                    progress=lambda x: bridge.progress.emit(float(x)),
-                    cancel=lambda: self._cancel,
-                )
-            except Exception as e:  # błąd silnika pokazujemy, nie wywracamy GUI
-                bridge.failed.emit(str(e))
-                return
-            bridge.done.emit(result)
-
-        self._thread = threading.Thread(target=work, daemon=True)
-        self._thread.start()
+        self._timer.start()
 
     def _gen_one(self) -> None:
         sid = self.win.selected_slot_id()
@@ -220,12 +205,55 @@ class ProposalsTab(QWidget):
         self.start({sid})
 
     def cancel(self) -> None:
-        self._cancel = True
+        """Prosi silnik o przerwanie; wynik (z ukończonych przebiegów) odbierze zegar."""
+        if self._gen is not None and self.running:
+            self._gen.cancel()
 
-    def wait(self, timeout: float | None = None) -> None:
-        """Do testów: czeka na koniec wątku silnika."""
-        if self._thread is not None:
-            self._thread.join(timeout)
+    def shutdown(self) -> None:
+        """Zamykanie okna: przerwij zadanie i przestań je odpytywać (bez czekania na wynik)."""
+        self._timer.stop()
+        if self._gen is not None:
+            self._gen.cancel()
+        self._gen = None
+        self.running = False
+
+    def _tick(self) -> None:
+        gen = self._gen
+        if gen is None or not self.running:
+            self._timer.stop()
+            return
+        try:
+            state = gen.poll()
+        except Exception as e:  # błąd silnika pokazujemy w zakładce
+            self._finish()
+            self._failed(str(e))
+            return
+        self._set_progress(state.fraction)
+        if state.state == "running":
+            return
+        self._finish()
+        if state.state == "failed":
+            self._failed(state.error or "silnik zakończył zadanie błędem")
+            return
+        try:
+            result = gen.result()
+        except Exception as e:
+            self._failed(str(e))
+            return
+        self._done(result, cancelled=state.state == "cancelled")
+
+    def _finish(self) -> None:
+        self._timer.stop()
+        self._gen = None
+        self.running = False
+
+    def wait(self, timeout: float = 60.0) -> None:
+        """Do testów i narzędzi: odpytuje zadanie aż do końca (albo do ``timeout`` sekund)."""
+        deadline = time.monotonic() + timeout
+        while self.running and time.monotonic() < deadline:
+            self._tick()
+            if self.running:
+                time.sleep(0.005)
 
     def _set_progress(self, x: float) -> None:
         self.progress.setValue(round(x * 1000))
@@ -260,15 +288,15 @@ class ProposalsTab(QWidget):
         if r >= 0:
             self._detail(r)
 
-    def _done(self, result: list[Proposal]) -> None:
+    def _done(self, result: list[Proposal], *, cancelled: bool = False) -> None:
         self.running = False
         self.proposals = result
         self.progress.setValue(1000)
         ok = sum(p.ok for p in result)
-        cancelled = " (przerwano)" if self._cancel else ""
+        note = " (przerwano)" if cancelled else ""
         seed = self.base.globals.optimizer.seed if self.base else "?"
         self.status.setText(
-            f"{len(result)} propozycji, {ok} bez twardych naruszeń{cancelled}. Ziarno {seed}."
+            f"{len(result)} propozycji, {ok} bez twardych naruszeń{note}. Ziarno {seed}."
         )
         self._fill()
         self._update_buttons()
@@ -315,10 +343,12 @@ class ProposalsTab(QWidget):
             if now:
                 now_item.setBackground(QColor(col.to_hex(now.value, cur.globals.fit_method)))
             d.setItem(k, 1, now_item)
+            hx = p.hexes.get(s.id, "")
             prop = QTableWidgetItem()
-            prop.setBackground(QColor(p.hexes[s.id]))
+            if hx:
+                prop.setBackground(QColor(hx))
             d.setItem(k, 2, prop)
-            d.setItem(k, 3, QTableWidgetItem(p.hexes[s.id]))
+            d.setItem(k, 3, QTableWidgetItem(hx))
             fit = p.fit_deltas.get(s.id, 0.0)
             d.setItem(k, 4, QTableWidgetItem(f"{fit:.3f}" if fit > 0 else ""))
         d.setColumnWidth(1, 64)
@@ -353,9 +383,13 @@ class ProposalsTab(QWidget):
         if i is None:
             return
         p = self.proposals[i]
-        # Tylko sloty, które propozycja zmieniała — reszta zostaje z bieżącej sesji.
+        # Tylko kolory, które propozycja zmieniała i które nadal są w palecie (paleta mogła się
+        # zmienić od generowania) — reszta zostaje z bieżącej sesji.
+        present = {s.id for s in self.win.session.slots}
+        missing = [sid for sid in p.slot_ids if sid not in present]
         self.win.replace_session(apply_proposal(self.win.session, p, slot_ids=p.slot_ids))
-        self.win.notify(f"Przejęto propozycję {i + 1} (kłódki bez zmian).")
+        note = f"; pominięto {len(missing)} kolorów, których już nie ma" if missing else ""
+        self.win.notify(f"Przejęto propozycję {i + 1} (kłódki bez zmian{note}).")
         self._detail(i)
 
     def take_color(self) -> None:

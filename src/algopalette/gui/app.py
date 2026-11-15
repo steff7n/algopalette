@@ -341,11 +341,12 @@ class MainWindow(QMainWindow):
             self.notify(f"Autozapis nie powiódł się: {e}")
 
     def closeEvent(self, event) -> None:
-        """Wyjście zapisuje zaległą zmianę (autozapis ma opóźnienie)."""
+        """Wyjście przerywa trwające generowanie i zapisuje zaległą zmianę (autozapis ma
+        opóźnienie)."""
         self._autosave_timer.stop()
+        self.proposals_tab.shutdown()  # przerwij generowanie; nie czekamy na jego wynik
         if self.autosave_enabled and self._autosave_pending:
             self.autosave_now()
-        self.proposals_tab.cancel()
         super().closeEvent(event)
 
     # --- akcje ------------------------------------------------------------------------------

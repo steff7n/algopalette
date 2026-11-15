@@ -81,7 +81,7 @@ class RelationsEditor(QWidget):
             tuple(rels), coalesce=None if rebuild or rel is None else f"rel:{self.slot_id}:{i}"
         )
         if rebuild or rel is None:
-            QTimer.singleShot(0, self.rebuild)
+            QTimer.singleShot(0, self, self.rebuild)
 
     def _add(self) -> None:
         s = self.win.session
@@ -89,7 +89,7 @@ class RelationsEditor(QWidget):
         if not others:
             return
         self.write((*self.relations(), Relation("hue", others[0], "eq", 180.0, tol=15.0)))
-        QTimer.singleShot(0, self.rebuild)
+        QTimer.singleShot(0, self, self.rebuild)
 
 
 class RelationRow(QFrame):
