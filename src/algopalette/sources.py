@@ -1,12 +1,13 @@
 """Paleta wyjściowa: parsowanie wklejonych kolorów i trzy tryby startu (spec §6).
 
-Każdy tryb tylko wypełnia warunki sesji — wynik jest jawny i edytowalny, silnik jest jeden.
+Każdy tryb tylko zapisuje zasady sesji — wynik jest jawny i edytowalny w zakładce „Zasady”.
 
-* **uzupełnianie** (``apply_complete``) — podane kolory trafiają do kolejnych slotów z kłódką;
+* **uzupełnianie** (``apply_complete``) — podane kolory trafiają do kolejnych kolorów z kłódką;
 * **charakter** (``extract_profile`` + ``apply_character``) — profil palety źródłowej (dominujące
-  odcienie, rozkład nasycenia i jasności, zabarwienie tła) ustawia ustawienia globalne;
-* **przeniesienie** (``apply_transfer``) — nowe tło; każdy akcent trzyma odcień, nasycenie względne
-  i kontrast ze źródła.
+  odcienie, rozkład nasycenia i jasności, zabarwienie tła) staje się zasadami tła, tekstu i
+  wspólnym zestawem zasad każdego akcentu oraz układem odcieni „własna lista”;
+* **przeniesienie** (``apply_transfer``) — nowe tło; każdy akcent dostaje własne zasady: odcień,
+  nasycenie względne i kontrast ze źródła.
 """
 
 import math
@@ -20,17 +21,20 @@ from algopalette import color as col
 from algopalette.model import (
     MAX_ACCENTS,
     OKLCH,
-    ChromaRange,
-    Cond,
+    Band,
+    ChromaBand,
     ContrastBound,
     ContrastMetric,
+    HueArc,
     HueScheme,
-    HueTarget,
     Interval,
+    Polarity,
+    Rule,
     Session,
-    SlotConditions,
+    SlotRules,
     add_accent,
-    default_role_defaults,
+    arc_from_center,
+    default_rules,
     remove_slot,
 )
 
@@ -66,7 +70,7 @@ def parse_colors(text: str) -> list[OKLCH]:
 
 
 def colors_from_session(session: Session) -> list[OKLCH]:
-    """Kolory slotów sesji w kolejności (tło = 0, tekst = 1)."""
+    """Kolory sesji w kolejności (tło = 0, tekst = 1)."""
     return [s.value for s in session.slots]
 
 
@@ -97,7 +101,7 @@ def _ensure_accents(session: Session, count: int) -> Session:
 def apply_complete(
     session: Session, colors: Sequence[OKLCH], bg_index: int = 0, fg_index: int = 1
 ) -> Session:
-    """Uzupełnianie: kolory → kolejne sloty z kłódką (tło, tekst, akcenty); reszta zostaje wolna."""
+    """Uzupełnianie: kolory → kolejne pozycje z kłódką (tło, tekst, akcenty); reszta wolna."""
     bg, fg, rest = _order(colors, bg_index, fg_index)
     session = _ensure_accents(session, len(rest))
     slots = list(session.slots)
@@ -186,48 +190,65 @@ def _widen(iv: Interval, by: float, lo: float = 0.0, hi: float = 1.0) -> Interva
     return Interval(max(lo, a - by), min(hi, b + by))
 
 
+def _bg_hue(bg: OKLCH) -> Rule[HueArc] | None:
+    """Miękki łuk ± 20° wokół odcienia tła; szare tło (C < 0.01) nie dostaje zasady odcienia."""
+    if bg.c < 0.01:
+        return None
+    return Rule(HueArc(*arc_from_center(bg.h, 20.0)), hard=False)
+
+
 def apply_character(
     session: Session, profile: Profile, avoid_source: bool = False, avoid_distance: float = 0.05
 ) -> Session:
-    """Charakter: ustawienia globalne z profilu (odcienie, zakresy, tło); sloty wolne."""
+    """Charakter: zasady tła, tekstu i każdego akcentu z profilu + układ odcieni z jego odcieni.
+
+    Akcenty dostają ten sam zestaw zasad, bez własnej zasady odcienia (cel bierze z układu).
+    Kłódki są zdejmowane, oznaczenie presetu znika; wartości i zależności zostają.
+    """
     g = session.globals
-    polarity = "dark" if profile.bg.l < 0.5 else "light"
-    rd = dict(default_role_defaults(polarity, g.contrast_metric))
+    polarity: Polarity = "dark" if profile.bg.l < 0.5 else "light"
     metric = g.contrast_metric
     contrasts = [col.contrast(a, profile.bg, metric) for a in profile.accents]
-    rd["accent"] = replace(
-        rd["accent"],
-        lightness=Cond(_widen(profile.lightness, 0.03)),
-        chroma=Cond(ChromaRange("rel", *_bounds(_widen(profile.rel_chroma, 0.05)))),
-        # poziom kontrastu akcentów jak w źródle (p10), w metryce sesji (przegląd M7)
-        contrast_bg=Cond(ContrastBound(None, float(np.percentile(contrasts, 10)), None)),
+    lightness = _widen(profile.lightness, 0.03)
+    rel_chroma = _widen(profile.rel_chroma, 0.05)
+    accent = replace(
+        default_rules("accent", polarity, metric),
+        lightness=Rule(Band(lightness.lo, lightness.hi)),
+        chroma=Rule(ChromaBand("rel", rel_chroma.lo, rel_chroma.hi)),
+        # poziom kontrastu akcentów jak w źródle (p10), w metryce sesji
+        contrast_bg=Rule(ContrastBound(None, float(np.percentile(contrasts, 10)), None)),
     )
+    fg = default_rules("fg", polarity, metric)
     if profile.fg is not None:
         fg_c = col.contrast(profile.fg, profile.bg, metric)
-        rd["fg"] = replace(rd["fg"], contrast_bg=Cond(ContrastBound(None, fg_c, None)))
+        fg = replace(fg, contrast_bg=Rule(ContrastBound(None, fg_c, None)))
     bg = profile.bg
-    rd["bg"] = replace(
-        rd["bg"],
-        lightness=Cond(Interval(max(0.0, bg.l - 0.03), min(1.0, bg.l + 0.03))),
-        chroma=Cond(ChromaRange("abs", max(0.0, bg.c - 0.01), bg.c + 0.01)),
-        hue_target=Cond(HueTarget(bg.h, 20.0), hard=False) if bg.c >= 0.01 else None,
+    bg_rules = replace(
+        default_rules("bg", polarity, metric),
+        lightness=Rule(Band(max(0.0, bg.l - 0.03), min(1.0, bg.l + 0.03))),
+        chroma=Rule(ChromaBand("abs", max(0.0, bg.c - 0.01), bg.c + 0.01)),
+        hue=_bg_hue(bg),
     )
     hues = profile.hues or (0.0,)
     custom = tuple((list(hues) * MAX_ACCENTS)[:MAX_ACCENTS])
     g2 = replace(
         g,
         polarity=polarity,
-        role_defaults=rd,
         hue_scheme=HueScheme("custom", custom=custom, tol=15.0),
         avoid_colors=profile.accents if avoid_source else (),
         avoid_distance=avoid_distance if avoid_source else 0.0,
     )
-    slots = tuple(replace(s, locked=False) for s in session.slots)
-    return replace(session, globals=g2, slots=slots, mood=None, mood_snapshot=None)
-
-
-def _bounds(iv: Interval) -> tuple[float | None, float | None]:
-    return iv.lo, iv.hi
+    by_index = (bg_rules, fg)
+    slots = tuple(
+        replace(
+            s,
+            locked=False,
+            rules=by_index[i] if i < 2 else accent,
+            use_scheme=True,
+        )
+        for i, s in enumerate(session.slots)
+    )
+    return replace(session, globals=g2, slots=slots, preset=None)
 
 
 # ---------------------------------------------------------------------------
@@ -243,9 +264,14 @@ def apply_transfer(
     polarity: str = "light",
     tol: float | None = None,
 ) -> Session:
-    """Przeniesienie na tło o innej polaryzacji: odcień, nasycenie wzgl. i kontrast ze źródła."""
+    """Przeniesienie na tło o innej polaryzacji: odcień, nasycenie wzgl. i kontrast ze źródła.
+
+    Liczba akcentów = liczba akcentów źródła. Każdy akcent dostaje własne zasady i nie bierze
+    celu z układu odcieni (``use_scheme = False``).
+    """
     if polarity not in ("dark", "light"):
         raise ValueError("Polaryzacja musi być „dark” albo „light”.")
+    pol: Polarity = "dark" if polarity == "dark" else "light"
     g = session.globals
     metric = g.contrast_metric
     tol = TRANSFER_TOL[metric] if tol is None else tol
@@ -253,47 +279,44 @@ def apply_transfer(
     session = _ensure_accents(session, len(rest))
     while len(session.slots) - 2 > max(len(rest), 1):
         session = remove_slot(session, session.slots[-1].id)
-    rd = default_role_defaults(polarity, metric)  # type: ignore[arg-type]
-    rd_bg = rd["bg"]
-    if src_bg.c >= 0.01:
-        rd_bg = replace(rd_bg, hue_target=Cond(HueTarget(src_bg.h, 20.0), hard=False))
     g2 = replace(
         g,
-        polarity=polarity,  # type: ignore[arg-type]
-        role_defaults={**rd, "bg": rd_bg},
+        polarity=pol,
         hue_scheme=HueScheme("none"),
         avoid_colors=(),
         avoid_distance=0.0,
     )
     slots = list(session.slots)
-    slots[0] = replace(slots[0], locked=False, conditions=SlotConditions())
-    if src_fg is not None:
-        slots[1] = replace(
-            slots[1], locked=False, conditions=_transfer_conditions(src_fg, src_bg, metric, tol)
-        )
+    bg_rules = replace(default_rules("bg", pol, metric), hue=_bg_hue(src_bg))
+    slots[0] = replace(slots[0], locked=False, rules=bg_rules, use_scheme=True)
+    fg_base = default_rules("fg", pol, metric)
+    fg_rules = fg_base if src_fg is None else _transfer_rules(src_fg, src_bg, metric, tol, fg_base)
+    slots[1] = replace(slots[1], locked=False, rules=fg_rules, use_scheme=True)
+    accent_base = default_rules("accent", pol, metric)
     for k, c in enumerate(rest):
         slots[2 + k] = replace(
             slots[2 + k],
             locked=False,
-            conditions=_transfer_conditions(c, src_bg, metric, tol),
+            rules=_transfer_rules(c, src_bg, metric, tol, accent_base),
+            use_scheme=False,
             relations=(),
         )
-    return replace(session, globals=g2, slots=tuple(slots), mood=None, mood_snapshot=None)
+    return replace(session, globals=g2, slots=tuple(slots), preset=None)
 
 
-def _transfer_conditions(
-    c: OKLCH, src_bg: OKLCH, metric: ContrastMetric, tol: float
-) -> SlotConditions:
+def _transfer_rules(
+    c: OKLCH, src_bg: OKLCH, metric: ContrastMetric, tol: float, base: SlotRules
+) -> SlotRules:
+    """Zasady koloru przenoszonego: odcień ± 8° (twardy), nasycenie względne ± 0.08 i kontrast
+    ze źródła ± ``tol``. Jasność wynika z kontrastu, więc zakres roli zostaje wyłączony."""
     rel = min(c.c / max(col.max_chroma(c.l, c.h), 1e-9), 1.0)
     contrast = col.contrast(c, src_bg, metric)
-    return SlotConditions(
-        hue_target=Cond(HueTarget(c.h, 8.0)) if c.c >= 0.02 else None,
-        chroma=Cond(ChromaRange("rel", max(0.0, rel - 0.08), min(1.0, rel + 0.08))),
-        # Jasność wynika z kontrastu — wyłączamy zakres dziedziczony z roli.
-        lightness=Cond(Interval(None, None), enabled=False),
-        contrast_bg=Cond(
-            ContrastBound(
-                metric, max(1.0 if metric == "wcag21" else 0.0, contrast - tol), contrast + tol
-            )
-        ),
+    floor = 1.0 if metric == "wcag21" else 0.0
+    lightness = base.lightness
+    return replace(
+        base,
+        hue=Rule(HueArc(*arc_from_center(c.h, 8.0))) if c.c >= 0.02 else None,
+        chroma=Rule(ChromaBand("rel", max(0.0, rel - 0.08), min(1.0, rel + 0.08))),
+        lightness=None if lightness is None else replace(lightness, enabled=False),
+        contrast_bg=Rule(ContrastBound(metric, max(floor, contrast - tol), contrast + tol)),
     )

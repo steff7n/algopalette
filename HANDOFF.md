@@ -51,14 +51,24 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     i budżecie obciętym do 300–100 000; zwykłe ÷ 10 jest ciche; (4) odcień w v2: `lo`, `hi` i końce zakazów
     muszą leżeć w 0–360 (pełne koło = `0, 360`), migracja normalizuje `mod 360`; cel z tolerancją ≥ 180° →
     pełne koło; (5) `arc_intersection`: samo zetknięcie końcami = brak części wspólnej, łuk zerowy wewnątrz
-    drugiego = jest; (6) Python NIE odrzuca nieznanych pól (Rust odrzuca) — pliki ręcznie rozszerzone wczytają
-    się w GUI, ale silnik je odrzuci dopiero po zapisie… nie: `session_to_dict` nie przenosi nieznanych pól,
-    więc do silnika trafia zawsze czysty dokument.
+    drugiego = jest; (6) Python NIE odrzuca nieznanych pól przy wczytaniu (Rust odrzuca), ale
+    `session_to_dict` zapisuje tylko pola modelu, więc do silnika zawsze trafia czysty dokument.
     **Czerwone po tym zadaniu (stan przejściowy, zgodnie z planem):** kolekcja pytest pada w
     `tests/test_constraints.py`, `test_engine.py` (znikną w 4b), `test_moods.py` (Task 8), `test_sources.py`
     (Task 7), `tests/gui/test_gui_app.py`, `test_help_globals.py`, `test_help_palette.py` (Taski 15, 17, 18);
     `moods.py`, `sources.py`, `units.py`, `globals_logic.py`, `forms.py`, `constraints.py`, `engine.py`,
     `gui/*` importują nazwy, których w `model.py` już nie ma. GUI na tej gałęzi nie startuje do Tasku 15.
+  - Task 7 ☑ (zrobiony przed 4b — zależy tylko od modelu v2) — `sources.py`, `units.py`, `globals_logic.py`.
+    Verify: `uv run pytest -q tests/test_sources.py tests/test_units.py` → **19 passed, 3 skipped** (3 testy
+    z prawdziwym generowaniem mają `skipif("generate" not in _engine.build_info()["implemented"])` — ożyją po
+    Tasku 16; importują `algopalette.engine` dopiero w ciele testu). ruff/ty czyste. `apply_character`: jeden
+    zestaw zasad dla każdego akcentu (`default_rules` + jasność/nasycenie/kontrast z profilu), `use_scheme=True`,
+    zależności kolorów ZOSTAJĄ; `apply_transfer`: `_transfer_rules(c, src_bg, metric, tol, base)` na bazie
+    `default_rules` roli — „jasność wyłączona” = zasada roli z `enabled=False` (nie `None`), akcenty zachowują
+    domyślne `min_distance`/`cvd_min_distance`, zależności akcentów kasowane (jak w v1). `globals_logic` ma
+    tylko `change_metric` i `change_delta_e`; zmiana polaryzacji przechodzi do `presets.change_polarity` (Task 8).
+    `rescale_contrast_metric` NIE ustawia metryki (robi to `change_metric`); `avoid_distance` nie jest
+    przeliczane (zawsze ΔE ok).
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -539,3 +549,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 1 ☑: dane wzorcowe v1 (eval 300, quality 36), generator z `--check`; README danych.
 - 2026-11-16 — Task 2 ☑: usunięte TUI i zależności textual/pytest-asyncio; 29 testów GUI aplikacji zielonych.
 - 2026-11-16 — Task 3 ☑: model v2 (`Rule`, `Band`, `HueArc`, `SlotRules`), plik `algopalette.v2`, `migrate_v1`; 147 testów.
+- 2026-11-16 — Task 7 ☑: źródło, jednostki i logika ustawień na modelu v2; 19 testów + 3 czekające na silnik.

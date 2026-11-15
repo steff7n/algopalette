@@ -1,21 +1,22 @@
-"""Przeliczanie progów przy zmianie metody ΔE albo metryki kontrastu (przegląd I1).
+"""Przeliczanie progów przy zmianie metody ΔE albo metryki kontrastu.
 
-Progi warunków są liczbami w jednostkach metody/metryki. Po zmianie metody 0.08 „ok” nie może
+Progi zasad są liczbami w jednostkach metody/metryki. Po zmianie metody 0.08 „ok” nie może
 zostać 0.08 „2000” — przeliczamy przybliżonymi skalami (mediana stosunku na bliskich parach
 kolorów, zmierzona 2026-11-14:
 hyab 1.3, 2000 156, itp 426, cam16 156 × ΔE ok) i odwzorowaniem WCAG ↔ APCA (punkty orientacyjne).
 """
 
+from collections.abc import Callable
 from dataclasses import replace
 
 import numpy as np
 
 from algopalette.model import (
-    Cond,
     ContrastBound,
     ContrastMetric,
     DeltaEMethod,
     Relation,
+    Rule,
     Session,
     Slot,
 )
@@ -42,36 +43,30 @@ def default_distance(method: str, ok_value: float) -> float:
     return ok_value * DE_SCALE[method]
 
 
-def _c(cond, fn):
-    return None if cond is None else replace(cond, value=fn(cond.value))
+def _scaled(rule: Rule[float] | None, f: Callable[[float], float]) -> Rule[float] | None:
+    return None if rule is None else replace(rule, value=f(rule.value))
 
 
-def _bound(b: ContrastBound, f) -> ContrastBound:
+def _bound(b: ContrastBound, f: Callable[[float], float]) -> ContrastBound:
     return ContrastBound(
         b.metric, None if b.lo is None else f(b.lo), None if b.hi is None else f(b.hi)
     )
 
 
 def rescale_delta_e(session: Session, old: DeltaEMethod, new: DeltaEMethod) -> Session:
-    """Progi odległości w metodzie globalnej (role, sloty, relacje bez metody) → nowa metoda."""
+    """Ustawia metodę ΔE i przelicza na jej skalę progi odległości w zasadach każdego koloru
+    oraz w zależnościach bez własnej metody. Odległość unikania kolorów zostaje (zawsze ΔE ok)."""
     if old == new:
         return session
 
     def f(v: float) -> float:
         return convert_de(float(v), old, new)
 
-    g = session.globals
-    rd = {
-        r: replace(
-            sc, min_distance=_c(sc.min_distance, f), cvd_min_distance=_c(sc.cvd_min_distance, f)
-        )
-        for r, sc in g.role_defaults.items()
-    }
-
     def slot(s: Slot) -> Slot:
-        sc = s.conditions
-        sc = replace(
-            sc, min_distance=_c(sc.min_distance, f), cvd_min_distance=_c(sc.cvd_min_distance, f)
+        rules = replace(
+            s.rules,
+            min_distance=_scaled(s.rules.min_distance, f),
+            cvd_min_distance=_scaled(s.rules.cvd_min_distance, f),
         )
         rels = tuple(
             replace(r, value=f(r.value), tol=f(r.tol))
@@ -79,18 +74,18 @@ def rescale_delta_e(session: Session, old: DeltaEMethod, new: DeltaEMethod) -> S
             else r
             for r in s.relations
         )
-        return replace(s, conditions=sc, relations=rels)
+        return replace(s, rules=rules, relations=rels)
 
     return replace(
         session,
-        globals=replace(g, delta_e=new, role_defaults=rd),
+        globals=replace(session.globals, delta_e=new),
         slots=tuple(slot(s) for s in session.slots),
     )
 
 
 def rescale_contrast_metric(session: Session, old: ContrastMetric, new: ContrastMetric) -> Session:
-    """Własne warunki kontrastu slotów i relacje kontrastu z metryką globalną → nowa metryka.
-    (Domyślne warunki ról przelicza osobno zmiana metryki: nastrój / ``default_role_defaults``.)"""
+    """Przelicza progi kontrastu w zasadach kolorów i zależnościach, które używają metryki
+    palety (bez własnej). Samej metryki nie zmienia — robi to ``globals_logic.change_metric``."""
     if old == new:
         return session
 
@@ -98,17 +93,16 @@ def rescale_contrast_metric(session: Session, old: ContrastMetric, new: Contrast
         return convert_contrast(v, old, new)
 
     def slot(s: Slot) -> Slot:
-        cb = s.conditions.contrast_bg
-        sc = s.conditions
+        cb = s.rules.contrast_bg
+        rules = s.rules
         if cb is not None and cb.value.metric is None:
-            sc = replace(sc, contrast_bg=Cond(_bound(cb.value, f), cb.enabled, cb.hard, cb.weight))
-        rels = tuple(_rel(r, f) for r in s.relations)
-        return replace(s, conditions=sc, relations=rels)
+            rules = replace(rules, contrast_bg=replace(cb, value=_bound(cb.value, f)))
+        return replace(s, rules=rules, relations=tuple(_rel(r, f) for r in s.relations))
 
     return replace(session, slots=tuple(slot(s) for s in session.slots))
 
 
-def _rel(r: Relation, f) -> Relation:
+def _rel(r: Relation, f: Callable[[float], float]) -> Relation:
     if r.kind != "contrast" or r.metric is not None:
         return r
     lo, hi = f(r.value - r.tol), f(r.value + r.tol)
