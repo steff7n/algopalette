@@ -55,6 +55,19 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   (`self.menus` dict, `self.act_tabs`, `self.toolbar`). Akcje listy kolorów (`palette_tab.slot_actions()`) dostają
   klucze w T4. `uncovered(root, skip=[...])` — poddrzewa sprawdzane osobno. Testy: `test_help_window.py` 4;
   `tests/gui` 75 passed.
+- **T4 ☑ Paleta + warunki + zależności**: `help_content/palette.py` (`palette.list`, `palette.col.*` — kolumny
+  wartości L/C/H i H/S/L mają JEDEN temat `palette.col.values`, `palette.add/remove/lock/move/generate`,
+  `palette.editor(.name)`, `palette.value(.l/.c/.h/.hsl)`), `help_content/conditions.py` (`cond.overview/enabled/
+  hard/weight/reset/remove/add/badge`, `cond.<8 pól>`, `cond.chroma.mode`, `cond.contrast_bg.metric`, `rel.*`).
+  Elementy wspólne dla warunków i zależności (włączony/twardy/waga) używają tych samych tematów `cond.*`.
+  `help.attach_form_labels(fl)` — etykiety `QFormLayout.addRow("tekst", pole)` dostają klucz pola. `Swatch.set_hex`
+  zachowuje podpowiedź pomocy (z hexem jako `extra`), gdy próbka ma klucz. `ConditionRow`: wszystkie widżety
+  siatki wartości bez własnego klucza dostają `cond.<pole>` (children=True). Treść sprawdzona z kodem:
+  zależność odcienia = H(ten) − H(cel) najkrótszym łukiem; para akcentów bierze OSTRZEJSZY próg i jest twarda,
+  gdy którykolwiek jest; odróżnialność działa tylko dla typów CVD wybranych w Globalnych; akcent z JAKIMKOLWIEK
+  warunkiem odcienia (nawet wyłączonym) nie dostaje celu z układu odcieni (`constraints.py:472`); min. 1 akcent.
+  Testy: `test_help_palette.py` 9 (wszystkie role, oba widoki, 8 warunków, 6 typów zależności + zerwana,
+  add/undo/redo/F7); `tests/gui` 84 passed.
 
 ## 0a. GUI (2026-11-14, prośba: „przeróbmy to TUI na GUI … potrzebuje prostego, czytelnego GUI”)
 

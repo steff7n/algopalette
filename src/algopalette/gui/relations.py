@@ -18,7 +18,7 @@ from algopalette.forms import (
     REL_OPS,
     relation_default_value,
 )
-from algopalette.gui import theme
+from algopalette.gui import help, theme
 from algopalette.gui.conditions import combo
 from algopalette.gui.widgets import NumEdit, clear_layout, hbox, hint, vbox
 from algopalette.model import Relation, broken_relations, slot_index, with_slot
@@ -37,6 +37,7 @@ class RelationsEditor(QWidget):
         super().__init__(parent)
         self.win, self.slot_id = win, slot_id
         self._lay = vbox(self, spacing=6)
+        help.attach(self, "rel.overview")
         self.rebuild()
 
     def relations(self) -> tuple[Relation, ...]:
@@ -54,10 +55,13 @@ class RelationsEditor(QWidget):
         broken = {i for sid, i in broken_relations(s) if sid == self.slot_id}
         rels = self.relations()
         if not rels:
-            self._lay.addWidget(hint("Brak zależności. " + HELP))
+            empty = hint("Brak zależności. " + HELP)
+            help.attach(empty, "rel.overview")
+            self._lay.addWidget(empty)
         for i, rel in enumerate(rels):
             self._lay.addWidget(RelationRow(self, i, rel, i in broken))
         add = QPushButton("+ dodaj zależność")
+        help.attach(add, "rel.add")
         add.clicked.connect(self._add)
         self._lay.addWidget(hbox(add))
 
@@ -97,6 +101,7 @@ class RelationRow(QFrame):
         if broken:
             theme.mark_error(self, True, "RelationRow")
         self._lay = vbox(self, margins=6, spacing=4)
+        help.attach(self, f"rel.{rel.kind}")
         self.build()
 
     def _slot_options(self) -> list[tuple[str, str]]:
@@ -114,18 +119,23 @@ class RelationRow(QFrame):
         ids = {v for _, v in opts}
 
         kind = combo(REL_KINDS, r.kind)
+        help.attach(kind, "rel.kind")
         kind.currentIndexChanged.connect(lambda _: self._kind(kind.currentData()))
         target = combo(opts, r.target if r.target in ids else None)
+        help.attach(target, "rel.target")
         target.currentIndexChanged.connect(lambda _: self._pick("target", target.currentData()))
         delete = QPushButton("✕")
-        delete.setToolTip("usuń zależność")
+        help.attach(delete, "rel.delete")
         delete.setFixedWidth(32)
         delete.clicked.connect(lambda: self.editor.set_relation(self.index, None))
         warn = None
         if self.broken:
             warn = QLabel("⚠ zerwana")
             theme.mark_text(warn, "hard")
-        top = hbox(kind, QLabel("względem"), target, warn, delete)
+            help.attach(warn, "rel.broken")
+        against = QLabel("względem")
+        help.attach(against, "rel.target")
+        top = hbox(kind, against, target, warn, delete)
         self._lay.addWidget(top)
 
         grid = QWidget()
@@ -140,6 +150,8 @@ class RelationRow(QFrame):
             tol = NumEdit(r.tol, minimum=0.0, step=0.005, width=64)
             tol.committed.connect(lambda v: self._num("tol", v))
             row += [QLabel("i"), other, QLabel("t"), t, QLabel("tol ΔE"), tol]
+            for w in row:
+                help.attach(w, "rel.mix")
         else:
             op = combo(REL_OPS, r.op)
             op.currentIndexChanged.connect(lambda _: self._pick("op", op.currentData()))
@@ -149,18 +161,28 @@ class RelationRow(QFrame):
             value.committed.connect(lambda v: self._num("value", v))
             tol = NumEdit(r.tol, minimum=0.0, step=0.01, width=64)
             tol.committed.connect(lambda v: self._num("tol", v))
-            row += [op, value, QLabel("tol"), tol]
+            tol_label = QLabel("tol")
+            help.attach(op, "rel.op")
+            help.attach(value, f"rel.{r.kind}")
+            help.attach(tol_label, "rel.tol")
+            help.attach(tol, "rel.tol")
+            row += [op, value, tol_label, tol]
         if r.kind == "chroma":
             cop = combo(REL_CHROMA_OPS, r.chroma_op)
             cop.currentIndexChanged.connect(lambda _: self._pick("chroma_op", cop.currentData()))
             cm = combo(REL_CHROMA_MODES, r.chroma_mode)
             cm.currentIndexChanged.connect(lambda _: self._pick("chroma_mode", cm.currentData()))
+            help.attach(cop, "rel.chroma")
+            help.attach(cm, "rel.chroma")
             row += [cop, cm]
         if r.kind in ("contrast", "distance"):
             opts_m = REL_CONTRAST_METRICS if r.kind == "contrast" else REL_DISTANCE_METRICS
             metric = combo(opts_m, r.metric or "global")
             metric.currentIndexChanged.connect(lambda _: self._metric(metric.currentData()))
-            row += [QLabel("metryka"), metric]
+            metric_label = QLabel("metryka")
+            help.attach(metric_label, "rel.metric")
+            help.attach(metric, "rel.metric")
+            row += [metric_label, metric]
         for col, w in enumerate(row):
             g.addWidget(w, 0, col)
         g.setColumnStretch(len(row), 1)
@@ -174,7 +196,15 @@ class RelationRow(QFrame):
         hard.toggled.connect(lambda on: self._update(hard=on))
         weight = NumEdit(r.weight, minimum=0.0, step=0.1, width=56)
         weight.committed.connect(lambda v: self._num("weight", v))
-        self._lay.addWidget(hbox(enabled, hard, QLabel("waga"), weight))
+        weight_label = QLabel("waga")
+        for w, key in (
+            (enabled, "cond.enabled"),
+            (hard, "cond.hard"),
+            (weight_label, "cond.weight"),
+            (weight, "cond.weight"),
+        ):
+            help.attach(w, key)
+        self._lay.addWidget(hbox(enabled, hard, weight_label, weight))
 
     def _update(self, rebuild: bool = False, **changes: Any) -> None:
         new = replace(self.rel, **changes)

@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QDockWidget,
+    QFormLayout,
     QHeaderView,
     QLabel,
     QLineEdit,
@@ -175,6 +176,18 @@ def attach_tab(tabs: Any, index: int, key: str) -> None:
     bar = tabs if isinstance(tabs, QTabBar) else tabs.tabBar()
     bar.setTabData(index, key)
     bar.setTabToolTip(index, tooltip_html(key))
+
+
+def attach_form_labels(fl: QFormLayout) -> None:
+    """Etykiety wierszy ``QFormLayout`` dostają klucz swojego pola (pole musi mieć klucz)."""
+    for r in range(fl.rowCount()):
+        label = fl.itemAt(r, QFormLayout.ItemRole.LabelRole)
+        field = fl.itemAt(r, QFormLayout.ItemRole.FieldRole)
+        lw = label.widget() if label is not None else None
+        fw = field.widget() if field is not None else None
+        k = key_of(fw)
+        if isinstance(lw, QLabel) and k is not None:
+            attach(lw, k)
 
 
 def decorative(w: QWidget) -> None:

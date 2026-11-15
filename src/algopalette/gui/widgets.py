@@ -107,7 +107,13 @@ class Swatch(QFrame):
     def set_hex(self, hex_: str) -> None:
         self.hex = hex_
         self.setStyleSheet(f"background: {hex_}; border: 1px solid palette(mid);")
-        self.setToolTip(hex_)
+        key = self.property("help_key")
+        if isinstance(key, str) and key:
+            from algopalette.gui.help import tooltip_html  # leniwie: help importuje widgets
+
+            self.setToolTip(tooltip_html(key, extra=hex_))
+        else:
+            self.setToolTip(hex_)
 
 
 SOURCE_LABELS = {"mood": "nastrój", "global": "globalne", "slot": "własne"}

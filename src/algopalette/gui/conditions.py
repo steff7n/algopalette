@@ -25,14 +25,13 @@ from PySide6.QtWidgets import (
 from algopalette.forms import (
     CHROMA_MODES,
     CONTRAST_METRICS,
-    DESCRIPTIONS,
     EXTREMES,
     LABELS,
     default_for,
     fields_for,
     range_spec,
 )
-from algopalette.gui import theme
+from algopalette.gui import help, theme
 from algopalette.gui.widgets import (
     SOURCE_LABELS,
     NumEdit,
@@ -79,6 +78,7 @@ class ConditionsEditor(QWidget):
         super().__init__(parent)
         self.win, self.mode, self.key = win, mode, key
         self._lay = vbox(self, spacing=6)
+        help.attach(self, "cond.overview")
         self.rebuild()
 
     def role(self) -> Role:
@@ -150,20 +150,26 @@ class ConditionRow(QFrame):
         self.reset: QPushButton | None = None
         self.value_box: QWidget | None = None
         cond = self.cond
+        topic = f"cond.{self.field}"
+        help.attach(self, topic)
         head = QWidget()
         h = QHBoxLayout(head)
         h.setContentsMargins(0, 0, 0, 0)
         name = QLabel(f"<b>{LABELS[self.field]}</b>")
-        name.setToolTip(DESCRIPTIONS[self.field])
+        help.attach(name, topic)
         name.setMinimumWidth(170)
         h.addWidget(name)
         self.badge = QLabel()
+        help.attach(self.badge, "cond.badge")
         h.addWidget(self.badge)
         self._update_badge()
         if cond is None:
-            h.addWidget(QLabel("<i>brak warunku</i>"))
+            none = QLabel("<i>brak warunku</i>")
+            help.attach(none, "cond.add")
+            h.addWidget(none)
             h.addStretch(1)
             add = QPushButton("+ dodaj")
+            help.attach(add, "cond.add")
             add.clicked.connect(self._add)
             h.addWidget(add)
             self._lay.addWidget(head)
@@ -171,24 +177,24 @@ class ConditionRow(QFrame):
         h.addSpacing(8)
         self.enabled = QCheckBox("włączony")
         self.enabled.setChecked(cond.enabled)
+        help.attach(self.enabled, "cond.enabled")
         self.enabled.toggled.connect(self._enabled)
         h.addWidget(self.enabled)
         self.hard = QCheckBox("twardy")
         self.hard.setChecked(cond.hard)
-        self.hard.setToolTip("twardy = musi być spełniony; miękki = cel z wagą")
+        help.attach(self.hard, "cond.hard")
         self.hard.toggled.connect(self._hard)
         h.addWidget(self.hard)
-        h.addWidget(QLabel("waga"))
+        weight_label = QLabel("waga")
+        help.attach(weight_label, "cond.weight")
+        h.addWidget(weight_label)
         self.weight = NumEdit(cond.weight, minimum=0.0, step=0.1, width=56)
+        help.attach(self.weight, "cond.weight")
         self.weight.committed.connect(self._weight)
         h.addWidget(self.weight)
         h.addStretch(1)
         self.reset = QPushButton("↺ dziedzicz" if self.editor.mode == "slot" else "✕ usuń")
-        self.reset.setToolTip(
-            "wróć do wartości z ustawień globalnych"
-            if self.editor.mode == "slot"
-            else "usuń ten domyślny warunek roli"
-        )
+        help.attach(self.reset, "cond.reset" if self.editor.mode == "slot" else "cond.remove")
         self.reset.clicked.connect(self._reset)
         h.addWidget(self.reset)
         self._update_reset()
@@ -198,6 +204,11 @@ class ConditionRow(QFrame):
         g = QGridLayout(self.value_box)
         g.setContentsMargins(12, 0, 0, 0)
         self._value_widgets(g, cond.value)
+        for i in range(g.count()):
+            item = g.itemAt(i)
+            w = item.widget() if item is not None else None
+            if w is not None and help.key_of(w) is None:
+                help.attach(w, topic, children=True)
         self._lay.addWidget(self.value_box)
         self._update_enabled()
 
@@ -237,6 +248,7 @@ class ConditionRow(QFrame):
             g.addWidget(w, 0, 0, 1, 3)
         elif f == "chroma":
             mode = combo(CHROMA_MODES, v.mode)
+            help.attach(mode, "cond.chroma.mode")
             mode.currentIndexChanged.connect(lambda _: self._mode(mode.currentData()))
             g.addWidget(mode, 0, 0)
             w = RangeSlider(v.lo, v.hi, gradient=self._gradient("c", v.mode == "rel"), **spec)
@@ -256,6 +268,7 @@ class ConditionRow(QFrame):
             g.addWidget(tol, 0, 2)
         elif f == "contrast_bg":
             metric = combo(CONTRAST_METRICS, v.metric or "global")
+            help.attach(metric, "cond.contrast_bg.metric")
             metric.currentIndexChanged.connect(lambda _: self._metric(metric.currentData()))
             g.addWidget(metric, 0, 0)
             w = RangeSlider(v.lo, v.hi, **spec)

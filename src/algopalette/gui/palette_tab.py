@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 
 from algopalette import color as col
 from algopalette.constraints import slot_label
-from algopalette.gui import theme
+from algopalette.gui import help, theme
 from algopalette.gui.conditions import ConditionsEditor
 from algopalette.gui.relations import RelationsEditor
 from algopalette.gui.widgets import (
@@ -136,6 +136,22 @@ class SlotTable(QTableWidget):
         h.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         h.setMinimumSectionSize(24)
         self.setItemDelegateForColumn(0, SwatchDelegate(self))
+        help.attach(self, "palette.list")
+        help.attach_header(
+            self,
+            [
+                "palette.col.swatch",
+                "palette.col.index",
+                "palette.col.name",
+                "palette.col.hex",
+                "palette.col.values",
+                "palette.col.values",
+                "palette.col.values",
+                "palette.col.lock",
+                "palette.col.contrast",
+                "palette.col.de_min",
+            ],
+        )
 
     def ids(self) -> list[str]:
         out = []
@@ -223,6 +239,7 @@ class SlotEditor(QScrollArea):
         body = QWidget()
         self._lay = vbox(body, margins=10, spacing=6)
         self.setWidget(body)
+        help.attach(self, "palette.editor")
         self.value_sliders: dict[str, ValueSlider] = {}
 
     def alive(self) -> bool:
@@ -237,12 +254,15 @@ class SlotEditor(QScrollArea):
         self.value_sliders = {}
         s = self.win.session
         if not self.alive():
-            self._lay.addWidget(hint("Wybierz kolor z listy."))
+            empty = hint("Wybierz kolor z listy.")
+            help.attach(empty, "palette.list")
+            self._lay.addWidget(empty)
             self._lay.addStretch(1)
             return
         i = slot_index(s, self.slot_id or "")
         slot = s.slots[i]
         self.swatch = Swatch(col.to_hex(slot.value, s.globals.fit_method), QSize(96, 56))
+        help.attach(self.swatch, "palette.editor")
         self.title = QLabel()
         f = self.title.font()
         f.setPointSizeF(f.pointSizeF() * 1.25)
@@ -255,6 +275,8 @@ class SlotEditor(QScrollArea):
         tl.addWidget(self.title)
         tl.addWidget(self.subtitle)
         self._lay.addWidget(hbox(self.swatch, titles))
+        help.attach(self.title, "palette.editor")
+        help.attach(self.subtitle, "palette.editor")
         self._update_title()
 
         w, fl = form()
@@ -266,11 +288,16 @@ class SlotEditor(QScrollArea):
         self.lock.setChecked(slot.locked)
         self.lock.toggled.connect(self._lock)
         fl.addRow("", self.lock)
+        help.attach(self.name, "palette.editor.name")
+        help.attach(self.lock, "palette.lock")
+        help.attach_form_labels(fl)
         self._lay.addWidget(w)
 
         v = slot.value
         hsl = s.view_model == "hsl"
-        self._lay.addWidget(section("Wartość (HSL → zapis w OKLCH)" if hsl else "Wartość (OKLCH)"))
+        head = section("Wartość (HSL → zapis w OKLCH)" if hsl else "Wartość (OKLCH)")
+        help.attach(head, "palette.value")
+        self._lay.addWidget(head)
         w, fl = form()
         if hsl:
             hh, ss, ll = col.to_hsl(v, s.globals.fit_method)
@@ -290,14 +317,21 @@ class SlotEditor(QScrollArea):
             sl.setObjectName(key)
             sl.changed.connect(lambda x, key=key: self._value(key, x))
             self.value_sliders[key] = sl
+            topic = "palette.value.hsl" if hsl else f"palette.value.{key[-1]}"
+            help.attach(sl, topic, children=True)
             fl.addRow(label, sl)
+        help.attach_form_labels(fl)
         self._lay.addWidget(w)
         self._update_gradients()
 
-        self._lay.addWidget(section("Warunki (w OKLCH)" if hsl else "Warunki"))
+        head = section("Warunki (w OKLCH)" if hsl else "Warunki")
+        help.attach(head, "cond.overview")
+        self._lay.addWidget(head)
         self.conditions = ConditionsEditor(self.win, "slot", slot.id)
         self._lay.addWidget(self.conditions)
-        self._lay.addWidget(section("Zależności od innych kolorów"))
+        head = section("Zależności od innych kolorów")
+        help.attach(head, "rel.overview")
+        self._lay.addWidget(head)
         self.relations = RelationsEditor(self.win, slot.id)
         self._lay.addWidget(self.relations)
         self._lay.addStretch(1)
@@ -398,9 +432,11 @@ class PaletteTab(QSplitter):
         self.view_combo = QComboBox()
         self.view_combo.addItem("OKLCH", "oklch")
         self.view_combo.addItem("HSL", "hsl")
-        self.view_combo.setToolTip("Widok wartości (F7). Warunki i silnik zawsze liczą w OKLCH.")
+        help.attach(self.view_combo, "menu.view.values")
         self.view_combo.currentIndexChanged.connect(self._view_changed)
-        lay.addWidget(hbox(QLabel("widok wartości:"), self.view_combo))
+        view_label = QLabel("widok wartości:")
+        help.attach(view_label, "menu.view.values")
+        lay.addWidget(hbox(view_label, self.view_combo))
         self.table = SlotTable(win)
         self.table.currentCellChanged.connect(self._row_changed)
         lay.addWidget(self.table, 1)
@@ -421,24 +457,27 @@ class PaletteTab(QSplitter):
         self.act_down.setShortcut(QKeySequence("Alt+Down"))
         self.act_down.triggered.connect(lambda: self.move_selected(1))
         buttons = []
-        for a in self.slot_actions():
+        keys = ("palette.add", "palette.remove", "palette.lock", "palette.move", "palette.move")
+        for a, key in zip(self.slot_actions(), keys, strict=True):
             a.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             self.table.addAction(a)
+            help.attach(a, key)
             b = QPushButton(a.text())
-            b.setToolTip(f"{a.text()} ({a.shortcut().toString()})")
+            help.attach(b, key)
             b.clicked.connect(a.trigger)
             buttons.append(b)
         gen = QPushButton("Generuj propozycje (Ctrl+G)")
+        help.attach(gen, "palette.generate")
         gen.setDefault(True)
         gen.clicked.connect(win.action_generate)
         lay.addWidget(hbox(*buttons))
         lay.addWidget(hbox(gen))
-        lay.addWidget(
-            hint(
-                "Tło i tekst mają stałe miejsca 0 i 1; akcenty można dodawać (do 14), usuwać i "
-                "przesuwać. Kolor spoza sRGB ma ⚠ i ΔE ściągnięcia do gamutu."
-            )
+        tip = hint(
+            "Tło i tekst mają stałe miejsca 0 i 1; akcenty można dodawać (do 14), usuwać i "
+            "przesuwać. Kolor spoza sRGB ma ⚠ i ΔE ściągnięcia do gamutu."
         )
+        help.attach(tip, "palette.list")
+        lay.addWidget(tip)
         self.editor = SlotEditor(win)
         self.addWidget(left)
         self.addWidget(self.editor)
