@@ -110,6 +110,24 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     kole); szerokość 10% osi, a gdy luka jest mniejsza — połowa luki. Delete działa na przycisku ✕ pozycji
     (filtr zdarzeń) — w polach liczbowych Delete kasuje znak, więc „Delete na pozycji” = fokus na ✕.
     Dodane ponad plan: `RangeSlider.set_values(lo, hi)` (programowo, bez sygnału), `BandSlider.set_gradient`.
+  - Task 10 ☑ — `gui/picker.py` (`ListPicker`, tryby `hue`/`color`). Verify: `QT_QPA_PLATFORM=offscreen uv run
+    pytest -q tests/gui/test_picker.py` → **20 passed**; ruff/ty czyste; zrzut ciemnego motywu obejrzany.
+    Budowa: `self.wheel` (`_Wheel`: pierścień L 0.75 / C 0.13, `point_for(hue)`, `hue_at(pos)`, sygnały
+    `clicked`, `marker_pressed`, `marker_moved`), `self.rows` (lista `_Row`: `handle` = próbka-uchwyt, `edit`,
+    `remove_button`), `self.add_button`, `self.hint_label`, `self.selected`; w trybie `color` dodatkowo
+    `l_slider`, `c_slider`, `css_edit` (w trybie `hue` są `None`). Wiersze to WIDOKI pozycji: przy przestawianiu
+    i usuwaniu widżety zostają, zmieniają się wartości — dlatego fokus może iść za pozycją.
+    **Pułapki z dowodem:** (1) metoda nie może się nazywać `move` (nadpisuje `QWidget.move`; `ty` to łapie) →
+    `move_item`; atrybut nie może się nazywać `scroll` (`QWidget.scroll`) → `scroll_area`; (2) `NumEdit.set_value`
+    nie odświeża tekstu pola z fokusem, więc po przestawieniu pozycji pole przy utracie fokusu zatwierdzało
+    stary tekst jako nową wartość (test dał `(10, 10, 200)` zamiast `(120, 10, 200)`) → `_show_fields()` po
+    `move_item`/`remove`; (3) w pytest-qt `qtbot.waitActive(w)` to MENEDŻER KONTEKSTU — wywołany jak funkcja nic
+    nie robi, okno zostaje nieaktywne i `setFocus()` nie dostarcza `FocusIn` (`hasFocus()` False); poprawnie:
+    `with qtbot.waitActive(w): w.show(); w.activateWindow()`; (4) wyjątek w `eventFilter` w trakcie
+    `mousePress` zostawia przechwyconą mysz i wywraca fokus w KOLEJNYCH testach — najpierw napraw pierwszy
+    czerwony test. Zaznaczony wiersz rysowany ręcznie kolorem `highlight` z palety aplikacji (ramka `QFrame.Box`
+    była w ciemnym motywie niewidoczna). „+ dodaj” wstawia odcień w środku największej przerwy na kole.
+    Usuwanie klawiszem Delete działa na przycisku ✕ (jak w `BandSlider`), przestawianie Alt+↑/↓ także z pola.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -594,3 +612,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 12 ☑: logika edycji zbiorczej (`rules_edit.py`), `forms.py` na polach v2; 25 testów.
 - 2026-11-16 — Task 8 ☑: presety zamiast nastrojów (rdzeń, 9 dawnych, presety użytkownika, przeniesienie `moods.json`); 59 testów.
 - 2026-11-16 — Task 9 ☑: `BandSlider` (zakres + zakazy + środek ±), zakazy kreskowane na pasku; 20 testów.
+- 2026-11-16 — Task 10 ☑: `ListPicker` (koło odcieni + lista, tryb kolorów z L/C i polem CSS); 20 testów.
