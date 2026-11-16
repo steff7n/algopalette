@@ -28,7 +28,18 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   nie `rules_lock`; (d) paczka ma rozszerzenie Rust (maturin) — po dodaniu zależności `uv sync`, a launcher
   `uv tool install --editable . --force` (decyzja o reinstalacji i scaleniu = użytkownik); (e) testy nie mogą
   dotykać sieci ani `~/.cache` — `tests/conftest.py` z Tasku 1.
-- **Stan zadań:** (brak — implementacja nie rozpoczęta)
+- **Wykonanie (wybór użytkownika „Subagent-Driven (this session)”):** bez review per task (CLAUDE.md), po każdym
+  zadaniu testy + ruff + ty + handoff + commit; Task 1 i 4 kontroler, 2/3/6 równolegle Sonnet w osobnych worktree,
+  5/7/8 wg potrzeb; ledger SDD `.superpowers/sdd/2026-11-16-motywy-z-sieci/progress.md` (poza gitem).
+- **Testy motywów nazywaj `tests/themes/test_themes_*.py`** — `tests/` nie ma `__init__.py`, a `tests/test_model.py`
+  już istnieje (kolizja nazw modułów pytest przy `test_model.py`). Odstępstwo od nazw w planie.
+- **`ty check` bazowo = 14 ostrzeżeń `renamed-rule-in-ignore-comment`** (`tools/make_v1_reference.py`, nowe nazwy reguł
+  w ty 0.0.104) i 0 błędów — tak samo na `feat/zasady-silnik`; nie nasze, nie ruszamy.
+- **Stan zadań:**
+  - Task 1 ☑ — `httpx 0.28.1`, `pyyaml 6.0.3` w `pyproject.toml`; `themes/model.py` (`Theme`, `Palette`,
+    `ThemeError`, `TOO_FEW`, `SOURCES`, `FULL_CATALOG_SOURCES`, `resolve`, `is_dark`, `fold`, `filter_themes`,
+    `theme_to_dict/from_dict`), `themes/__init__.py`, `tests/conftest.py` (autouse: `XDG_CACHE_HOME` → tmp,
+    `httpx.HTTPTransport.handle_request` rzuca). `tests/themes/test_themes_model.py` 8 passed; ruff czysto, ty 0 błędów.
 
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 

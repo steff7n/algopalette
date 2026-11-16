@@ -5,8 +5,10 @@ description = "Generator palet kolorów w OKLCH (GUI Qt)"
 requires-python = ">=3.13"
 dependencies = [
     "coloraide>=8.15",
+    "httpx>=0.28.1",
     "numpy>=2.5.4",
     "pyside6-essentials>=6.10",
+    "pyyaml>=6.0.3",
 ]
 
 [project.scripts]
