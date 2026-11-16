@@ -401,3 +401,146 @@ def test_migrate_user_moods_keeps_existing_user_preset():
     assert migrate_user_moods() == 0
     user = [p for p in list_presets() if not p.builtin]
     assert [p.description for p in user] == ["nowy"]
+
+
+# --- komplet presetów wbudowanych (Task 19) --------------------------------------------------
+
+
+def applied(pdef, polarity, metric="wcag21", accents=8):
+    s = start(polarity, metric)
+    while len(s.slots) - 2 > accents:
+        s = remove_slot(s, s.slots[-1].id)
+    return apply_preset(s, pdef.name, polarity=polarity)
+
+
+def test_at_least_48_presets_in_every_category():
+    assert len(BUILTIN) >= 48
+    per_category = {c: [p.name for p in BUILTIN if p.category == c] for c in CATEGORIES}
+    assert all(len(names) >= 3 for names in per_category.values()), per_category
+    # kolejność rejestru = kolejność kategorii (tak je wypisuje pomoc i lista w oknie)
+    order = [CATEGORIES.index(p.category) for p in BUILTIN]
+    assert order == sorted(order)
+
+
+def test_descriptions_say_what_the_preset_sets():
+    for p in BUILTIN:
+        text = p.description
+        assert len(text.split()) >= 6, p.name
+        assert text[0].isupper() and text.endswith("."), p.name
+        assert text.count(".") == 1 or "°" in text or "0." in text, p.name  # jedno zdanie
+        assert p.name.casefold() not in text.casefold(), p.name
+
+
+@pytest.mark.parametrize("polarity", ["dark", "light"])
+@pytest.mark.parametrize("metric", ["wcag21", "apca"])
+def test_presets_are_pairwise_different(polarity, metric):
+    seen: dict[object, str] = {}
+    for p in BUILTIN:
+        if polarity not in p.polarities:
+            continue
+        s = applied(p, polarity, metric)
+        g = s.globals
+        key = (
+            tuple((slot.rules, slot.use_scheme) for slot in s.slots),
+            g.hue_scheme,
+            g.lightness_spread,
+        )
+        assert key not in seen, (p.name, seen.get(key))
+        seen[key] = p.name
+
+
+@pytest.mark.parametrize("p", BUILTIN, ids=lambda p: p.name)
+def test_every_preset_applies_and_roundtrips(p, tmp_path):
+    for polarity in p.polarities:
+        for metric in ("wcag21", "apca"):
+            for accents in (1, 5, 8, 14):
+                s = applied(p, polarity, metric, accents) if accents <= 8 else None
+                if s is None:
+                    s = start(polarity, metric)
+                    while len(s.slots) - 2 < accents:
+                        s = add_accent(s)
+                    s = apply_preset(s, p.name, polarity=polarity)
+                assert s.preset == p.name and not is_modified(s)
+                path = tmp_path / "s.json"
+                aio.save_session(s, path, overwrite=True)
+                assert aio.load_session(path) == s
+                for slot in s.slots:  # zakresy mają sens
+                    r = slot.rules
+                    for rule in (r.lightness, r.chroma):
+                        if rule is not None:
+                            lo, hi = rule.value.lo, rule.value.hi
+                            assert lo is None or hi is None or lo < hi, (p.name, slot.name)
+
+
+def by_name(name):
+    return next(p for p in BUILTIN if p.name == name)
+
+
+def chroma_hi(slot):
+    band = slot.rules.chroma.value
+    assert band.mode == "abs"
+    return band.hi
+
+
+@pytest.mark.parametrize("name", ["szarości z akcentem", "gazeta"])
+def test_gray_presets_have_one_saturated_accent(name):
+    p = by_name(name)
+    for polarity in p.polarities:
+        s = applied(p, polarity)
+        first, rest = s.slots[2], s.slots[3:]
+        assert first.rules.chroma.value.lo >= 0.10 and first.rules.hue is not None
+        assert first.rules.hue.hard and not first.use_scheme
+        assert all(chroma_hi(slot) <= 0.03 for slot in rest)
+        if name == "szarości z akcentem":
+            assert all(chroma_hi(slot) <= 0.02 for slot in rest)
+
+
+def test_limited_presets_pin_hues_with_a_hard_scheme():
+    cases = {"duotone": 2, "jeden odcień, wiele jasności": 1, "dwa bieguny": 2}
+    for name, n_hues in cases.items():
+        p = by_name(name)
+        assert p.category == "Ograniczone"
+        s = applied(p, "dark")
+        scheme = s.globals.hue_scheme
+        assert scheme.kind == "custom" and scheme.hard
+        assert len(set(scheme.custom)) == n_hues
+        assert all(slot.use_scheme for slot in s.slots[2:])
+    poles = set(applied(by_name("dwa bieguny"), "dark").globals.hue_scheme.custom)
+    lo, hi = sorted(poles)
+    assert hi - lo == 180.0
+
+
+@pytest.mark.parametrize(
+    ("name", "types"),
+    [
+        ("bezpieczny przy protanopii i deuteranopii", {"protan", "deutan"}),
+        ("bezpieczny przy tritanopii", {"tritan"}),
+    ],
+)
+def test_accessibility_presets_turn_on_cvd(name, types):
+    p = by_name(name)
+    assert p.category == "Dostępność"
+    for polarity in p.polarities:
+        s = applied(p, polarity)
+        assert s.globals.cvd.types == frozenset(types)
+        for slot in s.slots[2:]:
+            rule = slot.rules.cvd_min_distance
+            assert rule is not None and rule.enabled and rule.value >= 0.06 and rule.weight >= 2.0
+
+
+def test_apca_reading_sets_the_metric():
+    p = by_name("APCA do długiego czytania")
+    for polarity in p.polarities:
+        s = applied(p, polarity, "wcag21")
+        assert s.globals.contrast_metric == "apca"
+        assert s.slots[1].rules.contrast_bg.value.lo >= 80.0
+        assert s.slots[1].rules.contrast_bg.value.hi is not None  # bez oślepiającego kontrastu
+        assert not is_modified(s)
+
+
+def test_fixed_polarity_presets():
+    assert by_name("północ").polarities == ("dark",)
+    assert by_name("papier i atrament").polarities == ("light",)
+    assert by_name("gazeta").polarities == ("light",)
+    s = apply_preset(start("dark"), "gazeta")  # bez wersji ciemnej bierze jasną i zmienia tło
+    assert s.globals.polarity == "light"
