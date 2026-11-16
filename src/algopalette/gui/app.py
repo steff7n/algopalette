@@ -652,12 +652,36 @@ class MainWindow(QMainWindow):
         return True
 
 
-def run(session: Session, *, notice: str | None = None, file_path: Path | None = None) -> int:
+def open_window(
+    session: Session,
+    *,
+    notice: str | None = None,
+    file_path: Path | None = None,
+    migration_notes: Sequence[str] = (),
+    autosave: bool = True,
+) -> MainWindow:
+    """Buduje i pokazuje okno; komunikaty migracji (start z pliku albo autozapisu v1) pokazuje
+    dopiero po otwarciu okna, żeby okienko z nimi miało rodzica na ekranie."""
+    win = MainWindow(session, notice=notice, file_path=file_path, autosave=autosave)
+    win.show()
+    win.show_migration_notes(migration_notes)
+    return win
+
+
+def run(
+    session: Session,
+    *,
+    notice: str | None = None,
+    file_path: Path | None = None,
+    migration_notes: Sequence[str] = (),
+) -> int:
     app = cast(QApplication, QApplication.instance() or QApplication(sys.argv))
     app.setApplicationName("AlgoPalette")
     app.setDesktopFileName("algopalette")
     help.install_tooltip_style(app)
     theme.apply(app, theme.initial_mode())
-    win = MainWindow(session, notice=notice, file_path=file_path)
-    win.show()
-    return app.exec()
+    # okno musi mieć właściciela na czas pętli zdarzeń
+    win = open_window(session, notice=notice, file_path=file_path, migration_notes=migration_notes)
+    code = app.exec()
+    win.deleteLater()
+    return code

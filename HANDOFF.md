@@ -298,6 +298,27 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     i dopisać wyjątek w `test_old_nine_equal_migrated_reference`, z rulingiem w ledgerze).
     **Do zrobienia po scaleniu fazy B:** `uv run pytest -q tests/test_presets_quality.py -m slow` w tle,
     strojenie liczb presetów bez 5/6, obraz z paskami próbek (ciemne i jasne tło) obejrzany, commit końcowy.
+  - **Task 20 ◐ (część niezależna od silnika zrobiona wcześniej, bo faza B jeszcze trwa)** —
+    `__main__.py`: `startup_session` zwraca teraz `Startup(session, notice, path, migration_notes)` (było
+    3-krotką); autozapis w v1 → `_migrated_autosave`: kopia `last.v1.json` (istniejącej NIE nadpisuje; gdy
+    kopii nie da się zrobić, autozapis zostaje nietknięty) + od razu zapis `last.json` w v2, więc drugi start
+    niczego nie migruje ani nie kopiuje; plik v1 z wiersza poleceń też oddaje komunikaty migracji (wcześniej
+    `load_session` je gubił). `io.py`: `_read_document`, `is_v1_file`. `gui/app.py`: `open_window(session, *,
+    notice, file_path, migration_notes, autosave)` pokazuje okno i dopiero potem komunikaty migracji; `run`
+    przyjmuje `migration_notes`. `tests/gui/test_workflow.py`: 8 testów (plik v1 w oknie → zasady w „Zasadach”,
+    komunikat, zapis v2; autozapis v1 → kopia, komunikat, drugi start cichy; istniejąca kopia nietknięta;
+    start z pliku v1) + `test_rules_to_proposals_to_palette` (zakaz odcienia 60–85 akcentom 1–3 → 6
+    propozycji bez odcienia w zakazie → „przejmij całą” → Paleta, panel naruszeń pusty) — **ten jeden
+    pomijany, dopóki `_engine` nie generuje; po scaleniu fazy B MUSI zostać uruchomiony i przejść**.
+    `README.md` przepisane (Zasady, edycja zbiorcza, presety, pliki v2 i migracja, budowanie z Rustem);
+    **sekcji o benchmarku (`algopalette-bench`) jeszcze nie ma** — dopisać po scaleniu fazy B, z liczbami
+    W1–W4 od agenta. Pełny `pytest` teraz: **720 passed, 458 skipped** (452 to test jakości presetów).
+    **Pozostałości wg grepa z planu:** `hue_range|hue_target|role_defaults` występują w `migrate.py`
+    i `presets.py::migrate_user_moods` (czytanie formatu v1 — muszą) oraz jako podciąg nazwy `hue_targets`
+    (interfejs I3/I4) — grep z planu jest w tym miejscu wadliwy; do zamknięcia rulingiem w Tasku 20:
+    sprawdzać `grep -rnw "hue_target\|hue_range\|role_defaults\|…" src` z wyłączeniem `migrate.py`
+    i `presets.py`. `pyproject.toml` (opis, `addopts` dla `slow`) — dopiero po scaleniu fazy B, żeby nie
+    wejść agentowi w plik.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -1034,3 +1055,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 17 ☑: Propozycje na zadaniu silnika i QTimer, łuk z zakazami i cele układu w Analizie, Paleta bez edytora zasad; 59 testów (+2 czekające na silnik).
 - 2026-11-16 — Task 18 ☑: pełna pomoc zakładki „Zasady” (72 tematy, 15 terminów wg wzorca), usunięte tematy starego modelu (`globals.*`, `cond.*`, `concept.sources`); 103 testy pomocy, pełny zestaw 641 passed / 5 skipped.
 - 2026-11-16 — Task 19 (część 1): 58 presetów wbudowanych w 11 kategoriach zadeklarowanych, 130 testów presetów; test jakości (452 przypadki, `slow`) i strojenie czekają na generujący silnik; kontrola statyczna `tools/preset_feasibility.py` wskazuje tylko dawny „nocny wysoki kontrast”.
+- 2026-11-16 — Task 20 (część 1, przed silnikiem): migracja autozapisu v1 z kopią `last.v1.json`, komunikaty migracji przy starcie, `tests/gui/test_workflow.py` (8 + 1 czekający na silnik), README na nowym modelu; pełny zestaw 720 passed / 458 skipped.

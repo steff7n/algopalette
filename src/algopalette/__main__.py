@@ -2,8 +2,10 @@
 
 import argparse
 import contextlib
+import shutil
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from algopalette import io as aio
@@ -28,18 +30,53 @@ def _keep_autosave(suffix: str) -> str | None:
     return str(target)
 
 
-def startup_session(file: Path | None, fresh: bool) -> tuple[Session, str | None, Path | None]:
-    """Sesja startowa + ewentualny komunikat dla użytkownika + ścieżka otwartego pliku.
+@dataclass(frozen=True)
+class Startup:
+    session: Session
+    notice: str | None = None  # komunikat na pasku stanu
+    path: Path | None = None  # plik otwarty z wiersza poleceń
+    migration_notes: tuple[str, ...] = ()  # co przepadło albo się zmieniło przy migracji z v1
+
+
+def _migrated_autosave(path: Path, session: Session) -> str:
+    """Autozapis był w formacie v1: zostawia obok kopię ``last.v1.json`` i zapisuje autozapis
+    w nowym formacie, żeby następny start nie migrował drugi raz. Zwraca komunikat.
+
+    Istniejącej kopii nie nadpisuje (to ten sam stary plik z wcześniejszego startu). Gdy kopii
+    nie da się zrobić, autozapis zostaje nietknięty — stary plik jest wtedy jedynym egzemplarzem.
+    """
+    backup = path.with_name(f"{path.stem}.v1.json")
+    if not backup.exists():
+        try:
+            shutil.copy2(path, backup)
+        except OSError as e:
+            return (
+                "Autozapis był w starszym formacie — zasady przeniesiono do nowego. Kopii starego "
+                f"pliku nie udało się zrobić ({e.strerror or e}), więc autozapis zostaje bez zmian."
+            )
+    with contextlib.suppress(OSError):
+        aio.save_session(session, path, overwrite=True)
+    return (
+        "Autozapis był w starszym formacie — zasady przeniesiono do nowego. "
+        f"Kopię starego pliku zachowano jako {backup}."
+    )
+
+
+def startup_session(file: Path | None, fresh: bool) -> Startup:
+    """Sesja startowa, komunikat dla użytkownika, ścieżka otwartego pliku i komunikaty migracji.
 
     Gdy sesja NIE pochodzi z autozapisu, a autozapis istnieje, jest on przenoszony do
-    ``last.prev.json`` (uszkodzony: ``last.corrupt-<czas>.json``) — nic nie ginie.
+    ``last.prev.json`` (uszkodzony: ``last.corrupt-<czas>.json``) — nic nie ginie. Autozapis
+    w formacie v1 jest migrowany, a stary plik zostaje obok jako ``last.v1.json``.
     """
     notes: list[str] = []
     session: Session | None = None
     opened: Path | None = None
+    migration: tuple[str, ...] = ()
     if file is not None:
         try:
-            session, opened = aio.load_session(file), file
+            session, migration = aio.load_session_ex(file)
+            opened = file
         except FileNotFoundError:
             notes.append(f"Nie ma pliku {file} — start od nowej palety.")
         except (aio.SessionFormatError, OSError) as e:
@@ -48,18 +85,21 @@ def startup_session(file: Path | None, fresh: bool) -> tuple[Session, str | None
         path = aio.autosave_path()
         if path.exists():
             try:
-                return aio.load_session(path), None, None
+                session, migration = aio.load_session_ex(path)
             except (aio.SessionFormatError, OSError) as e:
                 kept = _keep_autosave(f"corrupt-{time.strftime('%Y%m%d-%H%M%S')}")
                 notes.append(f"Autozapis uszkodzony ({e}) — start od nowej palety.")
                 if kept:
                     notes.append(f"Uszkodzony plik zachowano jako {kept}.")
+            else:
+                notice = _migrated_autosave(path, session) if aio.is_v1_file(path) else None
+                return Startup(session, notice, None, migration)
     if session is None:
         session = fresh_session()
     kept = _keep_autosave("prev")
     if kept:
         notes.append(f"Poprzedni autozapis zachowano jako {kept}.")
-    return session, " ".join(notes) or None, opened
+    return Startup(session, " ".join(notes) or None, opened, migration)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -73,11 +113,13 @@ def main(argv: list[str] | None = None) -> None:
     # zakładka „Zasady” przy pierwszym użyciu.
     with contextlib.suppress(ValueError, OSError):
         migrate_user_moods()
-    session, notice, path = startup_session(args.plik, args.fresh)
+    st = startup_session(args.plik, args.fresh)
 
     from algopalette.gui.app import run
 
-    sys.exit(run(session, notice=notice, file_path=path))
+    sys.exit(
+        run(st.session, notice=st.notice, file_path=st.path, migration_notes=st.migration_notes)
+    )
 
 
 if __name__ == "__main__":

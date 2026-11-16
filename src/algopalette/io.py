@@ -569,17 +569,13 @@ def save_session(s: Session, path: str | os.PathLike[str], overwrite: bool = Fal
         raise
 
 
-def load_session_ex(path: str | os.PathLike[str]) -> tuple[Session, tuple[str, ...]]:
-    """Wczytuje sesję v2 albo v1; zwraca też komunikaty migracji (co przepadło albo się zmieniło).
-
-    Brak pliku: ``FileNotFoundError``; zły format: ``SessionFormatError``.
-    """
+def _read_document(path: str | os.PathLike[str]) -> Any:
     p = Path(path)
     if p.stat().st_size > MAX_FILE_BYTES:
         raise SessionFormatError("Plik jest zbyt duży, by był plikiem sesji AlgoPalette.")
     raw = p.read_bytes()
     try:
-        data = json.loads(raw.decode("utf-8"), parse_constant=_no_constant)
+        return json.loads(raw.decode("utf-8"), parse_constant=_no_constant)
     except UnicodeDecodeError as e:
         raise SessionFormatError(
             "Plik nie jest poprawnym tekstem UTF-8 (to nie jest sesja)."
@@ -588,7 +584,23 @@ def load_session_ex(path: str | os.PathLike[str]) -> tuple[Session, tuple[str, .
         raise SessionFormatError(
             f"Plik nie jest poprawnym JSON-em (uszkodzony lub ucięty): {e}"
         ) from e
-    return decode_session(data)
+
+
+def load_session_ex(path: str | os.PathLike[str]) -> tuple[Session, tuple[str, ...]]:
+    """Wczytuje sesję v2 albo v1; zwraca też komunikaty migracji (co przepadło albo się zmieniło).
+
+    Brak pliku: ``FileNotFoundError``; zły format: ``SessionFormatError``.
+    """
+    return decode_session(_read_document(path))
+
+
+def is_v1_file(path: str | os.PathLike[str]) -> bool:
+    """Czy plik jest sesją w starym formacie ``algopalette.v1`` (nieczytelny plik → ``False``)."""
+    try:
+        data = _read_document(path)
+    except (SessionFormatError, OSError):
+        return False
+    return isinstance(data, dict) and data.get("format") == FORMAT_V1
 
 
 def load_session(path: str | os.PathLike[str]) -> Session:
