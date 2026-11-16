@@ -6,6 +6,7 @@ Komunikaty ``FetchError`` są po polsku i nadają się wprost do pokazania w int
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError, version
 from typing import Literal
@@ -16,8 +17,8 @@ ALLOWED_HOSTS: frozenset[str] = frozenset(
     {"codeload.github.com", "raw.githubusercontent.com", "lospec.com"}
 )
 TIMEOUT_S = 20.0
+TOTAL_TIMEOUT_S = 60.0  # łączny termin pobierania (od początku żądania)
 MAX_BYTES = 20 * 1024 * 1024
-_CHUNK = 64 * 1024
 
 FetchErrorKind = Literal["offline", "http", "host", "size", "cancelled"]
 
@@ -69,6 +70,7 @@ def fetch(
 ) -> bytes:
     """Pobiera ``url`` strumieniowo; ``on_progress(odebrane, content_length | None)``."""
     host = httpx.URL(url).host or url
+    deadline = time.monotonic() + TOTAL_TIMEOUT_S
     try:
         with client.stream("GET", url) as resp:
             if resp.status_code >= 400:
@@ -85,9 +87,11 @@ def fetch(
             if total is not None and total > MAX_BYTES:
                 raise _too_big(resp.url.host)
             buf = bytearray()
-            for chunk in resp.iter_bytes(_CHUNK):
+            for chunk in resp.iter_bytes():
                 if cancelled is not None and cancelled():
                     raise FetchError("cancelled", "Anulowano.")
+                if time.monotonic() > deadline:
+                    raise FetchError("offline", f"Pobieranie z {host} trwa zbyt długo.")
                 buf += chunk
                 if len(buf) > MAX_BYTES:
                     raise _too_big(resp.url.host)
@@ -100,5 +104,9 @@ def fetch(
             return bytes(buf)
     except FetchError:
         raise
-    except (httpx.TimeoutException, httpx.TransportError) as e:
+    except httpx.TooManyRedirects as e:
+        raise FetchError("http", f"Serwer {host} przekierowuje w kółko.") from e
+    except httpx.DecodingError as e:
+        raise FetchError("http", f"Uszkodzona odpowiedź z {host}.") from e
+    except httpx.RequestError as e:
         raise FetchError("offline", f"Brak połączenia z {host}.") from e

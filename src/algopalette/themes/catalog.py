@@ -5,6 +5,7 @@ Sieć zawiodła, a jest (nawet przeterminowana) pamięć → wynik z pamięci z 
 
 from __future__ import annotations
 
+import hashlib
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -13,7 +14,7 @@ from urllib.parse import urlencode
 import httpx
 
 from algopalette.themes import cache, net, parsers
-from algopalette.themes.model import SourceId, Theme
+from algopalette.themes.model import SourceId, Theme, ThemeError
 
 CATALOG_URLS: dict[SourceId, str] = {
     "base16": "https://codeload.github.com/tinted-theming/schemes/tar.gz/HEAD",
@@ -23,6 +24,7 @@ CATALOG_URLS: dict[SourceId, str] = {
 LOSPEC_LOAD = "https://lospec.com/palette-list/load"
 CATALOG_TTL_S = 7 * 86400
 LOSPEC_TTL_S = 86400
+LOSPEC_PAGE_SIZE = 10  # palet na stronę po stronie serwera; strony liczone od 0
 
 _PARSERS: dict[SourceId, Callable[[bytes], parsers.Parsed]] = {
     "base16": parsers.parse_tinted,
@@ -62,7 +64,9 @@ def lospec_url(tag: str, page: int) -> str:
 
 
 def _lospec_key(tag: str, page: int) -> str:
-    return f"lospec-{lospec_tag(tag) or '_'}-{page}"
+    """Klucz pamięci bez kolizji po ``cache._safe``: tag trafia do nazwy jako skrót."""
+    digest = hashlib.sha1(lospec_tag(tag).encode()).hexdigest()[:16]
+    return f"lospec-{digest}-{page}"
 
 
 def _get(
@@ -87,7 +91,12 @@ def _get(
         if e.kind != "cancelled" and cached is not None:
             return CatalogResult(cached.themes, cached.fetched_at, True, total=cached.total)
         raise
-    parsed, total = parse(data)
+    try:
+        parsed, total = parse(data)
+    except ThemeError:
+        if cached is not None:  # np. portal hotelowy zwrócił HTML z kodem 200
+            return CatalogResult(cached.themes, cached.fetched_at, True, total=cached.total)
+        raise
     error = None
     try:
         cache.save(key, parsed.themes, total=total, now=t)
@@ -131,7 +140,7 @@ def lospec_page(
     now: float | None = None,
     cancelled: Cancelled | None = None,
 ) -> CatalogResult:
-    """Jedna strona Lospec (10 palet), najczęściej pobierane; ``tag`` pusty = bez filtra."""
+    """Strona Lospec (``LOSPEC_PAGE_SIZE`` palet), najczęściej pobierane; pusty tag = bez filtra."""
     return _get(
         _lospec_key(tag, page),
         LOSPEC_TTL_S,
