@@ -1,0 +1,147 @@
+[
+ {
+  "name": "3024 Day",
+  "black": "#090300",
+  "red": "#db2d20",
+  "green": "#01a252",
+  "yellow": "#fded02",
+  "blue": "#01a0e4",
+  "purple": "#a16a94",
+  "cyan": "#b5e4f4",
+  "white": "#a5a2a2",
+  "brightBlack": "#5c5855",
+  "brightRed": "#e8bbd0",
+  "brightGreen": "#3a3432",
+  "brightYellow": "#4a4543",
+  "brightBlue": "#807d7c",
+  "brightPurple": "#d6d5d4",
+  "brightCyan": "#cdab53",
+  "brightWhite": "#f7f7f7",
+  "background": "#f7f7f7",
+  "foreground": "#4a4543",
+  "cursorColor": "#4a4543",
+  "selectionBackground": "#a5a2a2",
+  "meta": {
+   "isDark": false,
+   "credits": [
+    {
+     "name": "0x3024",
+     "link": "https://github.com/0x3024"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Blazer",
+  "black": "#000000",
+  "red": "#b87a7a",
+  "green": "#7ab87a",
+  "yellow": "#b8b87a",
+  "blue": "#7a7ab8",
+  "purple": "#b87ab8",
+  "cyan": "#7ab8b8",
+  "white": "#d9d9d9",
+  "brightBlack": "#262626",
+  "brightRed": "#dbbdbd",
+  "brightGreen": "#bddbbd",
+  "brightYellow": "#dbdbbd",
+  "brightBlue": "#bdbddb",
+  "brightPurple": "#dbbddb",
+  "brightCyan": "#bddbdb",
+  "brightWhite": "#ffffff",
+  "background": "#0d1926",
+  "foreground": "#d9e6f2",
+  "cursorColor": "#d9e6f2",
+  "meta": {
+   "isDark": true,
+   "credits": null
+  }
+ },
+ {
+  "name": "Adventure",
+  "black": "#040404",
+  "red": "#d84a33",
+  "green": "#5da602",
+  "yellow": "#eebb6e",
+  "blue": "#417ab3",
+  "purple": "#e5c499",
+  "cyan": "#bdcfe5",
+  "white": "#dbded8",
+  "brightBlack": "#685656",
+  "brightRed": "#d76b42",
+  "brightGreen": "#99b52c",
+  "brightYellow": "#ffb670",
+  "brightBlue": "#97d7ef",
+  "brightPurple": "#aa7900",
+  "brightCyan": "#bdcfe5",
+  "brightWhite": "#e4d5c7",
+  "background": "#040404",
+  "foreground": "#feffff",
+  "cursorColor": "#feffff",
+  "selectionBackground": "#606060",
+  "meta": {
+   "isDark": true,
+   "credits": [
+    {
+     "name": "hongzimao",
+     "link": "https://github.com/hongzimao/iTerm2-Color-Schemes"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Zły hex WT",
+  "black": "#090300",
+  "red": "#zzzzzz",
+  "green": "#01a252",
+  "yellow": "#fded02",
+  "blue": "#01a0e4",
+  "purple": "#a16a94",
+  "cyan": "#b5e4f4",
+  "white": "#a5a2a2",
+  "brightBlack": "#5c5855",
+  "brightRed": "#e8bbd0",
+  "brightGreen": "#3a3432",
+  "brightYellow": "#4a4543",
+  "brightBlue": "#807d7c",
+  "brightPurple": "#d6d5d4",
+  "brightCyan": "#cdab53",
+  "brightWhite": "#f7f7f7",
+  "background": "#090300",
+  "foreground": "#a5a2a2",
+  "cursorColor": "#a5a2a2",
+  "selectionBackground": "#4a4543",
+  "meta": {
+   "isDark": true,
+   "credits": [
+    {
+     "name": "0x3024",
+     "link": "https://github.com/0x3024"
+    }
+   ]
+  }
+ },
+ {
+  "name": "Bez meta",
+  "black": "#040404",
+  "red": "#d84a33",
+  "green": "#5da602",
+  "yellow": "#eebb6e",
+  "blue": "#417ab3",
+  "purple": "#e5c499",
+  "cyan": "#bdcfe5",
+  "white": "#dbded8",
+  "brightBlack": "#685656",
+  "brightRed": "#d76b42",
+  "brightGreen": "#99b52c",
+  "brightYellow": "#ffb670",
+  "brightBlue": "#97d7ef",
+  "brightPurple": "#aa7900",
+  "brightCyan": "#bdcfe5",
+  "brightWhite": "#e4d5c7",
+  "background": "#040404",
+  "foreground": "#feffff",
+  "cursorColor": "#feffff",
+  "selectionBackground": "#606060"
+ }
+]

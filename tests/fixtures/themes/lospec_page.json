@@ -1,0 +1,186 @@
+{
+ "palettes": [
+  {
+   "title": "Pumpkin Parade 16",
+   "slug": "pumpkin-parade-16",
+   "colors": [
+    "000000",
+    "757575",
+    "9f9f9f",
+    "ffffff",
+    "4c241c",
+    "bb4c28",
+    "e64e41",
+    "f2762c",
+    "ffa242",
+    "548b2e",
+    "aed583",
+    "232d3b",
+    "0586cc",
+    "b0bec6",
+    "7e57c1",
+    "b39ddb"
+   ],
+   "tags": [
+    "halloween",
+    "warm",
+    "orange",
+    "purple",
+    "game",
+    "retro"
+   ],
+   "user": {
+    "name": "Hoang Lam",
+    "slug": "hoang-lam"
+   }
+  },
+  {
+   "title": "Fade Grub",
+   "slug": "fade-grub",
+   "colors": [
+    "21170d",
+    "252b1d",
+    "523b1e",
+    "705259",
+    "946f4b",
+    "998d9f",
+    "adc2b0",
+    "f9e1aa"
+   ],
+   "tags": [
+    "8",
+    "simple",
+    "1ramp",
+    "purple",
+    "brown"
+   ],
+   "user": {
+    "name": "clayrocks",
+    "slug": "clayrocks"
+   }
+  },
+  {
+   "title": "fall",
+   "slug": "fall",
+   "colors": [
+    "241c3b",
+    "422988",
+    "b33232",
+    "7e71a2",
+    "ff5900",
+    "289b1e",
+    "ffd754",
+    "ffffff"
+   ],
+   "tags": [
+    "warm",
+    "orange",
+    "vibrant"
+   ],
+   "user": {
+    "name": "lyte",
+    "slug": "lyte"
+   }
+  },
+  {
+   "title": "Trees",
+   "slug": "trees",
+   "colors": [
+    "313131",
+    "e3864c",
+    "a7c872",
+    "4575a9",
+    "eaf2de"
+   ],
+   "tags": [
+    "simple",
+    "pixelart",
+    "rgb",
+    "animation"
+   ],
+   "user": {
+    "name": "wbGuy",
+    "slug": "wb-guy"
+   }
+  },
+  {
+   "title": "Soft4",
+   "slug": "soft4",
+   "colors": [
+    "0f2036",
+    "39535c",
+    "94b5b4",
+    "e6edea"
+   ],
+   "tags": [
+    "2bit",
+    "retro",
+    "soft",
+    "simple"
+   ],
+   "user": {
+    "name": "Drapek",
+    "slug": "drapek"
+   }
+  },
+  {
+   "title": "Za dużo",
+   "slug": "za-duzo",
+   "colors": [
+    "000000",
+    "000001",
+    "000002",
+    "000003",
+    "000004",
+    "000005",
+    "000006",
+    "000007",
+    "000008",
+    "000009",
+    "00000a",
+    "00000b",
+    "00000c",
+    "00000d",
+    "00000e",
+    "00000f",
+    "000010"
+   ],
+   "user": {
+    "name": "X"
+   }
+  },
+  {
+   "title": "Za mało",
+   "slug": "za-malo",
+   "colors": [
+    "000000",
+    "ffffff"
+   ],
+   "user": {
+    "name": "X"
+   }
+  },
+  {
+   "title": "Zły kolor",
+   "slug": "zly-kolor",
+   "colors": [
+    "000000",
+    "ffffff",
+    "xyz"
+   ],
+   "user": {
+    "name": "X"
+   }
+  },
+  {
+   "title": "Krótki hex",
+   "slug": "krotki-hex",
+   "colors": [
+    "000",
+    "FFF",
+    "#Ab12Cd"
+   ]
+  }
+ ],
+ "totalCount": 3171
+}
