@@ -267,12 +267,13 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     akcenty × oba widoki; osiągalność tematów na `fake_engine`), `test_help_proposals_source.py` (na
     `fake_engine`, pokrycie także w trakcie generowania). Wynik: 103 testy pomocy przechodzą; pełny `pytest`
     na tej gałęzi (bez fazy B silnika): **641 passed, 5 skipped**; ruff i ty czyste dla dotkniętych plików.
-    **NIE zweryfikowane na prawdziwym silniku:** przykłady w `rules.hues.kind` policzone wzorem starego
-    `hues.scheme_targets` (`baza[i % k] + (i // k)·360/(k·⌈n/k⌉)`) — `_engine.hue_targets` na tej gałęzi jest
-    jeszcze atrapą fazy A (zwraca `{}`); zdania o silniku w `rules.gen.n_proposals` („dla 6 propozycji — 10
-    przebiegów” = `max(n+4, ⌈1.5n⌉)`), `rules.gen.min_diversity` („dwie fale”), `rules.gen.time_cap` (stan ⏱
-    dla wszystkich propozycji) i `rules.gen.threads` (wynik niezależny od liczby wątków) pochodzą ze speca
-    §9 — po scaleniu fazy B sprawdzić je z kodem `crates/core` i poprawić treść, jeśli agent coś zmienił.
+    Przykłady w `rules.hues.kind` sprawdzone z prawdziwym `engine.hue_targets` po scaleniu Tasku 14 (test
+    `test_scheme_example_matches_the_engine` woła silnik, nie własny wzór).
+    **NIE zweryfikowane na prawdziwym silniku (do sprawdzenia po scaleniu Tasku 16):** zdania w
+    `rules.gen.n_proposals` („dla 6 propozycji — 10 przebiegów” = `max(n+4, ⌈1.5n⌉)`),
+    `rules.gen.min_diversity` („dwie fale”), `rules.gen.time_cap` (stan ⏱ dla wszystkich propozycji)
+    i `rules.gen.threads` (wynik niezależny od liczby wątków) pochodzą ze speca §9 — porównać z kodem
+    `crates/core` i poprawić treść, jeśli agent coś zmienił.
   - **Task 19 ◐ (presety — deklaracje gotowe, STROJENIE NA SILNIKU CZEKA na fazę B)** —
     `presets_builtin.py`: **58 presetów** w 11 kategoriach (6/6/6/6/5/5/6/5/5/5/3), rejestr `_REGISTRY`
     (kategoria → wpisy `_p(nazwa, opis, builder, polaryzacje)`), `BUILTIN` budowany z niego w kolejności
@@ -319,6 +320,15 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     sprawdzać `grep -rnw "hue_target\|hue_range\|role_defaults\|…" src` z wyłączeniem `migrate.py`
     i `presets.py`. `pyproject.toml` (opis, `addopts` dla `slow`) — dopiero po scaleniu fazy B, żeby nie
     wejść agentowi w plik.
+  - **Scalenie Tasku 14 (commit agenta `e452d55`, merge `02b0a16`)** — `_engine.evaluate` i `hue_targets`
+    działają naprawdę. Po `uv sync` pełny `pytest`: 1025 passed, 458 skipped (po poprawce jednego testu).
+    **Pułapka z dowodem:** paleta startowa (`default_session`) ma na prawdziwym silniku 8 miękkich naruszeń
+    „układ odcieni (akcent N)” o 10° każde — kolory startowe mają odcienie 25° + 45°·i, a układ „równo po
+    kole” z obrotem 0° i tolerancją 15° celuje w 45°·i. Tak było też w starym programie (`main`:
+    `_starting_accent` identyczne), więc to nie regresja; test `test_violations_panel` zakładał 1 wiersz
+    i został poprawiony na „1 twarde + 8 miękkich układu”. Nie ruszane (model.py poza zakresem kontrolera
+    w fazie B, „neutralny == default_session” jest zamrożone testem) — do zgłoszenia użytkownikowi jako
+    drobiazg: wystarczyłby obrót układu 25° w presecie „neutralny” albo kolory startowe od 0°.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -1140,3 +1150,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 18 ☑: pełna pomoc zakładki „Zasady” (72 tematy, 15 terminów wg wzorca), usunięte tematy starego modelu (`globals.*`, `cond.*`, `concept.sources`); 103 testy pomocy, pełny zestaw 641 passed / 5 skipped.
 - 2026-11-16 — Task 19 (część 1): 58 presetów wbudowanych w 11 kategoriach zadeklarowanych, 130 testów presetów; test jakości (452 przypadki, `slow`) i strojenie czekają na generujący silnik; kontrola statyczna `tools/preset_feasibility.py` wskazuje tylko dawny „nocny wysoki kontrast”.
 - 2026-11-16 — Task 20 (część 1, przed silnikiem): migracja autozapisu v1 z kopią `last.v1.json`, komunikaty migracji przy starcie, `tests/gui/test_workflow.py` (8 + 1 czekający na silnik), README na nowym modelu; pełny zestaw 720 passed / 458 skipped.
+- 2026-11-16 — scalony Task 14 agenta (ocena zasad, cele układu): pełny zestaw 1025 passed / 458 skipped; przykłady pomocy o układach odcieni potwierdzone prawdziwym silnikiem; paleta startowa ma 8 miękkich naruszeń układu (jak w starym programie).

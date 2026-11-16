@@ -166,7 +166,12 @@ def test_violations_panel(qtbot):
     qtbot.addWidget(w)
     p = w.violations_panel
     assert "1 twardych" in p.title.text()
-    assert p.table.rowCount() == 1
+    # twarde na górze; paleta startowa ma też miękkie odchylenia od układu odcieni (cele co 45° od
+    # 0°, kolory startowe od 25°)
+    marks = [it.text() for r in range(p.table.rowCount()) if (it := p.table.item(r, 0))]
+    labels = [it.text() for r in range(p.table.rowCount()) if (it := p.table.item(r, 1))]
+    assert marks == ["✗"] + ["~"] * 8
+    assert all(text.startswith("układ odcieni") for text in labels[1:])
     mark, label = p.table.item(0, 0), p.table.item(0, 1)
     assert mark is not None and mark.text() == "✗"
     assert label is not None and label.text() == "kontrast z tłem"
