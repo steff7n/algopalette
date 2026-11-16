@@ -103,7 +103,7 @@ TOPICS: dict[str, Topic] = {
 - **H** — odcień w stopniach na kole (0–360°).
 
 Program używa OKLCH, bo jest percepcyjnie równa: dwa kolory o tym samym L wyglądają na równie jasne,
-czego nie gwarantuje HSL. Dlatego warunki, silnik i Analiza zawsze liczą w OKLCH. Widok HSL (F7) zmienia
+czego nie gwarantuje HSL. Dlatego zasady, silnik i Analiza zawsze liczą w OKLCH. Widok HSL (F7) zmienia
 tylko sposób wyświetlania i edycji wartości koloru. Hex sRGB powstaje dopiero na końcu, przy zapisie
 i eksporcie. Zobacz też: [gamut](help:concept.gamut).""",
         G,
@@ -256,7 +256,7 @@ nie ma wagi ani własnego wyłącznika i działa, dopóki zasada jest włączona
 
 **Przykład.** Odcień dozwolony 0–270° z zakazami 60–85° i 140–155°. Odcień 70° łamie pierwszy zakaz
 o 10° (bliżej mu do brzegu 60° niż do 85°), a panel naruszeń pokaże „zakazany przedział: odcień …
-poza 60–85”. Odcień 86° jest w porządku. Zakaz może przechodzić przez 0°: 350–10° wyklucza
+poza 60°–85°”. Odcień 86° jest w porządku. Zakaz może przechodzić przez 0°: 350–10° wyklucza
 czerwienie po obu stronach zera.
 
 **Kiedy użyć.** Gdy dopuszczasz szeroki zakres z wyjątkami: „dowolny odcień, byle nie żółty” albo
@@ -284,22 +284,5 @@ z układu odcieni — wtedy musi spełnić jedno i drugie. Przy bardzo małym na
 odcień przestaje być widoczny, więc zasada stopniowo słabnie do zera.""",
         G,
         term=True,
-    ),
-    "concept.sources": Topic(
-        "Źródło wartości: nastrój, globalne, własne",
-        "Plakietka przy warunku mówi, skąd wzięła się wartość: z nastroju, z ustawień globalnych albo "
-        "z tego koloru. ↺ wraca do wartości dziedziczonej.",
-        """Warunki koloru dziedziczą się w trzech warstwach:
-
-- **nastrój** — wartość ustawił wybrany nastrój;
-- **globalne** — domyślny warunek roli (tło / tekst / akcent), którego nie ustawił bieżący nastrój:
-  zmieniony ręcznie w Globalnych albo ustawiony bez nastroju (np. trybem charakter / przeniesienie,
-  zmianą metryki); dotyczy wszystkich kolorów tej roli;
-- **własne** — wartość zmieniona w tym jednym kolorze; nadpisuje globalne.
-
-Przycisk **↺ dziedzicz** (w edytorze koloru) usuwa własną wartość, więc kolor znów bierze ją
-z Globalnych. Wybór nastroju ustawia na nowo wszystkie domyślne warunki ról — także te zmienione ręcznie
-w Globalnych (Ctrl+Z je przywraca) — ale nie rusza wartości własnych kolorów.""",
-        G,
     ),
 }

@@ -23,7 +23,9 @@ def flush(qtbot) -> None:
 
 
 def test_whole_window_covered(win, qtbot):
-    # uncovered() nie zależy od motywu — wystarczy jeden przebieg po zakładkach, rolach i widokach
+    # uncovered() nie zależy od motywu — wystarczy jeden przebieg po zakładkach, zaznaczeniach
+    # w „Zasadach” (cała paleta, tło, tekst, akcent, dwa akcenty), kolorach na Palecie i widokach
+    selections = ((), (0,), (1,), (2,), (2, 3))
     for view in ("oklch", "hsl"):
         win.set_view_model(view)
         for i in range(win.tabs.count()):
@@ -31,6 +33,12 @@ def test_whole_window_covered(win, qtbot):
             if win.tabs.currentWidget() is win.palette_tab:
                 for row in (0, 1, 2):
                     win.palette_tab.table.setCurrentCell(row, 1)
+                    flush(qtbot)
+                    rep = gh.uncovered(win)
+                    assert rep == [], "\n".join(rep)
+            if win.tabs.currentWidget() is win.rules_tab:
+                for indices in selections:
+                    win.show_rules([win.session.slots[k].id for k in indices])
                     flush(qtbot)
                     rep = gh.uncovered(win)
                     assert rep == [], "\n".join(rep)
@@ -56,22 +64,29 @@ def _used_keys(win) -> set[str]:
                 used.add(v)
             elif isinstance(v, list):
                 used |= {x for x in v if isinstance(x, str)}
-    for bar in (win.tabs.tabBar(), win.globals_tab.role_tabs.tabBar()):
-        used |= {bar.tabData(i) for i in range(bar.count()) if isinstance(bar.tabData(i), str)}
+    bar = win.tabs.tabBar()
+    used |= {bar.tabData(i) for i in range(bar.count()) if isinstance(bar.tabData(i), str)}
     return used
 
 
-def test_every_topic_reachable(win, qtbot):
+def test_every_topic_reachable(win, qtbot, fake_engine):
     # zbuduj wszystkie zakładki i stany z elementami pojawiającymi się dynamicznie
+    used: set[str] = set()
     for i in range(win.tabs.count()):
         win.tabs.setCurrentIndex(i)
         flush(qtbot)
+        used |= _used_keys(win)
+    for indices in ((), (2,), (0, 2)):
+        win.show_rules([win.session.slots[k].id for k in indices])
+        flush(qtbot)
+        used |= _used_keys(win)
     win.proposals_tab.start()
-    qtbot.waitUntil(lambda: not win.proposals_tab.running, timeout=30000)
+    fake_engine.gen.finish(2)
+    win.proposals_tab._tick()
     win.source_tab.paste.setPlainText("#101010 #eeeeee #ff0000")
     win.source_tab.parse()
     flush(qtbot)
-    used = _used_keys(win)
+    used |= _used_keys(win)
     linked = {t for topic in TOPICS.values() for t in re.findall(r"\(help:([^)\s]+)\)", topic.body)}
     unreachable = sorted(set(TOPICS) - used - linked)
     assert unreachable == [], unreachable

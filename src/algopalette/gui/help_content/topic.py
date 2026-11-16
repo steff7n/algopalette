@@ -9,12 +9,10 @@ GROUPS: tuple[str, ...] = (
     "Okno i menu",
     "Zasady",
     "Zasady koloru",
-    "Paleta",
-    "Warunki i zależności",
-    "Globalne",
     "Propozycje",
-    "Źródło",
+    "Paleta",
     "Analiza",
+    "Źródło",
     "Pojęcia",
 )
 

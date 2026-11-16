@@ -250,6 +250,29 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     wszędzie forma z kontekstem `QTimer.singleShot(0, obiekt, funkcja)` (`rules_tab.py`, `relations.py`).
     `tests/gui/test_review_fixes.py::test_content_matches_engine` sprawdza jeszcze stare tematy `globals.*` —
     przejdzie do Tasku 18 razem z treścią pomocy.
+  - **Task 18 ☑ (pomoc zakładki „Zasady”)** — `help_content/rules.py`: 72 tematy (`rules.*` 57 + `rel.*` 15),
+    grupy „Zasady” i „Zasady koloru”; `help_content/globals.py` i `conditions.py` USUNIĘTE (tematy `rel.*`
+    przeniesione do `rules.py`), `concept.sources` i `window.tab.globals` usunięte, grupy „Globalne” i „Warunki
+    i zależności” zniknęły z `topic.py::GROUPS`. Terminy wg wzorca (`term=True`): `rules.hues.kind`, `.tol`,
+    `.jitter`, `rules.spread`, `rules.gen.budget/seed/min_diversity/hard_weight`, `rules.extreme`,
+    `rel.hue/lightness/chroma/contrast/distance/mix` (+ osiem pojęć z Tasku 13). Liczby w treści brane z kodu
+    przy imporcie: lista presetów z `presets_builtin.BUILTIN` wg `CATEGORIES` (Task 19 dopisze presety — temat
+    `rules.preset` urośnie sam, test sprawdza nazwy i opisy wszystkich), domyślne z `OptimizerSettings()`,
+    `MAX_ACCENTS`, `migrate.BUDGET_DIVISOR`. Pozostałe moduły pomocy (`general`, `window`, `palette`,
+    `proposals`, `source`, `analysis`, `concepts`) przepisane na słownictwo zasad; test
+    `test_old_model_topics_and_links_are_gone` pilnuje, że w żadnym temacie nie ma słów „globaln”, „dziedzic”,
+    „nastr” ani martwego odnośnika `help:`.
+    Testy: `tests/gui/test_help_globals.py` → `test_help_rules.py` (przepisany), `test_help_palette.py`
+    (przepisany, bez ConditionRow), `test_help_coverage.py` (zaznaczenia: cała paleta, tło, tekst, akcent, dwa
+    akcenty × oba widoki; osiągalność tematów na `fake_engine`), `test_help_proposals_source.py` (na
+    `fake_engine`, pokrycie także w trakcie generowania). Wynik: 103 testy pomocy przechodzą; pełny `pytest`
+    na tej gałęzi (bez fazy B silnika): **641 passed, 5 skipped**; ruff i ty czyste dla dotkniętych plików.
+    **NIE zweryfikowane na prawdziwym silniku:** przykłady w `rules.hues.kind` policzone wzorem starego
+    `hues.scheme_targets` (`baza[i % k] + (i // k)·360/(k·⌈n/k⌉)`) — `_engine.hue_targets` na tej gałęzi jest
+    jeszcze atrapą fazy A (zwraca `{}`); zdania o silniku w `rules.gen.n_proposals` („dla 6 propozycji — 10
+    przebiegów” = `max(n+4, ⌈1.5n⌉)`), `rules.gen.min_diversity` („dwie fale”), `rules.gen.time_cap` (stan ⏱
+    dla wszystkich propozycji) i `rules.gen.threads` (wynik niezależny od liczby wątków) pochodzą ze speca
+    §9 — po scaleniu fazy B sprawdzić je z kodem `crates/core` i poprawić treść, jeśli agent coś zmienił.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -984,3 +1007,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Taski 4 ☑, 5 ☑, 6 ☑: gałąź agenta scalona; nakładka `engine.py`, `violation_text`, 52 pliki kontraktu, stary silnik i scipy usunięte; edytowalna instalacja z maturin sprawdzona w scratchpadzie.
 - 2026-11-16 — Task 15 ☑: zakładka „Zasady” (preset, liczba kolorów, pasek, wiersze z edycją zbiorczą, cała paleta), okno przepięte; 36 testów; faza B silnika (14, 16) u agenta.
 - 2026-11-16 — Task 17 ☑: Propozycje na zadaniu silnika i QTimer, łuk z zakazami i cele układu w Analizie, Paleta bez edytora zasad; 59 testów (+2 czekające na silnik).
+- 2026-11-16 — Task 18 ☑: pełna pomoc zakładki „Zasady” (72 tematy, 15 terminów wg wzorca), usunięte tematy starego modelu (`globals.*`, `cond.*`, `concept.sources`); 103 testy pomocy, pełny zestaw 641 passed / 5 skipped.

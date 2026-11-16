@@ -15,12 +15,13 @@ TOPICS: dict[str, Topic] = {
 - **0 — tło** i **1 — tekst** mają stałe miejsca i nie da się ich usunąć ani przesunąć;
 - **2 i dalej — akcenty**; możesz je dodawać (do 14), usuwać i przesuwać.
 
-Zaznaczenie wiersza otwiera kolor w edytorze po prawej. Kiedy lista ma fokus, działają skróty:
+Zaznaczenie wiersza otwiera kolor w edytorze po prawej; zasady zaznaczonego koloru otworzysz
+odnośnikiem [Zasady tego koloru](help:rules.palette_link). Kiedy lista ma fokus, działają skróty:
 Ins/A dodaje akcent, Del usuwa, L przełącza kłódkę, Alt+↑/↓ przesuwa. Te same akcje są pod listą jako
 przyciski i w menu Paleta.
 
-Kolumny przeliczają się po każdej zmianie — także po zmianie ustawień globalnych, np. metryki kontrastu
-czy metody ΔE. Kolor spoza sRGB ma przy hexie znak ⚠ i wartość ΔE, o jaką ściągnięto go do gamutu
+Kolumny przeliczają się po każdej zmianie — także po zmianie ustawień całej palety, np. metryki
+kontrastu czy metody ΔE. Kolor spoza sRGB ma przy hexie znak ⚠ i wartość ΔE, o jaką ściągnięto go do gamutu
 ([gamut](help:concept.gamut)).""",
         P,
     ),
@@ -51,8 +52,9 @@ Zobacz [pole nazwy](help:palette.editor.name).""",
         "Hex",
         "Kod sRGB koloru po dopasowaniu do gamutu. ⚠ z liczbą oznacza, że kolor był poza sRGB i został "
         "przesunięty o tyle ΔE.",
-        """Hex liczony jest metodą dopasowania z Globalnych ([gamut](help:concept.gamut)). Wyróżniony hex
-z ⚠ to sygnał, że wartość OKLCH (np. wpisana ręcznie) wychodzi poza sRGB. Warunki i naruszenia liczą się
+        """Hex liczony jest metodą dopasowania z ustawień całej palety ([gamut](help:concept.gamut)).
+Wyróżniony hex z ⚠ to sygnał, że wartość OKLCH (np. wpisana ręcznie) wychodzi poza sRGB. Zasady
+i naruszenia liczą się
 na kolorze po dopasowaniu, więc to, co widzisz, jest tym, co sprawdza program. Silnik sam generuje
 wyłącznie kolory mieszczące się w sRGB.""",
         P,
@@ -71,16 +73,16 @@ widokami ([widok wartości](help:menu.view.values)).""",
     ),
     "palette.col.lock": Topic(
         "Kłódka (🔒)",
-        "Kolor z kłódką nie zmienia się przy generowaniu. Warunki wiążące go z kolorami bez kłódki nadal "
+        "Kolor z kłódką nie zmienia się przy generowaniu. Zasady wiążące go z kolorami bez kłódki nadal "
         "obowiązują.",
         """Zobacz [kłódka](help:palette.lock).""",
         P,
     ),
     "palette.col.contrast": Topic(
         "Kontrast z tłem",
-        "Kontrast koloru z tłem (kolor 0) w metryce z Globalnych: WCAG 2.1 (1–21) albo APCA |Lc|.",
+        "Kontrast koloru z tłem (kolor 0) w metryce palety: WCAG 2.1 (1–21) albo APCA |Lc|.",
         """Wartość, jaką ma kolor teraz — szybki podgląd bez otwierania Analizy. Dla samego tła pokazuje „—”.
-Wymagany zakres ustawiasz warunkiem [kontrast z tłem](help:cond.contrast_bg). Metryka:
+Wymagany zakres ustawiasz zasadą [kontrast z tłem](help:rules.contrast_bg). Metryka:
 [WCAG albo APCA](help:concept.contrast).""",
         P,
     ),
@@ -88,36 +90,39 @@ Wymagany zakres ustawiasz warunkiem [kontrast z tłem](help:cond.contrast_bg). M
         "ΔE min",
         "Najmniejsza odległość tego akcentu od pozostałych akcentów. Mała wartość = akcent łatwo pomylić "
         "z innym.",
-        """Liczone tylko dla akcentów, w skali metody ΔE z Globalnych ([ΔE](help:concept.delta_e)).
-Porównaj z warunkiem [odległość od akcentów](help:cond.min_distance). Która para jest najbliżej, zobaczysz
+        """Liczone tylko dla akcentów, w skali metody ΔE palety ([ΔE](help:concept.delta_e)).
+Porównaj z zasadą [odległość od innych akcentów](help:rules.min_distance). Która para jest najbliżej,
+zobaczysz
 w macierzy ΔE na zakładce Analiza.""",
         P,
     ),
     # --- akcje listy ---
     "palette.add": Topic(
         "Dodaj akcent (Ins / A)",
-        "Dodaje nowy akcent na końcu listy (najwyżej 14 akcentów). Dostaje domyślne warunki roli akcentu.",
-        """Nowy akcent dostaje kolejny odcień startowy i dziedziczy domyślne warunki akcentów z Globalnych.
-Jego kolor wstępny zastąpisz, przejmując propozycję po generowaniu (Ctrl+G). Liczba akcentów wpływa na układ odcieni: przy schemacie
-„równo po kole” cele rozkładają się na wszystkie akcenty. Ctrl+Z cofa dodanie.""",
+        "Dodaje nowy akcent na końcu listy (najwyżej 14 akcentów). Dostaje kopię zasad ostatniego akcentu.",
+        """Nowy akcent dostaje kolejny odcień startowy i kopię zasad ostatniego akcentu (bez jego
+zależności) — zmienisz je na zakładce Zasady. To samo robi „+” przy
+[liczbie kolorów](help:rules.count). Kolor wstępny zastąpisz, przejmując propozycję po generowaniu
+(Ctrl+G). Liczba akcentów wpływa na układ odcieni: przy układzie „równo po kole” cele rozkładają się
+na wszystkie akcenty. Ctrl+Z cofa dodanie.""",
         P,
     ),
     "palette.remove": Topic(
         "Usuń kolor (Del)",
         "Usuwa zaznaczony akcent (tło, tekst i ostatni akcent zostają). Zależności, które go wskazywały, "
         "zostaną oznaczone jako zerwane.",
-        """Zależność innego koloru, która wskazywała usunięty akcent, zostaje i dostaje czerwoną ramkę
-z napisem „⚠ zerwana” — wybierz dla niej nowy cel albo ją usuń. Zerwane zależności nie są liczone.
+        """Zależność innego koloru, która wskazywała usunięty akcent, zostaje i w zakładce Zasady dostaje
+czerwoną ramkę z napisem „⚠ zerwana” — wybierz dla niej nowy cel albo ją usuń. Zerwane zależności nie są liczone.
 Ctrl+Z przywraca usunięty kolor razem z powiązaniami.""",
         P,
     ),
     "palette.lock": Topic(
         "Kłódka (L)",
-        "Zamraża kolor: generowanie go nie zmienia. Warunki wiążące go z kolorami bez kłódki nadal "
+        "Zamraża kolor: generowanie go nie zmienia. Zasady wiążące go z kolorami bez kłódki nadal "
         "obowiązują.",
         """Zablokuj kolory, które już ci odpowiadają (np. tło z istniejącego motywu), i generuj resztę.
-Silnik traktuje zablokowany kolor jako stały punkt: inne kolory muszą spełniać zależności i warunki
-względem niego (np. kontrast z zablokowanym tłem). Warunki dotyczące wyłącznie kolorów z kłódką (np.
+Silnik traktuje zablokowany kolor jako stały punkt: inne kolory muszą spełniać zależności i zasady
+względem niego (np. kontrast z zablokowanym tłem). Zasady dotyczące wyłącznie kolorów z kłódką (np.
 kontrast zablokowanego tekstu z zablokowanym tłem) nie są liczone ani pokazywane w panelu naruszeń.
 Ręcznie możesz dalej zmieniać zablokowany kolor w edytorze. Tryb „uzupełnianie” na zakładce Źródło blokuje wklejone kolory automatycznie.""",
         P,
@@ -138,16 +143,14 @@ Zależności trzymają się kolorów, więc przesunięcie ich nie psuje.""",
     # --- edytor ---
     "palette.editor": Topic(
         "Edytor koloru",
-        "Zaznaczony kolor: próbka, nazwa, kłódka, wartość, warunki i zależności. Zmiany działają od razu "
-        "i są cofalne.",
+        "Zaznaczony kolor: próbka, nazwa, kłódka i wartość. Zmiany działają od razu i są cofalne.",
         """Nagłówek pokazuje próbkę, numer i nazwę, a pod nimi hex, wartość OKLCH i rolę (tło / tekst /
 akcent). Niżej:
 
 1. **nazwa** i **kłódka**;
 2. **Wartość** — ręczna zmiana koloru suwakami;
-3. **Warunki** — czego silnik ma pilnować dla tego koloru; zestaw zależy od roli (tło nie ma kontrastu
-   z samym sobą, warunki odległości i skrajnego kontrastu mają tylko akcenty);
-4. **Zależności** — warunki względem innych kolorów.
+3. **Zasady tego koloru →** — przejście do zakładki [Zasady](help:rules.tab) z zaznaczonym tym kolorem.
+   Zasad i zależności nie edytuje się tutaj: mają jedno miejsce.
 
 Każda zmiana od razu przelicza panel naruszeń i jest krokiem cofania (seria ruchów jednego suwaka to
 jeden krok).""",
@@ -157,7 +160,8 @@ jeden krok).""",
         "Nazwa",
         "Własna nazwa koloru (np. „komentarze”). Pusta = nazwa domyślna wg roli. Enter albo wyjście z pola "
         "zapisuje.",
-        """Nazwa nie wpływa na wynik, tylko ułatwia orientację w panelu naruszeń, zależnościach i Analizie.
+        """Nazwa nie wpływa na wynik, tylko ułatwia orientację: pojawia się na pasku kolorów w Zasadach,
+w panelu naruszeń, zależnościach i Analizie.
 Warto nazwać akcenty wg przeznaczenia w motywie (słowa kluczowe, ciągi, liczby…).""",
         P,
     ),
@@ -186,8 +190,8 @@ Zobacz [OKLCH](help:concept.oklch) i [wartość koloru](help:palette.value).""",
     ),
     "palette.value.c": Topic(
         "C — nasycenie",
-        "Nasycenie OKLCH: 0 = szarość. Największe osiągalne C zależy od jasności i odcienia — wyżej kolor "
-        "wychodzi poza sRGB.",
+        "Nasycenie OKLCH: 0 = szarość. Największe C, jakie pokaże ekran, zależy od jasności i odcienia — "
+        "wyżej kolor wychodzi poza sRGB.",
         """Gradient na pasku pokazuje, gdzie kończy się sRGB: dalej kolor zostanie ściągnięty do gamutu
 ([gamut](help:concept.gamut)). Zakres suwaka: 0–0.37.""",
         P,
@@ -204,7 +208,7 @@ prowadzi zmiana. Odcień OKLCH nie jest tym samym co odcień HSL ([OKLCH](help:c
         "Edycja koloru w HSL: H° odcień, S% nasycenie, L% jasność. Wynik zapisuje się w sesji jako OKLCH.",
         """Wartości HSL liczone są z koloru po dopasowaniu do sRGB. Każda zmiana przelicza kolor na OKLCH,
 więc drobne zaokrąglenia są możliwe. Jasność L% w HSL nie jest percepcyjna — dwa kolory o tym samym L%
-mogą wyglądać na różnie jasne. Do pracy z warunkami wygodniejszy jest widok OKLCH
+mogą wyglądać na różnie jasne. Do pracy z zasadami wygodniejszy jest widok OKLCH
 ([widok wartości](help:menu.view.values)).""",
         P,
     ),

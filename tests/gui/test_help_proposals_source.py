@@ -15,12 +15,14 @@ def _check(root) -> None:
     assert rep == [], "\n".join(rep)
 
 
-def test_proposals_covered_before_and_after(win, qtbot):
+def test_proposals_covered_before_and_after(win, qtbot, fake_engine):
     tab = win.proposals_tab
     _check(tab)
     win.tabs.setCurrentWidget(tab)
     tab.start()
-    qtbot.waitUntil(lambda: not tab.running, timeout=30000)
+    _check(tab)  # w trakcie generowania (pasek postępu, „Przerwij”)
+    fake_engine.gen.finish(3, hard=True)
+    tab._tick()
     flush(qtbot)
     assert tab.proposals
     _check(tab)

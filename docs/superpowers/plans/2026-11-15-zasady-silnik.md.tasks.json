@@ -133,7 +133,7 @@
     {
       "id": 16,
       "subject": "Task 16: Spięcie silnika — generowanie, benchmark, progi",
-      "status": "pending",
+      "status": "in_progress",
       "blockedBy": [
         6,
         14
@@ -153,7 +153,7 @@
     {
       "id": 18,
       "subject": "Task 18: Treść pomocy zakładki „Zasady”",
-      "status": "in_progress",
+      "status": "completed",
       "blockedBy": [
         13,
         15
@@ -183,5 +183,5 @@
       "description": "**Goal:** Doprowadzić całość do zielonego stanu, uaktualnić dokumentację i sprawdzić instalację narzędzia.\n\n**Files:**\n- Modify: `README.md`, `HANDOFF.md`, `pyproject.toml` (opis, znaczniki pytest), dowolny plik z listy zadań 1–19 wymagający poprawki integracyjnej\n- Create: `tests/gui/test_workflow.py`\n\n**Acceptance Criteria:**\n- [ ] Pełne `uv run pytest -q` (w tle) i `cargo test --workspace` zielone; `ruff check`, `ruff format --check`, `ty check`, `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` bez uwag; liczby testów wpisane do handoffu.\n- [ ] Test przepływu: start → Zasady: akcentom 1–3 zakaz odcienia 60–85 → „Generuj propozycje” → Propozycje: 6 wierszy, żaden akcent 1–3 nie ma odcienia w 60–85 → „przejmij całą” → Paleta pokazuje nowe kolory, panel naruszeń pusty.\n- [ ] Wczytanie pliku v1 z `tests/fixtures` w GUI pokazuje zasady w „Zasadach” i ewentualne komunikaty migracji; zapis daje v2.\n- [ ] Start z autozapisu w formacie v1 (`src/algopalette/__main__.py`, `gui/app.py`): sesja zmigrowana, obok zostaje kopia `last.v1.json`, komunikaty migracji pokazane po otwarciu okna; drugi start nie tworzy kopii ponownie.\n- [ ] Brak pozostałości: `grep -rn \"effective_conditions\\|role_defaults\\|mood_snapshot\\|hue_range\\|hue_target\\|import threading\\|scipy\" src` nic nie zwraca.\n- [ ] Instalacja narzędzia w scratchpadzie z czystego klonu gałęzi: `algopalette --help` działa, profil release.\n- [ ] README: zakładka „Zasady”, presety, wymagania budowania (Rust), polecenie przebudowy po zmianie kodu Rust, benchmark. HANDOFF: stan, liczby W1–W4, pułapki, czego nie zweryfikowano, instrukcja reinstalacji launchera po scaleniu.\n\n**Verify:** w tle `uv run pytest -q && cargo test --workspace` → 0 niepowodzeń; `grep -rn \"effective_conditions\\|role_defaults\\|mood_snapshot\\|hue_range\\|hue_target\\|import threading\\|scipy\" src` → brak wyników\n\n**Context:** interfejsy dzielone (I1–I6), reguły, przypadki testowe i kroki: `docs/superpowers/plans/2026-11-15-zasady-silnik.md` → „Task 20” oraz „Interfejsy dzielone”. Ograniczenia globalne z nagłówka planu obowiązują.\n\n```json:metadata\n{\"files\": [\"README.md\", \"HANDOFF.md\", \"pyproject.toml\", \"tests/gui/test_workflow.py\"], \"verifyCommand\": \"uv run pytest -q && cargo test --workspace\", \"acceptanceCriteria\": [\"pełne testy i linty zielone, liczby w handoffie\", \"test przepływu Zasady → Propozycje → Paleta z zakazem odcienia\", \"plik v1 wczytany w GUI, zapis v2\", \"brak pozostałości starego modelu, threading i scipy\", \"instalacja narzędzia z czystego klonu w scratchpadzie\", \"README i HANDOFF aktualne\"], \"modelTier\": \"frontier\", \"model\": \"opus\"}\n```"
     }
   ],
-  "lastUpdated": "2026-11-15T23:58:38+00:00"
+  "lastUpdated": "2026-11-16T00:11:47.514484+00:00"
 }

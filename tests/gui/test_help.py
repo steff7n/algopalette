@@ -42,7 +42,7 @@ def test_general_and_concept_topics_present():
         "concept.cvd",
         "concept.gamut",
         "concept.hard_soft",
-        "concept.sources",
+        "concept.chroma_modes",
     ):
         assert k in TOPICS
     for k, t in TOPICS.items():
@@ -219,13 +219,13 @@ def test_click_mode_escape(win, qtbot):
 
 def test_f1_in_menu_opens_action_topic(win, qtbot):
     a = win.act_generate
-    gh.attach(a, "concept.sources")
+    gh.attach(a, "concept.exclusion")
     menu = next(m for m in win.findChildren(QMenu) if a in m.actions())
     menu.popup(win.mapToGlobal(QPoint(10, 10)))
     qtbot.waitExposed(menu)
     menu.setActiveAction(a)
     qtbot.keyClick(menu, Qt.Key.Key_F1)
-    assert win.help.panel.current_key == "concept.sources"
+    assert win.help.panel.current_key == "concept.exclusion"
     assert not menu.isVisible()
 
 

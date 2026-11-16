@@ -7,37 +7,36 @@ G = "Ogólne"
 TOPICS: dict[str, Topic] = {
     "general.start": Topic(
         "Pierwsze kroki",
-        "Typowa praca: wybierz nastrój, dopasuj warunki, wygeneruj propozycje, przejmij najlepszą "
-        "i wyeksportuj paletę.",
-        """AlgoPalette nie każe ci dobierać kolorów ręcznie. Opisujesz, **jakie warunki** ma spełniać
+        "Typowa praca: wybierz preset, dopasuj zasady kolorów, wygeneruj propozycje, przejmij "
+        "najlepszą i wyeksportuj paletę.",
+        """AlgoPalette nie każe ci dobierać kolorów ręcznie. Opisujesz, **jakie zasady** ma spełniać
 paleta, a silnik szuka kolorów, które spełniają je wszystkie naraz.
 
 **Typowy przebieg pracy**
 
-1. **Globalne (F3) → polaryzacja, potem nastrój.** Najpierw wybierz polaryzację (ciemne albo jasne
-   tło) — nowa paleta startuje z ciemnym tłem. Potem nastrój: ustawia układ odcieni, rozrzut jasności
-   i domyślne warunki dla tła, tekstu i akcentów, dopasowane do bieżącej polaryzacji (nastrój
-   wbudowany jej nie zmienia; własny przywraca polaryzację, w której go zapisano). Jest punktem
-   wyjścia, a każdą jego wartość możesz zmienić.
-2. **Paleta (F2).** Lista po lewej to kolory palety (tło, tekst, akcenty), po prawej edytor
-   zaznaczonego koloru: jego bieżąca wartość, warunki i zależności od innych kolorów. Dodaj albo usuń
-   akcenty, zablokuj kłódką kolory, które mają zostać.
-3. **Generuj (Ctrl+G).** Silnik liczy kilka propozycji dla wszystkich kolorów bez kłódki. Wynik
-   oglądasz na zakładce **Propozycje (F4)**: dwuklik przejmuje całą propozycję, dwuklik na pojedynczym
-   kolorze przejmuje tylko ten kolor.
-4. **Sprawdź.** Panel naruszeń na dole okna stale pokazuje, które warunki bieżąca paleta łamie
-   i o ile. Zakładka **Analiza (F6)** pokazuje paletę na kole odcieni, w przekroju jasność–nasycenie
-   i w macierzach odległości oraz kontrastu, także przy symulacji daltonizmu.
+1. **Zasady (F2) → tło i preset.** Wybierz, czy tło ma być ciemne, czy jasne, i nałóż
+   [preset](help:rules.preset) — gotowy zestaw zasad dla tła, tekstu i akcentów, układu odcieni
+   i rozrzutu jasności. To punkt wyjścia: każdą wartość zmienisz niżej.
+2. **Zasady → kolory.** [Pasek kolorów](help:rules.strip) wybiera, czyje zasady edytujesz. Każdy kolor
+   ma komplet własnych zasad; zaznacz kilka kolorów naraz, żeby zmienić je jednym ruchem. Liczbę
+   kolorów ustawiasz obok paska.
+3. **Generuj (Ctrl+G).** Silnik liczy propozycje dla wszystkich kolorów bez kłódki. Wynik oglądasz
+   na zakładce **Propozycje (F3)**: dwuklik przejmuje całą propozycję, dwuklik na pojedynczym kolorze
+   przejmuje tylko ten kolor.
+4. **Paleta (F4) i panel naruszeń.** Paleta pokazuje gotowe kolory: możesz je poprawić ręcznie,
+   nazwać i zablokować kłódką. Panel naruszeń na dole okna stale pokazuje, które zasady bieżąca
+   paleta łamie i o ile; klik w naruszenie prowadzi do zasady. **Analiza (F5)** pokazuje paletę na
+   kole odcieni, w przekroju jasność–nasycenie i w macierzach odległości oraz kontrastu, także przy
+   symulacji daltonizmu.
 5. **Eksport.** Ctrl+E kopiuje paletę do schowka w formacie okna „Wczytaj…” PaletteBuildera,
    Ctrl+Shift+E zapisuje ją do pliku.
 
-**Masz już paletę, od której chcesz zacząć?** Zakładka **Źródło (F5)** przyjmuje wklejone kolory
+**Masz już paletę, od której chcesz zacząć?** Zakładka **Źródło (F6)** przyjmuje wklejone kolory
 i może je uzupełnić, odczytać z nich charakter albo przenieść je na tło o odwrotnej polaryzacji.
 
 **Nic nie przepada.** Każdą zmianę cofniesz Ctrl+Z, a sesja zapisuje się sama (autozapis) i wraca przy
 następnym uruchomieniu. Zobacz też: [skróty klawiszowe](help:general.shortcuts),
-[warunki twarde i miękkie](help:concept.hard_soft),
-[skąd się bierze wartość warunku](help:concept.sources).""",
+[zasady twarde i miękkie](help:concept.hard_soft).""",
         G,
     ),
     "general.shortcuts": Topic(
@@ -55,12 +54,18 @@ następnym uruchomieniu. Zobacz też: [skróty klawiszowe](help:general.shortcut
 | Ctrl+N | nowa paleta (cofalna przez Ctrl+Z) |
 | Ctrl+E | paleta do schowka dla PaletteBuildera |
 | Ctrl+Shift+E | plik dla PaletteBuildera |
-| F2–F6 | zakładki Paleta, Globalne, Propozycje, Źródło, Analiza |
+| F2–F6 | zakładki Zasady, Propozycje, Paleta, Analiza, Źródło |
 | F7 | widok wartości HSL / OKLCH |
 | Ctrl+Q | wyjście |
 
-**Lista kolorów** (gdy ma fokus): Ins albo A — dodaj akcent, Del — usuń, L — kłódka,
+**Lista kolorów na Palecie** (gdy ma fokus): Ins albo A — dodaj akcent, Del — usuń, L — kłódka,
 Alt+↑ / Alt+↓ — przesuń akcent. Te same akcje są pod listą jako przyciski.
+
+**Pasek kolorów w Zasadach:** ←/→ przenosi fokus, spacja zaznacza kolor, Ctrl+spacja dokłada go do
+zaznaczenia albo odejmuje, Ctrl+A zaznacza wszystkie akcenty; myszą Ctrl+klik i Shift+klik.
+
+**Listy z kołem odcieni** (własna lista odcieni, unikane kolory): Alt+↑ / Alt+↓ przestawia pozycję,
+Delete na przycisku ✕ ją usuwa — tak samo usuwa się zakazany przedział pod suwakiem.
 
 **Suwaki:** ←/→ krok, Shift — krok ×10, Ctrl — krok ×0.1, Home/End — skraj zakresu,
 spacja przełącza uchwyt w suwaku zakresu, mysz: klik albo przeciąganie, kółko myszy — krok (gdy suwak

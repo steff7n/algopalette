@@ -40,7 +40,7 @@ def parts(body: str) -> dict[str, str]:
 def test_required_concepts_follow_the_pattern():
     assert set(TERMS) >= REQUIRED
     assert TOPICS["concept.oklch"].term is False
-    assert "concept.sources" in TOPICS  # znika dopiero razem z odnośnikami (Task 18)
+    assert "concept.sources" not in TOPICS  # dziedziczenia już nie ma
     assert {"Zasady", "Zasady koloru"} <= set(GROUPS)
 
 

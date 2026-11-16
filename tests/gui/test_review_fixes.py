@@ -169,10 +169,10 @@ def test_uncovered_checks_groupbox_tabs_and_toolbar(qtbot, win):
     win.toolbar.removeAction(a)
 
 
-# C1, I4, I5
+# C1, I4, I5 (treść zgodna z programem; tematy przeniesione na model zasad)
 def test_content_matches_engine():
     start = TOPICS["general.start"].body
-    assert "polaryzacj" in start and "nastrój" in start
-    assert "nie zmienia" in TOPICS["globals.mood"].body
-    assert "niewielkie" not in TOPICS["cond.weight"].short
-    assert "CAŁE" in TOPICS["globals.opt.time_cap"].short
+    assert "tło ma być ciemne, czy jasne" in start and "preset" in start
+    assert "bieżącego [tła]" in TOPICS["rules.preset.apply"].body  # wbudowany nie zmienia tła
+    assert "niewielkie" not in TOPICS["rules.rule.weight"].short
+    assert "na całe generowanie" in TOPICS["rules.gen.time_cap"].body
