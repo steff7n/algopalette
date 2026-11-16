@@ -25,6 +25,7 @@ from algopalette.model import (
     ChromaBand,
     ContrastBound,
     ContrastMetric,
+    GlobalSettings,
     HueArc,
     HueScheme,
     Interval,
@@ -197,13 +198,20 @@ def _bg_hue(bg: OKLCH) -> Rule[HueArc] | None:
     return Rule(HueArc(*arc_from_center(bg.h, 20.0)), hard=False)
 
 
-def apply_character(
-    session: Session, profile: Profile, avoid_source: bool = False, avoid_distance: float = 0.05
-) -> Session:
-    """Charakter: zasady tła, tekstu i każdego akcentu z profilu + układ odcieni z jego odcieni.
+@dataclass(frozen=True)
+class CharacterSettings:
+    """Ustawienia „pod profil”: globalne (polaryzacja, układ odcieni) i zasady wg roli."""
 
-    Akcenty dostają ten sam zestaw zasad, bez własnej zasady odcienia (cel bierze z układu).
-    Kłódki są zdejmowane, oznaczenie presetu znika; wartości i zależności zostają.
+    globals: GlobalSettings  # unikane kolory BEZ zmian względem sesji wejściowej
+    bg: SlotRules
+    fg: SlotRules
+    accent: SlotRules
+
+
+def character_settings(session: Session, profile: Profile) -> CharacterSettings:
+    """Zasady tła, tekstu i akcentu z profilu + polaryzacja i układ odcieni „custom” z jego odcieni.
+
+    Akcent dostaje zasady bez własnego odcienia (cel bierze z układu). Nie dotyka slotów sesji.
     """
     g = session.globals
     polarity: Polarity = "dark" if profile.bg.l < 0.5 else "light"
@@ -231,19 +239,30 @@ def apply_character(
     )
     hues = profile.hues or (0.0,)
     custom = tuple((list(hues) * MAX_ACCENTS)[:MAX_ACCENTS])
+    g2 = replace(g, polarity=polarity, hue_scheme=HueScheme("custom", custom=custom, tol=15.0))
+    return CharacterSettings(globals=g2, bg=bg_rules, fg=fg, accent=accent)
+
+
+def apply_character(
+    session: Session, profile: Profile, avoid_source: bool = False, avoid_distance: float = 0.05
+) -> Session:
+    """Charakter: zasady tła, tekstu i każdego akcentu z profilu + układ odcieni z jego odcieni.
+
+    Akcenty dostają ten sam zestaw zasad, bez własnej zasady odcienia (cel bierze z układu).
+    Kłódki są zdejmowane, oznaczenie presetu znika; wartości i zależności zostają.
+    """
+    cs = character_settings(session, profile)
     g2 = replace(
-        g,
-        polarity=polarity,
-        hue_scheme=HueScheme("custom", custom=custom, tol=15.0),
+        cs.globals,
         avoid_colors=profile.accents if avoid_source else (),
         avoid_distance=avoid_distance if avoid_source else 0.0,
     )
-    by_index = (bg_rules, fg)
+    by_index = (cs.bg, cs.fg)
     slots = tuple(
         replace(
             s,
             locked=False,
-            rules=by_index[i] if i < 2 else accent,
+            rules=by_index[i] if i < 2 else cs.accent,
             use_scheme=True,
             rules_lock="off",
         )

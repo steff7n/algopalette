@@ -40,6 +40,16 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     `ThemeError`, `TOO_FEW`, `SOURCES`, `FULL_CATALOG_SOURCES`, `resolve`, `is_dark`, `fold`, `filter_themes`,
     `theme_to_dict/from_dict`), `themes/__init__.py`, `tests/conftest.py` (autouse: `XDG_CACHE_HOME` → tmp,
     `httpx.HTTPTransport.handle_request` rzuca). `tests/themes/test_themes_model.py` 8 passed; ruff czysto, ty 0 błędów.
+  - Task 4 ☑ (kontroler) — `sources.py`: `CharacterSettings` + `character_settings(session, profile)` wydzielone
+    z `apply_character` (ta dalej: avoid_* wg `avoid_source`, zdejmuje kłódki; `tests/test_sources.py` +
+    `test_rules_lock.py` 33 passed bez zmian testów). `themes/apply.py` `apply_theme(session, palette, *,
+    keep_settings)`: `_fit_count` (dokłada `add_accent`, usuwa od końca z pominięciem `rules_lock != "off"`),
+    wartości+nazwy kolejno, `locked=False` wszędzie; tryb domyślny: `extract_profile` → `character_settings`,
+    kolory z kłódką zasad bez zmian zasad/`use_scheme`/`relations`. **Ruling:** kryterium planu „8 akcentów
+    z kłódką na ostatnim + motyw 3 → 6 kolorów, ostatni ze starą wartością” było sprzeczne ze specem §7 —
+    usuwanie pomija zablokowany i usuwa inne, więc wynik to 5 kolorów, zablokowany dostaje kolor motywu;
+    starą wartość zachowują tylko akcenty ponad liczbę kolorów motywu, gdy kłódek jest więcej niż akcentów
+    motywu (test `test_too_many_locked_accents_keep_old_values`). `tests/themes/test_themes_apply.py` 13 passed.
 
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 
