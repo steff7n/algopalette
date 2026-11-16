@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 import httpx
 import pytest
 
@@ -122,3 +124,74 @@ def test_postep_przy_sukcesie():
     fetch(c, OK_URL, on_progress=lambda got, total: calls.append((got, total)))
     assert calls
     assert calls[-1] == (10, 10)
+
+
+def test_zbyt_wiele_przekierowań_to_http():
+    def handler(r):
+        return httpx.Response(302, headers={"location": OK_URL})
+
+    with pytest.raises(FetchError) as e:
+        fetch(_client(handler), OK_URL)
+    assert e.value.kind == "http"
+    assert str(e.value) == "Serwer raw.githubusercontent.com przekierowuje w kółko."
+
+
+def test_uszkodzona_kompresja_to_http():
+    c = _client(
+        lambda r: httpx.Response(200, headers={"content-encoding": "gzip"}, content=b"nie-gzip")
+    )
+    with pytest.raises(FetchError) as e:
+        fetch(c, OK_URL)
+    assert e.value.kind == "http"
+    assert str(e.value) == "Uszkodzona odpowiedź z raw.githubusercontent.com."
+
+
+def test_inny_request_error_to_offline():
+    def handler(r):
+        raise httpx.RequestError("coś innego")
+
+    with pytest.raises(FetchError) as e:
+        fetch(_client(handler), OK_URL)
+    assert e.value.kind == "offline"
+    assert str(e.value) == "Brak połączenia z raw.githubusercontent.com."
+
+
+def test_łączny_limit_czasu(monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr(net, "time", SimpleNamespace(monotonic=lambda: now[0]))
+    monkeypatch.setattr(net, "TOTAL_TIMEOUT_S", 60.0)
+
+    def body():
+        for _ in range(5):
+            now[0] += 25.0  # każda porcja „przychodzi” 25 s później
+            yield b"x"
+
+    c = _client(lambda r: httpx.Response(200, content=body()))
+    with pytest.raises(FetchError) as e:
+        fetch(c, OK_URL)
+    assert e.value.kind == "offline"
+    assert str(e.value) == "Pobieranie z raw.githubusercontent.com trwa zbyt długo."
+
+
+def test_porcje_bez_stałego_rozmiaru_postęp_i_anulowanie_per_porcja():
+    def body():
+        yield b"aa"
+        yield b"bbb"
+        yield b"c"
+
+    seen = []
+    c = _client(lambda r: httpx.Response(200, content=body()))
+    assert fetch(c, OK_URL, on_progress=lambda got, total: seen.append(got)) == b"aabbbc"
+    assert seen == [2, 5, 6]
+
+    n = [0]
+
+    def cancelled():
+        n[0] += 1
+        return n[0] > 1  # anuluj przy drugiej porcji
+
+    c = _client(lambda r: httpx.Response(200, content=body()))
+    with pytest.raises(FetchError) as e:
+        fetch(c, OK_URL, cancelled=cancelled)
+    assert e.value.kind == "cancelled"
+    assert n[0] == 2

@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from algopalette.themes import cache, catalog, net
+from algopalette.themes.model import ThemeError
 
 ANSI = {f"color_{i:02d}": f"#{i * 15:02x}{(255 - i * 15):02x}80" for i in range(1, 17)}
 GOGH = json.dumps(
@@ -91,4 +92,59 @@ def test_refresh_all_clears_only_lospec():
     catalog.lospec_page("warm", 0, c, now=1.0)
     catalog.refresh_all()
     assert cache.load("gogh") is not None
-    assert cache.load("lospec-warm-0") is None
+    assert cache.load(catalog._lospec_key("warm", 0)) is None
+
+
+def test_lospec_key_bez_kolizji_po_safe():
+    keys = [catalog._lospec_key(t, 0) for t in ("", "ż", "a_b", "a.b", "a-b")]
+    safe = [cache._safe(k) for k in keys]
+    assert len(set(safe)) == len(safe)
+    assert all(k.startswith("lospec-") for k in keys)
+    assert catalog._lospec_key("Warm pastel", 1) == catalog._lospec_key("warm", 1)
+    assert catalog._lospec_key("warm", 0) != catalog._lospec_key("warm", 1)
+
+
+def test_refresh_all_czyści_klucze_lospec_z_haszem():
+    srv = Server()
+    c = srv.client()
+    for tag in ("", "ż", "a_b"):
+        catalog.lospec_page(tag, 0, c, now=1.0)
+    assert cache.load(catalog._lospec_key("ż", 0)) is not None
+    catalog.refresh_all()
+    for tag in ("", "ż", "a_b"):
+        assert cache.load(catalog._lospec_key(tag, 0)) is None
+
+
+def test_stała_rozmiaru_strony_lospec():
+    assert catalog.LOSPEC_PAGE_SIZE == 10
+
+
+def test_nieparsowalna_odpowiedź_z_pamięcią_daje_offline():
+    catalog.load_catalog("gogh", Server().client(), now=0.0)
+
+    def html(request):
+        return httpx.Response(200, content=b"<html>portal</html>")
+
+    c = net.make_client(transport=httpx.MockTransport(html))
+    res = catalog.load_catalog("gogh", c, now=catalog.CATALOG_TTL_S + 10)
+    assert res.offline and len(res.themes) == 1 and res.fetched_at == 0.0
+
+
+def test_nieparsowalna_odpowiedź_bez_pamięci_rzuca():
+    def html(request):
+        return httpx.Response(200, content=b"<html>portal</html>")
+
+    c = net.make_client(transport=httpx.MockTransport(html))
+    with pytest.raises(ThemeError):
+        catalog.load_catalog("gogh", c)
+
+
+def test_uszkodzony_gzip_ze_starą_pamięcią_daje_offline():
+    catalog.load_catalog("gogh", Server().client(), now=0.0)
+
+    def bad(request):
+        return httpx.Response(200, headers={"content-encoding": "gzip"}, content=b"nie-gzip")
+
+    c = net.make_client(transport=httpx.MockTransport(bad))
+    res = catalog.load_catalog("gogh", c, now=catalog.CATALOG_TTL_S + 10)
+    assert res.offline and len(res.themes) == 1
