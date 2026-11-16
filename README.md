@@ -182,6 +182,29 @@ cargo fmt --check && cargo clippy --all-targets -- -D warnings
 Po zmianie kodu Rust zainstalowana komenda `algopalette` wymaga przebudowy:
 `uv tool install --editable . --force`.
 
+### Benchmark silnika
+
+`algopalette-bench` uruchamia silnik na pliku sesji bez GUI i wypisuje czas, liczbę propozycji, ile z nich nie
+ma twardych naruszeń (`feasible`), ile ma naruszenie „różnorodność”, liczbę przebiegów i ocen:
+
+```sh
+cargo run --release -p algopalette-bench -- tests/fixtures/bench/w2.json --repeat 5
+cargo run --release -p algopalette-bench -- moja.json --threads 4      # dowolna sesja algopalette.v2
+cargo run --release -p algopalette-bench -- moja.json --evaluate 1000  # sama ocena naruszeń
+```
+
+Cele wydajności ze speca i pomiar na i9-9880H (8 rdzeni / 16 wątków), mediany:
+
+| Cel | Próg | Zmierzone |
+|---|---|---|
+| W1: sesja startowa, 6 propozycji | ≤ 0,15 s | 0,005 s |
+| W2: „chłodny mglisty”, 128 propozycji (`bench/w2.json`) | ≤ 2 s, ≥ 120 bez twardych naruszeń | 0,89–0,98 s, 128/128 |
+| W3: 16 kolorów, dwa typy daltonizmu, ΔE 2000, 128 propozycji (`bench/w3.json`) | ≤ 6 s | 0,51–0,55 s |
+| W4: ocena naruszeń bieżącej palety, 16 kolorów | ≤ 1 ms | 0,66 ms |
+
+Dla porównania: silnik w Pythonie liczył „chłodny mglisty” 1,84 s na propozycję. Czasy rosną, gdy maszyna
+jest obciążona czymś innym; wynik (propozycje) — nie.
+
 Projekt i decyzje: `docs/superpowers/specs/2026-11-15-zasady-silnik-design.md` (zasady i silnik) oraz
 `docs/superpowers/specs/2026-11-14-algopalette-design.md` (pierwsza wersja); plany w `docs/superpowers/plans/`;
 stan prac: `HANDOFF.md`.

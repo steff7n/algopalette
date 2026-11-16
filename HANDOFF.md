@@ -2,7 +2,44 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0c. JEDEN PANEL ZASAD + SILNIK W RUST (2026-11-15) — STAN: WYKONANIE W TOKU (plan 20 zadań; postęp w dzienniku §5 i w `.tasks.json`)
+## 0c. JEDEN PANEL ZASAD + SILNIK W RUST — STAN NA 2026-11-16: wszystkie 20 zadań planu wykonane, pełny zestaw zielony; PRZEGLĄD 1 (etap silnika, Opus xhigh) zlecony i w toku; PRZEGLĄD 2 (całość) i scalenie przed nami
+
+- **STAN NA TERAZ (czytaj najpierw):**
+  - Gałąź `feat/zasady-silnik` (worktree `/home/qrikk/algopalette/.worktrees/zasady-silnik`), lokalna, NIC nie
+    wypchnięte ani scalone do `main`. Gałąź agenta `feat/silnik-rust` (worktree `.worktrees/silnik-rust`) jest
+    w całości scalona tutaj (`3ee7491`); po zakończeniu pracy jej worktree i gałąź można usunąć — nie usuwano.
+  - **Weryfikacja policzona na końcu Tasku 20:** `uv run pytest -q` → **1537 passed, 2 skipped w 49 s**
+    (2 = samowyłączające się testy zaślepek w `tests/test_engine_api.py`; w tym 454 testy `slow`: 452 jakość
+    presetów + 2 wydajność silnika); `cargo test --workspace` → **106 + 23 passed**; `ruff check .`,
+    `ruff format --check .`, `ty check` → bez uwag; `cargo fmt --check` i
+    `cargo clippy --all-targets -- -D warnings` → kod wyjścia 0. Instalacja z czystego klonu gałęzi
+    w scratchpadzie (`UV_TOOL_DIR`/`UV_TOOL_BIN_DIR`): `algopalette --help` działa, `build_info()` → profil
+    `release`, `engine.generate(default_session())` → 6 propozycji. Benchmark uruchomiony przez kontrolera
+    (`load` 0,8): W1 mediana 0,005 s, W2 0,89 s (128/128), W3 0,51 s — zgodne z pomiarami agenta.
+  - **Co dalej, po kolei:** (1) odebrać raport PRZEGLĄDU 1 —
+    `.superpowers/sdd/2026-11-15-zasady-silnik/review1-report.md` (poza gitem; jeśli pliku nie ma, przegląd
+    trzeba zlecić od nowa: zakres i prompt odtworzysz z `review1-package.md` obok i z reguł niżej) —
+    i zastosować pętlę napraw z `~/.claude/CLAUDE.md`: ≥ 1 krytyczny → napraw CAŁY raport → zawężony
+    re-review (tylko diff poprawek + lista znalezisk); bez krytycznych → STOP, pokaż znaleziska użytkownikowi,
+    nic nie naprawiaj bez jego zgody; (2) `pyproject.toml`: opis paczki i opis znacznika `slow` (odłożone,
+    żeby nie zmieniać pliku w trakcie przeglądu); (3) PRZEGLĄD 2 — całość (Opus xhigh), ta sama pętla;
+    (4) `finishing-a-development-branch`: scalenie do `main` i reinstalacja launchera to DECYZJA UŻYTKOWNIKA.
+  - **Po scaleniu do `main` (instrukcja dla użytkownika / następcy):** launcher jest instalacją edytowalną
+    z `/home/qrikk/algopalette`, a paczka ma teraz rozszerzenie natywne — po `git merge` trzeba je zbudować:
+    `cd /home/qrikk/algopalette && uv tool install --editable . --force` (potrzebne `cargo`/`rustc`; pierwsza
+    kompilacja ok. 1 min). Bez tego launcher zgłosi brak `algopalette._engine`. To samo po każdej zmianie
+    kodu w `crates/`. Sprawdzenie: `algopalette --help`.
+  - **Czego NIE zweryfikowano w całym projekcie:** ręcznego użycia okna przez człowieka (wszystko przez
+    `pytest-qt` offscreen i zrzuty ekranu oglądane przez agenta: zakładka „Zasady” jedno/wiele zaznaczeń,
+    pomoc, Propozycje po prawdziwym generowaniu); zachowania na innej maszynie / innym Pythonie niż 3.13;
+    czasów W1–W4 pod obciążeniem (agent zmierzył W2 2,3–3,1 s przy `load` ≈ 25 — próg 2 s wtedy nie jest
+    dotrzymany); migracji prawdziwego autozapisu i `moods.json` użytkownika (testy używają danych
+    wzorcowych); instalacji launchera w domyślnych katalogach (celowo — tylko scratchpad).
+  - **Do zgłoszenia użytkownikowi w raporcie końcowym:** nowe zależności `maturin 1.16` (budowanie),
+    `pyo3 0.30.1`, `rayon 1.12.0`, `serde 1.0.229`, `serde_json 1.0.154`, `serde_path_to_error 0.1.20` (tej
+    ostatniej nie było na liście w planie); usunięte `textual`, `pytest-asyncio`, `scipy`; rulingi z ledgera
+    (`progress.md`, linie `Ruling:`); drobiazg: paleta startowa ma 8 miękkich naruszeń układu odcieni (patrz
+    blok „Scalenie Tasku 14”); obawy agenta silnikowego (blok „Task 16”).
 
 - **Gdzie jesteśmy:** spec `docs/superpowers/specs/2026-11-15-zasady-silnik-design.md` zaakceptowany słowami
   „wszystko sie zgadza”. Plan: `docs/superpowers/plans/2026-11-15-zasady-silnik.md` + `.tasks.json`. Gałąź
@@ -316,36 +353,30 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     uzasadnił zmianę zgodnością ze wzorcem dla par po symulacji CVD); (3) zmiany w rdzeniu poza listą plików
     Tasku 16 (dla W2/W4); (4) pamięć podręczna `to_engine_json` wymaga hashowalnych `Slot`/`GlobalSettings`;
     (5) `_engine.start` nie sprawdza kłódek w `free` (nakładka ich nie podaje).
-  - **Task 20 ◐ (część niezależna od silnika zrobiona wcześniej, bo faza B jeszcze trwa)** —
-    `__main__.py`: `startup_session` zwraca teraz `Startup(session, notice, path, migration_notes)` (było
+  - **Task 20 ☑ (integracja i zamknięcie)** —
+    `__main__.py`: `startup_session` zwraca `Startup(session, notice, path, migration_notes)` (było
     3-krotką); autozapis w v1 → `_migrated_autosave`: kopia `last.v1.json` (istniejącej NIE nadpisuje; gdy
     kopii nie da się zrobić, autozapis zostaje nietknięty) + od razu zapis `last.json` w v2, więc drugi start
     niczego nie migruje ani nie kopiuje; plik v1 z wiersza poleceń też oddaje komunikaty migracji (wcześniej
     `load_session` je gubił). `io.py`: `_read_document`, `is_v1_file`. `gui/app.py`: `open_window(session, *,
     notice, file_path, migration_notes, autosave)` pokazuje okno i dopiero potem komunikaty migracji; `run`
-    przyjmuje `migration_notes`. `tests/gui/test_workflow.py`: 8 testów (plik v1 w oknie → zasady w „Zasadach”,
-    komunikat, zapis v2; autozapis v1 → kopia, komunikat, drugi start cichy; istniejąca kopia nietknięta;
-    start z pliku v1) + `test_rules_to_proposals_to_palette` (zakaz odcienia 60–85 akcentom 1–3 → 6
-    propozycji bez odcienia w zakazie → „przejmij całą” → Paleta, panel naruszeń pusty) — **ten jeden
-    pomijany, dopóki `_engine` nie generuje; po scaleniu fazy B MUSI zostać uruchomiony i przejść**.
-    `README.md` przepisane (Zasady, edycja zbiorcza, presety, pliki v2 i migracja, budowanie z Rustem);
-    **sekcji o benchmarku (`algopalette-bench`) jeszcze nie ma** — dopisać po scaleniu fazy B, z liczbami
-    W1–W4 od agenta. Pełny `pytest` teraz: **720 passed, 458 skipped** (452 to test jakości presetów).
-    **Pozostałości wg grepa z planu:** `hue_range|hue_target|role_defaults` występują w `migrate.py`
-    i `presets.py::migrate_user_moods` (czytanie formatu v1 — muszą) oraz jako podciąg nazwy `hue_targets`
-    (interfejs I3/I4) — grep z planu jest w tym miejscu wadliwy; do zamknięcia rulingiem w Tasku 20:
-    sprawdzać `grep -rnw "hue_target\|hue_range\|role_defaults\|…" src` z wyłączeniem `migrate.py`
-    i `presets.py`. `pyproject.toml` (opis, `addopts` dla `slow`) — dopiero po scaleniu fazy B, żeby nie
-    wejść agentowi w plik.
-  - **Scalenie Tasku 14 (commit agenta `e452d55`, merge `02b0a16`)** — `_engine.evaluate` i `hue_targets`
-    działają naprawdę. Po `uv sync` pełny `pytest`: 1025 passed, 458 skipped (po poprawce jednego testu).
-    **Pułapka z dowodem:** paleta startowa (`default_session`) ma na prawdziwym silniku 8 miękkich naruszeń
-    „układ odcieni (akcent N)” o 10° każde — kolory startowe mają odcienie 25° + 45°·i, a układ „równo po
-    kole” z obrotem 0° i tolerancją 15° celuje w 45°·i. Tak było też w starym programie (`main`:
-    `_starting_accent` identyczne), więc to nie regresja; test `test_violations_panel` zakładał 1 wiersz
-    i został poprawiony na „1 twarde + 8 miękkich układu”. Nie ruszane (model.py poza zakresem kontrolera
-    w fazie B, „neutralny == default_session” jest zamrożone testem) — do zgłoszenia użytkownikowi jako
-    drobiazg: wystarczyłby obrót układu 25° w presecie „neutralny” albo kolory startowe od 0°.
+    przyjmuje `migration_notes`. `tests/gui/test_workflow.py`: 9 testów — plik v1 w oknie → zasady
+    w „Zasadach”, komunikat, zapis v2; autozapis v1 → kopia, komunikat, drugi start cichy; istniejąca kopia
+    nietknięta; start z pliku v1; `test_rules_to_proposals_to_palette` (zakaz odcienia 60–85 akcentom 1–3 →
+    6 propozycji bez odcienia w zakazie → „przejmij całą” → Paleta, panel naruszeń pusty) przechodzi na
+    prawdziwym silniku. `README.md` przepisane (Zasady, edycja zbiorcza, presety, pliki v2 i migracja,
+    budowanie z Rustem, benchmark z tabelą W1–W4). `gui/theme.py`: usunięte martwe `style_badge`,
+    `Colors.badge` (plakietki źródła wartości — pozostałość po dziedziczeniu). `tools/make_v1_reference.py`:
+    leniwe importy modułów starego silnika oznaczone `# ty: ignore[unresolved-import]` (tryb zapisu działa
+    tylko w checkoucie `4b71aeb`; `--check` działa tutaj).
+    **Pozostałości wg grepa z planu (ruling w ledgerze):** `grep -rn "effective_conditions\|mood_snapshot\|
+    import threading\|scipy" src` → nic. `hue_range|hue_target|role_defaults` zostają WYŁĄCZNIE w
+    `migrate.py` i `presets.py::migrate_user_moods` (czytanie formatu v1 — muszą) oraz jako podciąg nazwy
+    `hue_targets` (interfejs I3/I4) — grep z planu był w tym miejscu wadliwy; sprawdzone
+    `grep -rnw … src` z pominięciem `migrate.py`: tylko dwie linie w `presets.py:351–352` (lista pól v1).
+    Treść pomocy o silniku (`rules.gen.*`) porównana z `crates/core/src/optim/driver.rs`
+    (`first_wave_runs = max(n+4, ⌈1.5n⌉)`, fale 2 i 3, dopełnianie nieróżnorodnymi) i `rules/problem.rs`
+    (różnorodność = średnie ΔE ok kolorów wolnych) — zgodna, bez zmian. O „szlifowaniu” pomoc nie wspomina.
 - **Dziennik trwały wykonania (poza gitem):** `.superpowers/sdd/2026-11-15-zasady-silnik/progress.md` w tym
   worktree (rulingi, linie „Task N: complete”); briefy zadań obok. Ginie przy `git clean -fdx` — wtedy `git log`.
 - **Gdzie to leży (uwaga dla sesji startującej w katalogu głównym):** spec, plan i ten wpis istnieją TYLKO na gałęzi
@@ -1270,3 +1301,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — scalony Task 14 agenta (ocena zasad, cele układu): pełny zestaw 1025 passed / 458 skipped; przykłady pomocy o układach odcieni potwierdzone prawdziwym silnikiem; paleta startowa ma 8 miękkich naruszeń układu (jak w starym programie).
 - 2026-11-16 — Task 16 ☑ (faza B agenta scalona): silnik generuje; 1083 passed / 2 skipped, cargo 106 + 23; W1–W4 dotrzymane.
 - 2026-11-16 — Task 19 ☑: 58 presetów nastrojonych na silniku, test jakości 452/452; poprawiony niespełnialny wariant „nocny wysoki kontrast” (ciemne + APCA); paski próbek obejrzane.
+- 2026-11-16 — Task 20 ☑: pełny zestaw 1537 passed / 2 skipped, cargo 106 + 23, wszystkie lintery czyste, instalacja z czystego klonu w scratchpadzie działa, README z benchmarkiem; PRZEGLĄD 1 (silnik) zlecony.

@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from algopalette.migrate import migrate_v1
 
 from algopalette.io import SessionFormatError, load_session_ex, session_from_dict
+from algopalette.migrate import migrate_v1
 from algopalette.model import Band, ChromaBand, ContrastBound, HueArc, Rule
 
 REFERENCE = Path(__file__).parent / "fixtures" / "v1_reference"

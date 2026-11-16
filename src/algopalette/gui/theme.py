@@ -3,7 +3,7 @@
 
 Wszystkie kolory interfejsu (nie danych palety) żyją tutaj: palety Qt obu motywów i kolory
 semantyczne (``colors()``). Widżety barwione arkuszem stylu robią to przez ``mark_error`` /
-``mark_text`` / ``style_badge`` — zmiana motywu przemalowuje je bez przebudowy (``restyle_all``).
+``mark_text`` — zmiana motywu przemalowuje je bez przebudowy (``restyle_all``).
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast, get_args
 
@@ -39,7 +39,6 @@ class Colors:
     bad_cell_bg: str  # komórka macierzy poniżej wymagania (tło)
     bad_cell_fg: str  # … i jej tekst
     hint: str  # przygaszony tekst objaśnień (hint)
-    badge: dict[str, str] = field(default_factory=dict)  # źródło wartości → kolor tekstu i ramki
     # rysunki na kolorowym tle (gradienty, koło odcieni) — te same w obu motywach
     handle_ring: str = "#202020"
     handle_fill: str = "#f4f4f4"
@@ -56,7 +55,6 @@ LIGHT = Colors(
     bad_cell_bg="#b3261e",
     bad_cell_fg="#ffffff",
     hint="#575a60",
-    badge={"mood": "#8a3cb0", "global": "#1a6d87", "slot": "#7d5800"},
 )
 DARK = Colors(
     hard="#ff8a80",
@@ -67,7 +65,6 @@ DARK = Colors(
     bad_cell_bg="#9e2b25",
     bad_cell_fg="#ffffff",
     hint="#a9acb2",
-    badge={"mood": "#d6a0f0", "global": "#6cc8e3", "slot": "#f2c14e"},
 )
 
 
@@ -201,7 +198,7 @@ def _system_changed(*_args) -> None:
 
 
 # --- kolorowanie widżetów arkuszem stylu ---------------------------------------------------------
-_ERR, _ERR_SEL, _TEXT, _BADGE = "ap_error", "ap_error_sel", "ap_text", "ap_badge"
+_ERR, _ERR_SEL, _TEXT = "ap_error", "ap_error_sel", "ap_text"
 
 
 def mark_error(w: QWidget, bad: bool, selector: str | None = None) -> None:
@@ -217,22 +214,8 @@ def mark_text(w: QWidget, kind: str | None, *, bold: bool = False) -> None:
     _restyle(w)
 
 
-def style_badge(w: QWidget, src: str | None) -> None:
-    """Plakietka źródła wartości (``"mood"``/``"global"``/``"slot"``)."""
-    w.setProperty(_BADGE, src or "")
-    _restyle(w)
-
-
 def _restyle(w: QWidget) -> None:
     c = colors()
-    badge = w.property(_BADGE)
-    if badge:
-        col = c.badge.get(badge, c.soft)
-        w.setStyleSheet(
-            f"color: {col}; border: 1px solid {col}; border-radius: 6px; padding: 0 6px;"
-            " font-size: 11px;"
-        )
-        return
     text = w.property(_TEXT)
     if text:
         kind, bold = text.rstrip("!"), text.endswith("!")
@@ -244,11 +227,11 @@ def _restyle(w: QWidget) -> None:
         w.setStyleSheet(f"{sel} {{ {rule} }}" if sel else rule)
         return
     # żaden znacznik nie jest aktywny (np. mark_text(w, None) po błędzie) → bez koloru z motywu
-    if any(w.property(k) is not None for k in (_ERR, _TEXT, _BADGE)):
+    if any(w.property(k) is not None for k in (_ERR, _TEXT)):
         w.setStyleSheet("")
 
 
 def restyle_all() -> None:
     for w in QApplication.allWidgets():
-        if any(w.property(k) is not None for k in (_ERR, _TEXT, _BADGE)):
+        if any(w.property(k) is not None for k in (_ERR, _TEXT)):
             _restyle(w)

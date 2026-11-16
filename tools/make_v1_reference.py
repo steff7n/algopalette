@@ -2,6 +2,8 @@
 
 Uruchamiać wyłącznie na kodzie, w którym istnieją jeszcze ``constraints.py``, ``engine.py``,
 ``hues.py`` i ``moods.py``. Po ich usunięciu działa tylko ``--check`` (czyta zapisane pliki).
+Importy starych modułów są leniwe (w funkcjach zapisu) i oznaczone ``ty: ignore`` — w bieżącym
+drzewie tych modułów nie ma; żeby odtworzyć dane, trzeba wziąć ten plik do checkoutu 4b71aeb.
 
     uv run python tools/make_v1_reference.py              # zapis eval.json + quality.json
     uv run python tools/make_v1_reference.py --eval-only  # zapis samego eval.json
@@ -105,7 +107,12 @@ def _interval(rng: random.Random, lo_max: float, w_lo: float, w_hi: float, top: 
 
 
 def _random_value(rng: random.Random, field: str, metric: str, de: str) -> Any:
-    from algopalette.model import ChromaRange, ContrastBound, HueRange, HueTarget
+    from algopalette.model import (
+        ChromaRange,  # ty: ignore[unresolved-import]
+        ContrastBound,
+        HueRange,  # ty: ignore[unresolved-import]
+        HueTarget,  # ty: ignore[unresolved-import]
+    )
     from algopalette.units import DE_SCALE
 
     if field == "lightness":
@@ -143,7 +150,7 @@ def _random_conditions(
 ) -> Any:
     """Zastępuje pola ``base`` z prawdopodobieństwem ``prob``; najwyżej jeden rodzaj odcienia."""
     from algopalette.forms import fields_for
-    from algopalette.model import Cond
+    from algopalette.model import Cond  # ty: ignore[unresolved-import]
 
     changes: dict[str, Any] = {}
     names = [f for f in fields_for(role) if f not in ("hue_range", "hue_target")]
@@ -222,10 +229,10 @@ def _deterministic_ids(rng: random.Random, session: Any) -> Any:
 
 
 def random_session(rng: random.Random) -> Any:
-    from algopalette.globals_logic import change_polarity_or_metric
+    from algopalette.globals_logic import change_polarity_or_metric  # ty: ignore[unresolved-import]
     from algopalette.model import (
         OKLCH,
-        Cond,
+        Cond,  # ty: ignore[unresolved-import]
         CvdSettings,
         HueScheme,
         Interval,
@@ -333,10 +340,11 @@ def random_session(rng: random.Random) -> Any:
 
 
 def evaluate_v1(session: Any) -> tuple[float, list[dict[str, Any]]]:
+    from algopalette.constraints import compile_terms, objective  # ty: ignore[unresolved-import]
+    from algopalette.hues import targets_for_session  # ty: ignore[unresolved-import]
+
     from algopalette.color import fitted
-    from algopalette.constraints import compile_terms, objective
-    from algopalette.forms import current_violations
-    from algopalette.hues import targets_for_session
+    from algopalette.forms import current_violations  # ty: ignore[unresolved-import]
 
     violations = [
         {"key": v.key, "hard": v.hard, "amount": v.amount} for v in current_violations(session)
@@ -360,11 +368,12 @@ def build_eval() -> list[dict[str, Any]]:
 
 
 def _quality_case(args: tuple[str, str, str]) -> dict[str, Any]:
+    from algopalette.moods import apply_mood  # ty: ignore[unresolved-import]
+
     from algopalette.engine import generate
-    from algopalette.globals_logic import change_polarity_or_metric
+    from algopalette.globals_logic import change_polarity_or_metric  # ty: ignore[unresolved-import]
     from algopalette.io import session_to_dict
     from algopalette.model import default_session
-    from algopalette.moods import apply_mood
 
     mood, polarity, metric = args
     rng = random.Random(f"{SEED}:{mood}:{polarity}:{metric}")

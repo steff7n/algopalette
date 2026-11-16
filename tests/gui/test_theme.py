@@ -49,8 +49,8 @@ def test_semantic_contrast(dark):
     pal = theme.dark_palette() if dark else theme.light_palette()
     c = theme.DARK if dark else theme.LIGHT
     for bg in (pal.window().color().name(), pal.base().color().name()):
-        for name in ("hard", "soft", "ok", "warn_text", "hint", *(f"badge:{k}" for k in c.badge)):
-            fg = c.badge[name[6:]] if name.startswith("badge:") else getattr(c, name)
+        for name in ("hard", "soft", "ok", "warn_text", "hint"):
+            fg = getattr(c, name)
             assert contrast_hex(fg, bg, "wcag21") >= 4.5, (name, fg, bg)
         assert contrast_hex(c.error_border, bg, "wcag21") >= 3.0
     assert contrast_hex(c.bad_cell_fg, c.bad_cell_bg, "wcag21") >= 4.5
@@ -70,18 +70,16 @@ def test_menu_switch_live(win):
 
 
 def test_error_border_and_text_follow_theme(qtbot, qapp):
-    edit, lbl, badge = QLineEdit(), QLabel("x"), QLabel("nastrój")
-    for w in (edit, lbl, badge):
+    edit, lbl = QLineEdit(), QLabel("x")
+    for w in (edit, lbl):
         qtbot.addWidget(w)
     theme.apply(qapp, "light")
     theme.mark_error(edit, True)
     theme.mark_text(lbl, "hard", bold=True)
-    theme.style_badge(badge, "mood")
     assert theme.LIGHT.error_border in edit.styleSheet()
     theme.apply(qapp, "dark")
     assert theme.DARK.error_border in edit.styleSheet()
     assert theme.DARK.hard in lbl.styleSheet() and "bold" in lbl.styleSheet()
-    assert theme.DARK.badge["mood"] in badge.styleSheet()
     theme.mark_error(edit, False)
     assert edit.styleSheet() == ""
     theme.apply(qapp, "light")

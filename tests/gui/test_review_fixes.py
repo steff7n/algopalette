@@ -29,9 +29,6 @@ def test_mark_text_none_clears_color(qtbot):
     assert lbl.styleSheet()
     theme.mark_text(lbl, None)
     assert lbl.styleSheet() == ""
-    theme.style_badge(lbl, "mood")
-    theme.style_badge(lbl, None)
-    assert lbl.styleSheet() == ""
 
 
 def test_source_result_not_red_after_error(win):
