@@ -72,6 +72,22 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     `lospec_tag`, `lospec_url`, `load_catalog`, `lospec_page`, `refresh_all`; klucz Lospec
     `lospec-<tag|_>-<strona>` (cache zamienia znaki spoza `[a-z0-9-]` na `-`). `tests/themes/test_themes_catalog.py`
     6 passed; `tests/themes` razem 119 passed.
+  - Task 7 ☑ (kontroler) — `gui/themes_dialog.py` `ThemesDialog(win, *, client_factory)`: `QThreadPool` (4 wątki),
+    `_Worker(QRunnable)` z `threading.Event` jako anulowaniem; katalogi plikowe w `_catalogs` po źródle (spóźniony
+    wynik nie rusza listy innego źródła), strony Lospec z licznikiem `_lospec_gen`; filtr lokalny z opóźnieniem
+    150 ms, tag Lospec 400 ms; Enter w liście przez `eventFilter` (NIE `activated` — w KDE pojedynczy klik by
+    importował), dwuklik; przyciski bez autoDefault. `KEEP_SETTINGS_KEY="themes_keep_settings"` w `gui.json` przez
+    nowe `theme.read_setting/write_setting` (`save_mode` je używa). `app.py`: `act_themes_web` (Ctrl+Shift+O, menu
+    Plik po „Wczytaj sesję…”, pasek narzędzi przed „Zapisz”), `themes_dialog`, `themes_client_factory` (testy
+    podmieniają), `open_themes`, `import_theme`, `closeEvent` → `themes_dialog.shutdown()`. Pomoc (część Tasku 8
+    zrobiona tu, bo `help.attach` wymaga istniejących tematów): `help_content/themes_web.py` (13 tematów
+    `themes.*`, grupa „Motywy z sieci” w `GROUPS`), `menu.file.themes` w `window.py`; `test_help_coverage` otwiera
+    też okno motywów. **Pułapka:** `QLineEdit.setClearButtonEnabled` tworzy przycisk leniwie → `uncovered()` go
+    łapie bez klucza — usunięte. `tests/gui/test_themes_dialog.py` 11 passed (3× z rzędu); `tests/gui` 289 passed.
+    Zrzuty okna (oba motywy okna) obejrzane — czytelne. README: sekcja „Motywy z sieci”.
+    **Prawdziwa sieć (ręcznie, 2026-11-16, cache w scratchpadzie):** base16 623 (1,4 s), Gogh 1250 + 7 pominiętych
+    (0,9 s), WT 264 (0,3 s), każdy `resolve` bez błędu; Lospec strona 0 = 9 palet (total 3171), tag `warm` 10/177;
+    drugi odczyt Gogh z pamięci 0,01 s.
 
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 

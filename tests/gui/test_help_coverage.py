@@ -85,8 +85,11 @@ def test_every_topic_reachable(win, qtbot, fake_engine):
     win.proposals_tab._tick()
     win.source_tab.paste.setPlainText("#101010 #eeeeee #ff0000")
     win.source_tab.parse()
+    win.open_themes()  # okno „Motywy z sieci” jest dzieckiem okna głównego (sieć zablokowana)
+    win.themes_dialog._pool.waitForDone(5000)
     flush(qtbot)
     used |= _used_keys(win)
+    win.themes_dialog.close()
     linked = {t for topic in TOPICS.values() for t in re.findall(r"\(help:([^)\s]+)\)", topic.body)}
     unreachable = sorted(set(TOPICS) - used - linked)
     assert unreachable == [], unreachable

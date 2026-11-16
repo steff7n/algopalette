@@ -13,6 +13,7 @@ GROUPS: tuple[str, ...] = (
     "Paleta",
     "Analiza",
     "Źródło",
+    "Motywy z sieci",
     "Pojęcia",
 )
 

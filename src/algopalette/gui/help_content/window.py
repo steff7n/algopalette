@@ -114,6 +114,14 @@ osobne ustawienia odcienia scalone w jeden łuk), program wypisuje po wczytaniu.
 czyta plików PaletteBuildera — przepływ jest jednokierunkowy.""",
         W,
     ),
+    "menu.file.themes": Topic(
+        "Motywy z sieci… (Ctrl+Shift+O)",
+        "Otwiera przeglądarkę gotowych motywów kolorów z internetu (base16, Gogh, Windows Terminal, "
+        "Lospec); wybrany motyw staje się bieżącą paletą.",
+        """Szczegóły w temacie [Motywy z sieci](help:themes.window). Import nie zapisuje niczego na
+dysk i można go cofnąć (Ctrl+Z).""",
+        W,
+    ),
     "menu.file.save": Topic(
         "Zapisz (Ctrl+S)",
         "Zapisuje sesję do bieżącego pliku (nazwa w tytule okna). Gdy pliku jeszcze nie ma, pyta, gdzie "

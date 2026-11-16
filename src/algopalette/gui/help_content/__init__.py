@@ -10,6 +10,7 @@ from algopalette.gui.help_content import (
     proposals,
     rules,
     source,
+    themes_web,
     window,
 )
 from algopalette.gui.help_content.topic import GROUPS, Topic
@@ -26,6 +27,7 @@ def _merge() -> dict[str, Topic]:
         proposals,
         palette,
         source,
+        themes_web,
         analysis,
         concepts,
     ):

@@ -95,10 +95,15 @@ def load_mode() -> ThemeMode:
     return cast(ThemeMode, m) if m in MODES else "system"
 
 
-def save_mode(mode: ThemeMode) -> None:
-    """Zapisuje motyw, zachowując inne klucze pliku. Zapis atomowy; ``OSError`` idzie wyżej."""
+def read_setting(key: str, default: Any = None) -> Any:
+    """Wartość z ``gui.json``; brak pliku, uszkodzony plik albo brak klucza → ``default``."""
+    return _read_settings().get(key, default)
+
+
+def write_setting(key: str, value: Any) -> None:
+    """Zapisuje klucz, zachowując inne klucze pliku. Zapis atomowy; ``OSError`` idzie wyżej."""
     data = _read_settings()
-    data["theme"] = mode
+    data[key] = value
     path = settings_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".gui-", suffix=".json")
@@ -109,6 +114,11 @@ def save_mode(mode: ThemeMode) -> None:
     except BaseException:
         Path(tmp).unlink(missing_ok=True)
         raise
+
+
+def save_mode(mode: ThemeMode) -> None:
+    """Zapisuje motyw okna, zachowując inne klucze pliku; ``OSError`` idzie wyżej."""
+    write_setting("theme", mode)
 
 
 def initial_mode() -> ThemeMode:

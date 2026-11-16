@@ -32,9 +32,12 @@ from algopalette.color import to_hex
 from algopalette.engine import Violation, current_violations
 from algopalette.forms import violation_text
 from algopalette.gui import help, theme
+from algopalette.gui.themes_dialog import ThemesDialog
 from algopalette.gui.widgets import vbox
 from algopalette.model import History, Session, ViewModel
 from algopalette.pb_export import default_pb_dir, pb_json, write_pb_file
+from algopalette.themes import SOURCES, Palette, Theme, net
+from algopalette.themes.apply import apply_theme
 
 COALESCE_S = 1.5
 AUTOSAVE_DELAY_MS = 500
@@ -345,6 +348,8 @@ class MainWindow(QMainWindow):
         opóźnienie)."""
         self._autosave_timer.stop()
         self.proposals_tab.shutdown()  # przerwij generowanie; nie czekamy na jego wynik
+        if self.themes_dialog is not None:
+            self.themes_dialog.shutdown()
         if self.autosave_enabled and self._autosave_pending:
             self.autosave_now()
         super().closeEvent(event)
@@ -367,6 +372,14 @@ class MainWindow(QMainWindow):
         K = QKeySequence.StandardKey
         self.act_new = self._action("Nowa paleta", self.action_new, K.New)
         self.act_open = self._action("Wczytaj sesję…", self.action_open, K.Open)
+        self.act_themes_web = self._action(
+            "Motywy z sieci…",
+            self.open_themes,
+            "Ctrl+Shift+O",
+            "Przeglądaj i wczytaj gotowe motywy kolorów z internetu",
+        )
+        self.themes_dialog: ThemesDialog | None = None
+        self.themes_client_factory = net.make_client
         self.act_save = self._action("Zapisz", self.action_save, K.Save)
         self.act_save_as = self._action("Zapisz jako…", self.action_save_as, "Ctrl+Shift+S")
         self.act_export = self._action(
@@ -412,6 +425,7 @@ class MainWindow(QMainWindow):
         for a in (
             self.act_new,
             self.act_open,
+            self.act_themes_web,
             None,
             self.act_save,
             self.act_save_as,
@@ -459,6 +473,7 @@ class MainWindow(QMainWindow):
             None,
             self.act_generate,
             None,
+            self.act_themes_web,
             self.act_save,
             self.act_export,
             None,
@@ -477,6 +492,7 @@ class MainWindow(QMainWindow):
         for a, key in (
             (self.act_new, "menu.file.new"),
             (self.act_open, "menu.file.open"),
+            (self.act_themes_web, "menu.file.themes"),
             (self.act_save, "menu.file.save"),
             (self.act_save_as, "menu.file.save_as"),
             (self.act_export, "menu.file.export"),
@@ -631,6 +647,21 @@ class MainWindow(QMainWindow):
         )
         if path:
             self.open_path(Path(path))
+
+    def open_themes(self) -> None:
+        """Okno „Motywy z sieci” — jedno na program, niemodalne."""
+        if self.themes_dialog is None:
+            self.themes_dialog = ThemesDialog(self, client_factory=self.themes_client_factory)
+        d = self.themes_dialog
+        d.show()
+        d.raise_()
+        d.activateWindow()
+
+    def import_theme(self, t: Theme, palette: Palette, *, keep_settings: bool) -> None:
+        """Motyw jako bieżąca sesja (krok cofania); plik sesji bez zmian, nic na dysk."""
+        self.replace_session(apply_theme(self.session, palette, keep_settings=keep_settings))
+        self.tabs.setCurrentWidget(self.palette_tab)
+        self.notify(f"Wczytano motyw „{t.name}” ({SOURCES[t.source]}). Cofnij: Ctrl+Z.")
 
     def open_path(self, path: Path) -> bool:
         try:

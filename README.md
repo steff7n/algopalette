@@ -134,6 +134,20 @@ wskaż numer tła i tekstu, wybierz tryb:
 - **przeniesienie** — ta sama paleta na tle o innej polaryzacji: każdy akcent zachowuje odcień, nasycenie
   względne i kontrast z tłem.
 
+## Motywy z sieci (Plik → Motywy z sieci…, Ctrl+Shift+O)
+
+Niemodalne okno z gotowymi motywami kolorów z czterech źródeł: **base16 / base24** (tinted-theming),
+**Gogh** i **Windows Terminal** (motywy terminali: tło, tekst, kolory ANSI bez czerni i bieli) oraz **Lospec**
+(palety pixel-artu do 16 kolorów, bez ról — tłem jest kolor skrajny, tekstem najbardziej z nim kontrastujący;
+wyszukiwanie po tagu). Lista z próbkami, filtry (nazwa/autor, źródło, ciemne/jasne tło) i duży podgląd terminala
+i kodu w kolorach motywu.
+
+„Wczytaj” zamienia bieżącą paletę na motyw — jeden krok cofania (Ctrl+Z), nic nie trafia na dysk, otwarty plik
+sesji się nie zmienia. Domyślnie import dopasowuje ustawienia do motywu (jak tryb „charakter”: polaryzacja,
+układ odcieni, zasady kolorów); zaznaczone „Nie zmieniaj ustawień palety” wymienia tylko kolory. W obu trybach
+kolory z kłódką zasad zachowują zasady. Katalogi są w `~/.cache/algopalette/themes/` (7 dni, Lospec 1 dzień),
+więc lista działa też bez internetu.
+
 ## Pliki
 
 | Co | Gdzie |
