@@ -50,6 +50,12 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     usuwanie pomija zablokowany i usuwa inne, więc wynik to 5 kolorów, zablokowany dostaje kolor motywu;
     starą wartość zachowują tylko akcenty ponad liczbę kolorów motywu, gdy kłódek jest więcej niż akcentów
     motywu (test `test_too_many_locked_accents_keep_old_values`). `tests/themes/test_themes_apply.py` 13 passed.
+  - Task 3 ☑ (Sonnet, gałąź `feat/motywy-t3` scalona `2162db6`) — `themes/net.py`: `ALLOWED_HOSTS`, `TIMEOUT_S`,
+    `MAX_BYTES`, `FetchError(.kind ∈ offline|http|host|size|cancelled)`, `make_client(transport=None)` (hook
+    `request` sprawdza host i schemat https także na przekierowaniach — test 302 → evil), `fetch(client, url, *,
+    on_progress, cancelled)` strumieniowo. `themes/cache.py`: `cache_dir`, `load` (uszkodzony → None), `save`
+    (atomowo), `is_fresh`, `clear(prefix)`; format `{"version": 1, …}`. Po scaleniu `tests/themes` 50 passed,
+    ruff czysto, ty 0 błędów. Prawdziwej sieci NIE sprawdzano (Task 8).
 
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 
