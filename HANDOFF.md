@@ -2,7 +2,7 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0f. MOTYWY Z SIECI (2026-11-16) — Taski 1–8 ☑; przegląd całości (Opus xhigh) zlecony; scalenie = decyzja użytkownika
+## 0f. MOTYWY Z SIECI (2026-11-16) — Taski 1–8 ☑; przegląd całości: 0 C / 2 I / 9 M → CZEKA na decyzję użytkownika o poprawkach
 
 - **STAN NA TERAZ:** gałąź `feat/motywy-z-sieci` (worktree `/home/qrikk/algopalette/.worktrees/motywy-z-sieci`),
   odgałęziona od `feat/zasady-silnik` @ `8291a8b` (model v2 + kłódka zasad; tamta gałąź NIE jest w `main` i ma
@@ -98,6 +98,16 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   - **Co dalej:** przegląd całości `8291a8b..HEAD` (Opus xhigh) → pętla napraw z `~/.claude/CLAUDE.md`. Potem
     scalenie — NAJPIERW `feat/zasady-silnik` do `main` (ma własny przegląd w toku, §0c), potem ta gałąź; decyzja
     i reinstalacja launchera (`uv tool install --editable . --force` w `/home/qrikk/algopalette`) = użytkownik.
+  - **Przegląd całości (Opus xhigh, `8291a8b..f6c459b`) — 0 krytycznych, 2 ważne, 9 drobnych.** Raport:
+    `.superpowers/sdd/2026-11-16-motywy-z-sieci/final-review.md` (poza gitem). Wg pętli z CLAUDE.md (brak C) →
+    NIC nie naprawiane bez zgody użytkownika; znaleziska przedstawione użytkownikowi. Skrót:
+    I1 „Więcej” Lospec nie znika, gdy parser pominął paletę (porównanie `len(_lospec) < total`; puste strony,
+    sprzeczny stan); I2 zamknięcie okna/„Anuluj” w trakcie pobierania → źródło nigdy nie startuje ponownie, po
+    ponownym otwarciu pusta lista „Motywy: 0 z 0.” bez wyjaśnienia. M: `TooManyRedirects`/`DecodingError` poza
+    `FetchError`; kolizja kluczy pamięci Lospec dla tagów z diakrytykami; „..” w komunikacie; licznik po
+    „Więcej”; przebudowa listy przewija/zwija stronicowanie; brak notki offline/pominiętych dla Lospec; Ctrl+Z nie
+    działa, gdy aktywne jest okno motywów; anulowanie co 64 KB i wątki anulowane zajmują pulę; „Odśwież katalogi”
+    tylko bieżące źródła i brak wyszarzenia listy w trakcie pobierania.
 
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 
