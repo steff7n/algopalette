@@ -5,9 +5,18 @@
 //! obserwacji coloraide (biel D65, luminancja adaptacji 64/π · 0,2 cd/m², tło 20 %, otoczenie
 //! „average”, bez pełnej adaptacji). Stałe środowiska CAM16 są przepisane z coloraide.
 //!
-//! Znane odstępstwo: dla kolorów daleko poza gamutem, w których CAM16 daje ujemną barwność M,
-//! coloraide przelicza kolor ponownie; tu tego nie ma (kolory palety i wyniki symulacji CVD
-//! leżą w gamucie albo tuż przy nim).
+//! Odstępstwa od coloraide (oba dotyczą wyłącznie kolorów spoza gamutu):
+//! - ΔE `itp` obcina LMS (sygnał liniowy wchodzący w krzywą PQ) do ≥ 0. Bez tego kolor prawie
+//!   czarny z minimalnie ujemnym kanałem (w tolerancji gamutu 1e-6) daje w coloraide ΔE rzędu
+//!   1e62, bo mianownik krzywej PQ przechodzi przez zero dla ujemnego LMS. Macierz z liniowego
+//!   sRGB do tego LMS ma same dodatnie współczynniki, więc dla kolorów o kanałach sRGB ≥ 0
+//!   obcięcie nic nie zmienia i wynik jest ten sam co w coloraide.
+//! - Dla kolorów daleko poza gamutem, w których CAM16 daje ujemną barwność M, coloraide
+//!   przelicza kolor ponownie; tu tego nie ma.
+//!
+//! Każda metoda to odległość we własnych współrzędnych: [`prepare`] przelicza kolor raz,
+//! [`delta_e_prepared`] liczy odległość pary — przy wielu parach tych samych kolorów
+//! przekształcenie nie jest powtarzane.
 
 use std::f64::consts::{PI, TAU};
 
@@ -20,12 +29,31 @@ const DEG: f64 = PI / 180.0;
 
 /// ΔE dwóch kolorów OKLab wybraną metodą. Dla identycznych kolorów wynik to 0 z pochodną 0.
 pub fn delta_e<T: Scalar>(a_lab: [T; 3], b_lab: [T; 3], method: DeltaE) -> T {
+    delta_e_prepared(prepare(a_lab, method), prepare(b_lab, method), method)
+}
+
+/// Kolor OKLab we współrzędnych, w których `method` liczy odległość: OKLab (`ok`, `hyab`),
+/// CIELAB D65 (`2000`), ICtCp (`itp`), CAM16-UCS (`cam16`).
+pub fn prepare<T: Scalar>(lab: [T; 3], method: DeltaE) -> [T; 3] {
     match method {
-        DeltaE::Ok => delta_e_ok(a_lab, b_lab),
-        DeltaE::Hyab => delta_e_hyab(a_lab, b_lab),
-        DeltaE::Ciede2000 => ciede2000(lab_d65(a_lab), lab_d65(b_lab)),
-        DeltaE::Itp => delta_e_itp(a_lab, b_lab),
-        DeltaE::Cam16 => delta_e_cam16(a_lab, b_lab),
+        DeltaE::Ok | DeltaE::Hyab => lab,
+        DeltaE::Ciede2000 => lab_d65(lab),
+        DeltaE::Itp => ictcp(lab),
+        DeltaE::Cam16 => cam16_ucs(lab),
+    }
+}
+
+/// ΔE dwóch kolorów przeliczonych wcześniej przez [`prepare`] tą samą metodą.
+pub fn delta_e_prepared<T: Scalar>(a: [T; 3], b: [T; 3], method: DeltaE) -> T {
+    match method {
+        DeltaE::Ok => delta_e_ok(a, b),
+        DeltaE::Hyab => delta_e_hyab(a, b),
+        DeltaE::Ciede2000 => ciede2000(a, b),
+        DeltaE::Itp => {
+            let (di, dt, dp) = (a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+            (di.square() + dt.square().scale(0.25) + dp.square()).sqrt().scale(720.0)
+        }
+        DeltaE::Cam16 => delta_e_ok(a, b),
     }
 }
 
@@ -168,20 +196,15 @@ const PQ_C1: f64 = 3424.0 / 4096.0;
 const PQ_C2: f64 = 2413.0 / 128.0;
 const PQ_C3: f64 = 2392.0 / 128.0;
 
-/// OKLab → ICtCp (odwrotna EOTF ST 2084 na LMS w cd/m²).
+/// OKLab → ICtCp (odwrotna EOTF ST 2084 na LMS w cd/m²). LMS — sygnał liniowy wchodzący w
+/// krzywą PQ — jest obcinany do ≥ 0, więc krzywa nie ma osobliwości.
 fn ictcp<T: Scalar>(lab: [T; 3]) -> [T; 3] {
     let abs_xyz = oklab_to_xyz(lab).map(|v| v.scale(ITP_YW));
     let pq = mat3(&XYZ_TO_ICTCP_LMS, abs_xyz).map(|c| {
-        let c = c.scale(1.0 / 10000.0).spow(PQ_M1);
+        let c = c.maxf(0.0).scale(1.0 / 10000.0).powf(PQ_M1);
         (c.scale(PQ_C2).offset(PQ_C1) / c.scale(PQ_C3).offset(1.0)).spow(PQ_M2)
     });
     mat3(&LMS_P_TO_ICTCP, pq)
-}
-
-fn delta_e_itp<T: Scalar>(a: [T; 3], b: [T; 3]) -> T {
-    let (p, q) = (ictcp(a), ictcp(b));
-    let (di, dt, dp) = (p[0] - q[0], p[1] - q[1], p[2] - q[2]);
-    (di.square() + dt.square().scale(0.25) + dp.square()).sqrt().scale(720.0)
 }
 
 // ---------------------------------------------------------------------------
@@ -245,12 +268,6 @@ fn cam16_ucs<T: Scalar>(lab: [T; 3]) -> [T; 3] {
     let abs_j = j.abs();
     let j_ucs = abs_j.scale(1.0 + 100.0 * UCS_C1) / abs_j.scale(UCS_C1).offset(1.0);
     [if j.val() < 0.0 { -j_ucs } else { j_ucs }, m_ucs * h.cos(), m_ucs * h.sin()]
-}
-
-fn delta_e_cam16<T: Scalar>(a: [T; 3], b: [T; 3]) -> T {
-    let (p, q) = (cam16_ucs(a), cam16_ucs(b));
-    let (dj, da, db) = (p[0] - q[0], p[1] - q[1], p[2] - q[2]);
-    (dj.square() + da.square() + db.square()).sqrt()
 }
 
 #[cfg(test)]
@@ -341,6 +358,38 @@ mod tests {
                         delta_e(a, b, method).d
                     },
                 );
+            }
+        }
+    }
+
+    /// Kolor prawie czarny z ujemnymi kanałami liniowymi w tolerancji gamutu: w coloraide ΔE
+    /// `itp` do bieli wynosi ~3e62; tu ma być wartością zwykłej wielkości ze skończonym gradientem.
+    #[test]
+    fn itp_of_near_black_with_negative_channels_is_small_and_finite() {
+        let dark =
+            oklch_to_oklab([0.00025226392678323606, 0.016693928320144356, 154.00122067068102]);
+        let lin = crate::color::oklab_to_linear_srgb(dark);
+        assert!(lin.iter().any(|&v| v < 0.0) && lin.iter().all(|&v| v > -1e-6), "{lin:?}");
+        let black = [0.0, 0.0, 0.0];
+        let mid = oklch_to_oklab([0.7218156380507523, 0.11816813009406159, 156.9038883531302]);
+        for (other, limit) in [(black, 5.0), (mid, 400.0)] {
+            let x = [dark[0], dark[1], dark[2], other[0], other[1], other[2]];
+            let (a, b) = split(&vars(&x));
+            let d = delta_e(a, b, DeltaE::Itp);
+            assert!(d.v.is_finite() && d.v >= 0.0 && d.v < limit, "{d:?}");
+            assert!(d.d.iter().all(|g| g.is_finite()), "{d:?}");
+        }
+    }
+
+    #[test]
+    fn prepared_distance_equals_direct_distance() {
+        let mut rng = Rng::new(33, 0);
+        for _ in 0..100 {
+            let (a, b) = split(&pair(&mut rng));
+            for method in METHODS {
+                let direct: f64 = delta_e(a, b, method);
+                let prepared = delta_e_prepared(prepare(a, method), prepare(b, method), method);
+                assert_eq!(direct, prepared, "{method:?}");
             }
         }
     }

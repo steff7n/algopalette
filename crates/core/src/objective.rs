@@ -48,8 +48,24 @@ pub trait Objective: Sync {
     fn distance(&self, a: &[f64], b: &[f64]) -> f64;
 
     /// Kara odpychająca od rozwiązań `others` bliższych niż `min_div`. Zwraca wartość kary
-    /// i DODAJE jej gradient do `grad` (nie zeruje go).
+    /// i DODAJE jej gradient do `grad` (nie zeruje go). `others` to wyniki
+    /// [`Objective::prepare`] (domyślnie: same punkty).
     fn repulsion(&self, x: &[f64], others: &[Vec<f64>], min_div: f64, grad: &mut [f64]) -> f64;
+
+    // -- dodatki ponad I5: mierzenie różnorodności bez dekodowania punktu przy każdej parze --
+
+    /// Postać rozwiązania, w której mierzy się różnorodność (np. kolory wolne w OKLab).
+    /// Sterownik liczy ją raz na kandydata i podaje do [`Objective::distance_prepared`] oraz
+    /// jako `others` do [`Objective::repulsion`]. Domyślnie: sam punkt.
+    fn prepare(&self, x: &[f64]) -> Vec<f64> {
+        x.to_vec()
+    }
+
+    /// Odległość dwóch rozwiązań w postaci z [`Objective::prepare`]; ta sama liczba co
+    /// [`Objective::distance`] punktów wyjściowych.
+    fn distance_prepared(&self, a: &[f64], b: &[f64]) -> f64 {
+        self.distance(a, b)
+    }
 }
 
 /// Funkcja celu za `Arc`: zadanie w tle bierze funkcję na własność, a wywołujący zachowuje
@@ -85,5 +101,13 @@ impl<T: Objective + Send + ?Sized> Objective for Arc<T> {
 
     fn repulsion(&self, x: &[f64], others: &[Vec<f64>], min_div: f64, grad: &mut [f64]) -> f64 {
         (**self).repulsion(x, others, min_div, grad)
+    }
+
+    fn prepare(&self, x: &[f64]) -> Vec<f64> {
+        (**self).prepare(x)
+    }
+
+    fn distance_prepared(&self, a: &[f64], b: &[f64]) -> f64 {
+        (**self).distance_prepared(a, b)
     }
 }

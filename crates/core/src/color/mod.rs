@@ -19,7 +19,7 @@ pub use convert::{
     linear_srgb_to_oklab, oklab_to_linear_srgb, oklab_to_oklch, oklab_to_xyz, oklch_to_oklab,
 };
 pub use cvd::simulate_cvd;
-pub use delta_e::delta_e;
+pub use delta_e::{delta_e, delta_e_prepared, prepare};
 pub use gamut::{GAMUT_EPS, in_gamut, max_chroma};
 
 /// Wspólne narzędzia testów koloru: losowe kolory i sprawdzanie pochodnych.

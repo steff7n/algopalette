@@ -17,21 +17,21 @@ pub fn rank(a: &Candidate, b: &Candidate) -> Ordering {
 }
 
 /// Zachłanny wybór z listy posortowanej wg [`rank`]: bierze kandydata, którego odległość do
-/// każdego już wybranego wynosi co najmniej `min_diversity`. Zwraca indeksy (rosnąco),
-/// najwyżej `n`.
+/// każdego już wybranego wynosi co najmniej `min_diversity`. `prepared[i]` to kandydat `i` w
+/// postaci z [`Objective::prepare`]. Zwraca indeksy (rosnąco), najwyżej `n`.
 pub fn pick_diverse<O: Objective + ?Sized>(
     obj: &O,
-    sorted: &[Candidate],
+    prepared: &[Vec<f64>],
     n: usize,
     min_diversity: f64,
 ) -> Vec<usize> {
-    let mut picked: Vec<usize> = Vec::with_capacity(n.min(sorted.len()));
-    for (i, cand) in sorted.iter().enumerate() {
+    let mut picked: Vec<usize> = Vec::with_capacity(n.min(prepared.len()));
+    for (i, cand) in prepared.iter().enumerate() {
         if picked.len() >= n {
             break;
         }
         // „za blisko” to `<`: odległość NaN nie dyskwalifikuje kandydata
-        let too_close = |&j: &usize| obj.distance(&cand.x, &sorted[j].x) < min_diversity;
+        let too_close = |&j: &usize| obj.distance_prepared(cand, &prepared[j]) < min_diversity;
         if !picked.iter().any(too_close) {
             picked.push(i);
         }
@@ -69,6 +69,10 @@ mod tests {
         Candidate { x: vec![x, 0.0], score: Score { feasible, total }, run, wave: 1, diverse: true }
     }
 
+    fn points(list: &[Candidate]) -> Vec<Vec<f64>> {
+        list.iter().map(|c| c.x.clone()).collect()
+    }
+
     fn runs(list: &[Candidate]) -> Vec<u32> {
         list.iter().map(|c| c.run).collect()
     }
@@ -101,11 +105,11 @@ mod tests {
             cand(0.20, true, 5.0, 4),
             cand(0.30, true, 6.0, 5),
         ];
-        assert_eq!(pick_diverse(&obj, &sorted, 6, 0.05), [0, 2, 4, 5]);
-        assert_eq!(pick_diverse(&obj, &sorted, 2, 0.05), [0, 2]);
+        assert_eq!(pick_diverse(&obj, &points(&sorted), 6, 0.05), [0, 2, 4, 5]);
+        assert_eq!(pick_diverse(&obj, &points(&sorted), 2, 0.05), [0, 2]);
         // próg 0: każdy kandydat jest różny, także duplikaty
-        assert_eq!(pick_diverse(&obj, &sorted, 3, 0.0), [0, 1, 2]);
-        assert_eq!(pick_diverse(&obj, &sorted, 0, 0.05), Vec::<usize>::new());
+        assert_eq!(pick_diverse(&obj, &points(&sorted), 3, 0.0), [0, 1, 2]);
+        assert_eq!(pick_diverse(&obj, &points(&sorted), 0, 0.05), Vec::<usize>::new());
         assert_eq!(pick_diverse(&obj, &[], 3, 0.05), Vec::<usize>::new());
     }
 
@@ -113,8 +117,8 @@ mod tests {
     fn distance_exactly_at_threshold_counts_as_diverse() {
         let obj = Wells::grid(1);
         let sorted = vec![cand(0.0, true, 1.0, 0), cand(0.25, true, 2.0, 1)];
-        assert_eq!(pick_diverse(&obj, &sorted, 2, 0.25), [0, 1]);
-        assert_eq!(pick_diverse(&obj, &sorted, 2, 0.2500001), [0]);
+        assert_eq!(pick_diverse(&obj, &points(&sorted), 2, 0.25), [0, 1]);
+        assert_eq!(pick_diverse(&obj, &points(&sorted), 2, 0.2500001), [0]);
     }
 
     #[test]
