@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from PySide6.QtCore import Qt
 
 from algopalette.gui import help as gh
 from algopalette.gui import theme
@@ -234,3 +235,164 @@ def test_dialog_help_coverage(win, qtbot):
     set_combo(d.source, "lospec")
     qtbot.waitUntil(lambda: not d._loading, timeout=3000)
     assert gh.uncovered(d) == [], "\n".join(gh.uncovered(d))
+
+
+# --- poprawki po przeglądzie całości ------------------------------------------------------------
+
+
+def test_lospec_more_hides_after_last_server_page_despite_skipped(win, qtbot):
+    page = json.loads((FIX / "lospec_page.json").read_text())
+    page["totalCount"] = len(page["palettes"])  # jedna strona serwera; parser część pominie
+    srv = Server(lospec=json.dumps(page).encode())
+    d = open_dialog(win, qtbot, srv)
+    set_combo(d.source, "lospec")
+    qtbot.waitUntil(lambda: bool(names(d)) and not d._loading, timeout=3000)
+    assert d._lospec_skipped > 0
+    assert not d.more.isVisibleTo(d)
+    assert "pominięto" in d.status.text()
+
+
+def test_lospec_empty_page_ends_paging_and_dedupes(win, qtbot):
+    srv = Server()  # totalCount 3171, ale każda strona zwraca te same palety
+    d = open_dialog(win, qtbot, srv)
+    set_combo(d.source, "lospec")
+    qtbot.waitUntil(lambda: bool(names(d)) and not d._loading, timeout=3000)
+    n = len(names(d))
+    d.more.click()
+    qtbot.waitUntil(lambda: not d._loading and d._lospec_page == 1, timeout=3000)
+    assert len(names(d)) == n  # powtórzone slugi nie są dokładane
+    srv.lospec = json.dumps({"palettes": [], "totalCount": 3171}).encode()
+    d.more.click()
+    qtbot.waitUntil(lambda: not d._loading and d._lospec_page == 2, timeout=3000)
+    assert not d.more.isVisibleTo(d)
+
+
+def test_reopen_after_close_during_load_restarts(win, qtbot):
+    srv = Server()
+    gate = threading.Event()
+    srv.hold["Gogh"] = gate
+    win.themes_client_factory = srv.factory()
+    win.open_themes()
+    d = win.themes_dialog
+    qtbot.waitUntil(lambda: set(d._loading) == {"gogh"}, timeout=3000)
+    d.close()
+    gate.set()
+    d._pool.waitForDone(5000)
+    qtbot.wait(20)
+    assert "gogh" not in d._catalogs
+    win.open_themes()
+    qtbot.waitUntil(lambda: "gogh" in d._catalogs, timeout=3000)
+    assert "gogh" in {t.source for t in themes(d)}
+
+
+def test_reopen_after_close_lospec_restarts(win, qtbot):
+    srv = Server()
+    gate = threading.Event()
+    srv.hold["lospec"] = gate
+    d = open_dialog(win, qtbot, srv)
+    set_combo(d.source, "lospec")
+    d.close()
+    gate.set()
+    d._pool.waitForDone(5000)
+    win.open_themes()
+    qtbot.waitUntil(lambda: bool(names(d)) and not d._loading, timeout=3000)
+
+
+def test_cancel_keeps_explanation(win, qtbot):
+    srv = Server()
+    gate = threading.Event()
+    srv.hold["Gogh"] = gate
+    win.themes_client_factory = srv.factory()
+    win.open_themes()
+    d = win.themes_dialog
+    set_combo(d.source, "gogh")
+    d.cancel.click()
+    gate.set()
+    d._pool.waitForDone(5000)
+    qtbot.wait(20)
+    assert "przerwane" in d.status.text() and "Odśwież katalogi" in d.status.text()
+    assert ".." not in d.status.text()
+
+
+def test_error_message_has_no_double_dot(win, qtbot):
+    d = open_dialog(win, qtbot, Server(fail=httpx.ConnectError("down")))
+    assert ".." not in d.status.text()
+
+
+def test_more_appends_without_scroll_reset_and_updates_counter(win, qtbot, monkeypatch):
+    import algopalette.gui.themes_dialog as td
+
+    monkeypatch.setattr(td, "PAGE_SIZE", 4)
+    d = open_dialog(win, qtbot, Server())
+    # kolejność przychodzenia katalogów jest dowolna, a porcja rośnie, by objąć zaznaczony motyw —
+    # zwykła przebudowa (jak po zmianie wyszukiwania) wraca do jednej porcji
+    d._rebuild()
+    assert len(names(d)) == 4 and "4 z 13" in d.status.text()
+    first = d.model.item(0)
+    d.view.setCurrentIndex(d.model.index(2, 0))
+    d.more.click()
+    assert len(names(d)) == 8 and "8 z 13" in d.status.text()
+    assert d.model.item(0) is first  # dołożone, nie przebudowane
+    assert d.view.currentIndex().row() == 2
+
+
+def test_late_catalog_keeps_pages_and_selection(win, qtbot, monkeypatch):
+    import algopalette.gui.themes_dialog as td
+
+    monkeypatch.setattr(td, "PAGE_SIZE", 2)
+    srv = Server()
+    gate = threading.Event()
+    srv.hold["atomcorp"] = gate
+    win.themes_client_factory = srv.factory()
+    win.open_themes()
+    d = win.themes_dialog
+    qtbot.waitUntil(lambda: set(d._loading) == {"wt"}, timeout=3000)
+    d.more.click()
+    d.more.click()
+    d.view.setCurrentIndex(d.model.index(5, 0))
+    chosen = d.current_theme()
+    gate.set()
+    qtbot.waitUntil(lambda: not d._loading, timeout=3000)
+    assert d.current_theme() == chosen
+    assert d.model.rowCount() >= 6
+
+
+def test_ctrl_z_in_dialog_undoes_import(win, qtbot):
+    d = open_dialog(win, qtbot, Server())
+    before = win.session
+    d.load.click()
+    assert win.session != before
+    d.activateWindow()
+    d.view.setFocus()
+    qtbot.keyClick(
+        d.view,
+        "z",
+        modifier=Qt.KeyboardModifier.ControlModifier,
+    )
+    assert win.session == before
+
+
+def test_refresh_reloads_all_file_catalogs(win, qtbot):
+    srv = Server()
+    d = open_dialog(win, qtbot, srv)
+    set_combo(d.source, "gogh")
+    qtbot.waitUntil(lambda: not d._loading, timeout=3000)
+    n = len(srv.requests)
+    d.refresh.click()
+    qtbot.waitUntil(lambda: not d._loading, timeout=3000)
+    new = srv.requests[n:]
+    assert any("codeload" in u for u in new) and any("atomcorp" in u for u in new)
+    assert any("Gogh" in u for u in new)
+
+
+def test_rows_of_loading_source_are_greyed(win, qtbot):
+    srv = Server()
+    d = open_dialog(win, qtbot, srv)
+    gate = threading.Event()
+    srv.hold["Gogh"] = gate
+    d.refresh.click()
+    gogh_rows = [i for i, t in enumerate(themes(d)) if t.source == "gogh"]
+    assert gogh_rows and all(not d.model.item(i).isEnabled() for i in gogh_rows)
+    gate.set()
+    qtbot.waitUntil(lambda: not d._loading, timeout=3000)
+    assert all(d.model.item(i).isEnabled() for i in range(d.model.rowCount()))

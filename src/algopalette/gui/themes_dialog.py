@@ -127,7 +127,7 @@ class ThemesDialog(QDialog):
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._query_changed)
-        # Ctrl+Z / Ctrl+Y działają także wtedy, gdy aktywne jest to okno (komunikat importu o nie prosi)
+        # Ctrl+Z / Ctrl+Y działają także w tym oknie (komunikat importu o nie prosi)
         self.addAction(win.act_undo)
         self.addAction(win.act_redo)
         self._source_changed()
@@ -295,11 +295,11 @@ class ThemesDialog(QDialog):
         self._rebuild()
 
     def _ensure_loaded(self, *, retry_errors: bool) -> None:
-        """Startuje brakujące pobrania bieżącego wyboru (po ponownym otwarciu: też przerwane/błędne)."""
+        """Startuje brakujące pobrania; ``retry_errors``: także przerwane/błędne."""
         if self._is_lospec():
-            if self._lospec_page == -1 and "lospec" not in self._loading:
-                if retry_errors or "lospec" not in self._errors:
-                    self._start_lospec(self.search.text(), refresh=False)
+            idle = self._lospec_page == -1 and "lospec" not in self._loading
+            if idle and (retry_errors or "lospec" not in self._errors):
+                self._start_lospec(self.search.text(), refresh=False)
             return
         for src in self._file_sources():
             if src in self._catalogs or src in self._loading:
@@ -340,22 +340,27 @@ class ThemesDialog(QDialog):
         self._jobs.add(w)
         self._loading[key] = w
 
-        def finish() -> None:
+        def settle() -> None:
+            # przed przebudową listy (wiersze źródła w toku są wyłączone, nie do zaznaczenia)
             self._jobs.discard(w)
             if self._loading.get(key) is w:
                 del self._loading[key]
+
+        def finish() -> None:
             self._refresh_enabled()
             self._update_status()
 
         def ok(res: object) -> None:
+            settle()
             if not w.cancel.is_set():
                 done(cast(catalog.CatalogResult, res))
             finish()
 
         def fail(msg: str) -> None:
+            settle()
             if not w.cancel.is_set():
                 self._errors[key] = msg
-                self._rebuild()
+                self._rebuild(keep_shown=True)
             finish()
 
         w.signals.done.connect(ok)
@@ -413,7 +418,7 @@ class ThemesDialog(QDialog):
             # koniec: strony serwera wyczerpane albo pusta strona (totalCount liczy też palety,
             # które parser pomija, więc liczba sparsowanych nigdy go nie dogoni)
             pages_done = res.total is None or (page + 1) * catalog.LOSPEC_PAGE_SIZE >= res.total
-            self._lospec_done = pages_done or not res.themes and not res.skipped
+            self._lospec_done = pages_done or (not res.themes and not res.skipped)
             if self._is_lospec():
                 if page == 0:
                     self._rebuild()
@@ -627,7 +632,9 @@ class ThemesDialog(QDialog):
                 notes.append(res.cache_error.rstrip(".") + ".")
             skipped = self._lospec_skipped if k == "lospec" else res.skipped
             if skipped:
-                notes.append(f"{self._label(k)}: pominięto {skipped} (za mało kolorów lub błędny zapis)")
+                notes.append(
+                    f"{self._label(k)}: pominięto {skipped} (za mało kolorów lub błędny zapis)"
+                )
         loading = [self._label(k) for k in keys if k in self._loading]
         if loading:
             text = "Pobieranie katalogu: " + ", ".join(loading) + "…"

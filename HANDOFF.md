@@ -2,7 +2,7 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0f. MOTYWY Z SIECI (2026-11-16) — Taski 1–8 ☑; przegląd całości: 0 C / 2 I / 9 M → CZEKA na decyzję użytkownika o poprawkach
+## 0f. MOTYWY Z SIECI (2026-11-16) — ZROBIONE: Taski 1–8, przegląd (0 C / 2 I / 9 M), fala napraw, SCALONE do `main` (bez re-review — decyzja użytkownika)
 
 - **STAN NA TERAZ:** gałąź `feat/motywy-z-sieci` (worktree `/home/qrikk/algopalette/.worktrees/motywy-z-sieci`),
   odgałęziona od `feat/zasady-silnik` @ `8291a8b` (model v2 + kłódka zasad; tamta gałąź NIE jest w `main` i ma
@@ -108,6 +108,30 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     „Więcej”; przebudowa listy przewija/zwija stronicowanie; brak notki offline/pominiętych dla Lospec; Ctrl+Z nie
     działa, gdy aktywne jest okno motywów; anulowanie co 64 KB i wątki anulowane zajmują pulę; „Odśwież katalogi”
     tylko bieżące źródła i brak wyszarzenia listy w trakcie pobierania.
+  - **Decyzja użytkownika po przeglądzie (2026-11-16, WIĄŻĄCA):** „napraw, następnie scal, commit i przebuduj. nie rób
+    re-review” → naprawione WSZYSTKIE 11 znalezisk, re-review NIE było (świadomie). Scalenie `feat/motywy-z-sieci`
+    do `main` przez fast-forward wnosi do `main` także CAŁE `feat/zasady-silnik` (model v2, silnik Rust, kłódka
+    zasad) — jej własny PRZEGLĄD 1/2 z §0c nie został w tej sesji domknięty (raport `review1-report.md` nie był
+    tu czytany). Push NIE był zlecony — `origin/main` zostaje w tyle.
+  - **Fala napraw:** Sonnet (`feat/motywy-fix-net` `f065d66`, scalona `0db8188`): M1 `fetch` mapuje każde
+    `httpx.RequestError` na `FetchError` (TooManyRedirects/DecodingError → „http” z PL komunikatem), `catalog._get`
+    przy `ThemeError` parsera i istniejącej pamięci zwraca pamięć `offline=True`; M2 `_lospec_key` = `lospec-<sha1(tag)[:16]>-<strona>`
+    (stare pliki pamięci Lospec po prostu nie trafiają); M8 `iter_bytes()` bez stałej porcji + łączny limit
+    `TOTAL_TIMEOUT_S = 60` (sprawdzany na porcję — serwer milczący dalej ograniczony 20 s fazy); `LOSPEC_PAGE_SIZE = 10`.
+    Kontroler (`themes_dialog.py`, `theme_preview.py`): I1 koniec stronicowania Lospec = `(strona+1)*10 >= total`
+    albo pusta strona, deduplikacja po `id`, licznik pominiętych w statusie; I2 `_ensure_loaded(retry_errors)` w
+    `showEvent` (ponowne otwarcie wznawia przerwane/nieudane), „Anuluj” zapisuje `CANCELLED` w `_errors` (status nie
+    gubi wyjaśnienia); M3 `rstrip(".")` przy składaniu; M4/M5 „Więcej” dokłada wiersze (`_append`, bez `clear`),
+    spóźniony katalog → `_rebuild(keep_shown=True)` (porcja ≥ dotychczasowej i obejmuje zaznaczony motyw); M6
+    notki offline/błąd pamięci/pominięte także dla Lospec (`_lospec_res`); M7 `addAction(win.act_undo/redo)` w
+    oknie; M9 „Odśwież katalogi” = wszystkie `FULL_CATALOG_SOURCES` (+ Lospec, gdy wybrany), wiersze źródła w toku
+    wyłączone (`item.setEnabled`) i rysowane z przezroczystością 0,4. **Pułapka znaleziona przy naprawie:**
+    wyłączonego wiersza nie da się zaznaczyć — `_loading` trzeba zwolnić PRZED przebudową listy w `done`
+    (`settle()` w `_run`), inaczej podgląd pokazuje „Brak motywów”. Test „Więcej” zależał od kolejności
+    przychodzenia katalogów (porcja rośnie do zaznaczonego) — przebudowa jawna w teście.
+    `tests/gui/test_themes_dialog.py` 22 passed (5× z rzędu), `tests/themes` 130 passed.
+    **Po fali napraw:** `uv run pytest -q -m "not slow"` → **1266 passed, 2 skipped, 454 deselected w 42 s**; ruff
+    check/format czyste; ty 0 błędów (14 ostrzeżeń bazowych).
 
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 
