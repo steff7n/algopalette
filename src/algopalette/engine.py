@@ -14,12 +14,21 @@ import json
 import time
 from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, replace
+from functools import lru_cache
 from typing import Any
 
 from algopalette import _engine
 from algopalette import color as col
 from algopalette import io as aio
-from algopalette.model import OKLCH, Session, role_of
+from algopalette.model import (
+    OKLCH,
+    FitMethod,
+    GlobalSettings,
+    Session,
+    Slot,
+    default_session,
+    role_of,
+)
 
 POLL_INTERVAL_S = 0.005  # odstęp odpytywania zadania w blokującym ``generate``
 
@@ -96,14 +105,45 @@ def _free_ids(session: Session, slot_ids: Collection[str] | None) -> tuple[str, 
     )
 
 
+@lru_cache(maxsize=1)
+def _template() -> Session:
+    return default_session()
+
+
+@lru_cache(maxsize=1024)
+def _slot_json(slot: Slot, fit: FitMethod, fixed: bool) -> str:
+    """Kolor jako fragment dokumentu ``algopalette.v2``; ``fixed`` = po dopasowaniu do gamutu.
+
+    Wynik zależy tylko od koloru i metody dopasowania, a jego policzenie (dopasowanie do gamutu i
+    hex przez coloraide) to większość kosztu oceny na żywo — stąd pamięć podręczna: przy edycji
+    jednego koloru pozostałe są już zakodowane.
+    """
+    if fixed:
+        slot = replace(slot, value=col.fitted(slot.value, fit))
+    base = _template()
+    holder = replace(base, globals=replace(base.globals, fit_method=fit), slots=(slot,))
+    return json.dumps(aio.session_to_dict(holder)["slots"][0], ensure_ascii=False, allow_nan=False)
+
+
+@lru_cache(maxsize=16)
+def _globals_json(settings: GlobalSettings) -> str:
+    doc = aio.session_to_dict(replace(_template(), globals=settings))
+    return json.dumps(doc["globals"], ensure_ascii=False, allow_nan=False)
+
+
 def to_engine_json(session: Session, free: Collection[str]) -> str:
-    """Sesja jako dokument ``algopalette.v2``; kolory spoza ``free`` po dopasowaniu do gamutu."""
+    """Sesja jako dokument ``algopalette.v2``; kolory spoza ``free`` po dopasowaniu do gamutu.
+
+    Ten sam dokument co ``io.session_to_dict`` (po podmianie kolorów stałych), składany z
+    zapamiętanych fragmentów.
+    """
     fit = session.globals.fit_method
-    slots = tuple(
-        s if s.id in free else replace(s, value=col.fitted(s.value, fit)) for s in session.slots
+    head = json.dumps(
+        {"format": aio.FORMAT, "preset": session.preset, "view_model": session.view_model},
+        ensure_ascii=False,
     )
-    doc = aio.session_to_dict(replace(session, slots=slots))
-    return json.dumps(doc, ensure_ascii=False, allow_nan=False)
+    slots = ",".join(_slot_json(s, fit, s.id not in free) for s in session.slots)
+    return f'{head[:-1]}, "globals": {_globals_json(session.globals)}, "slots": [{slots}]}}'
 
 
 class Generation:

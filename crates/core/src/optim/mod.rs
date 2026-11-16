@@ -43,6 +43,8 @@ pub struct Control {
     evals_done: AtomicU64,
     evals_planned: AtomicU64,
     candidates: AtomicUsize,
+    /// Faktyczne wywołania funkcji celu (bez doliczanego niewykorzystanego budżetu).
+    evals_real: AtomicU64,
     /// Największy dotąd zwrócony postęp (bity `f64`; dla liczb nieujemnych porządek bitów
     /// jest porządkiem liczb).
     progress_bits: AtomicU64,
@@ -66,6 +68,11 @@ impl Control {
     /// liczy, żeby postęp dochodził do 1).
     pub fn evals_done(&self) -> u64 {
         self.evals_done.load(Ordering::Relaxed)
+    }
+
+    /// Faktycznie wykonane wywołania funkcji celu.
+    pub fn evals_used(&self) -> u64 {
+        self.evals_real.load(Ordering::Relaxed)
     }
 
     /// Zaplanowane wywołania: liczba przebiegów dotychczasowych fal × budżet.
@@ -92,6 +99,13 @@ impl Control {
         self.evals_planned.fetch_add(evals, Ordering::Relaxed);
     }
 
+    /// Jedno wywołanie funkcji celu.
+    pub(crate) fn count_eval(&self) {
+        self.evals_real.fetch_add(1, Ordering::Relaxed);
+        self.evals_done.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Niewykorzystany budżet ukończonego przebiegu (tylko dla postępu).
     pub(crate) fn add_done(&self, evals: u64) {
         self.evals_done.fetch_add(evals, Ordering::Relaxed);
     }

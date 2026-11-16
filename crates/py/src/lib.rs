@@ -1,21 +1,22 @@
 //! Moduł Pythona `algopalette._engine` (plan I3): cienka warstwa PyO3 nad `algopalette_core`.
 //!
-//! Stan po Tasku 5: działają `build_info`, `validate` i funkcje koloru; `evaluate`, `hue_targets`
-//! i `start` są zaślepkami o docelowych sygnaturach (sprawdzają dokument, zwracają pusty wynik).
-//! Lista `IMPLEMENTED` rośnie z kolejnymi zadaniami; funkcja niegotowa zgłasza
-//! `NotImplementedError`.
+//! Wszystkie funkcje I3 są gotowe (`build_info()["implemented"]`): schemat, kolor, ocena zasad,
+//! generowanie. Rust zwraca liczby i nazwy techniczne; napisy dla człowieka składa Python.
 
 use algopalette_core::color::{self, ContrastMetric, CvdKind, CvdMethod, DeltaE};
-use algopalette_core::rules;
+use algopalette_core::optim;
+use algopalette_core::rules::{self, Problem};
 use algopalette_core::schema::{self, SchemaError, Session};
 use algopalette_core::violation::Violation;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
+use std::sync::Arc;
+
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use serde_json::{Map, Value};
 
 /// Funkcje gotowe w tej kompilacji (`build_info()["implemented"]`).
-const IMPLEMENTED: &[&str] = &["schema", "color", "evaluate"];
+const IMPLEMENTED: &[&str] = &["schema", "color", "evaluate", "generate"];
 
 fn schema_error(e: SchemaError) -> PyErr {
     PyValueError::new_err(e.to_string())
@@ -107,39 +108,64 @@ fn hue_targets<'py>(py: Python<'py>, session_json: &str) -> PyResult<Bound<'py, 
     Ok(out)
 }
 
-/// Zadanie generowania. Zaślepka do Tasku 16: od razu `done` z pustą listą propozycji.
+/// Zadanie generowania: wątki Rusta bez GIL, odpytywane przez `poll`.
 #[pyclass(frozen, module = "algopalette._engine")]
-struct Job {}
+struct Job {
+    job: optim::Job,
+    problem: Arc<Problem>,
+    min_diversity: f64,
+}
 
 #[pymethods]
 impl Job {
     /// `{"state": "running"|"done"|"cancelled"|"failed", "progress", "candidates", "error"}`.
+    /// Nie blokuje.
     fn poll<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let status = self.job.poll();
         let out = PyDict::new(py);
-        out.set_item("state", "done")?;
-        out.set_item("progress", 1.0)?;
-        out.set_item("candidates", 0)?;
-        out.set_item("error", py.None())?;
+        out.set_item("state", status.state.as_str())?;
+        out.set_item("progress", status.progress)?;
+        out.set_item("candidates", status.candidates)?;
+        out.set_item("error", status.error)?;
         Ok(out)
     }
 
-    /// Prosi o przerwanie; zadanie reaguje w ≤ 100 ms.
-    fn cancel(&self) {}
+    /// Prosi o przerwanie; zadanie kończy się w ≤ 100 ms z propozycjami z ukończonych przebiegów.
+    fn cancel(&self) {
+        self.job.cancel();
+    }
 
-    /// `{"proposals": [P, ...], "timed_out", "cancelled", "runs", "elapsed_s"}`.
+    /// `{"proposals": [P, ...], "timed_out", "cancelled", "runs", "elapsed_s"}`. Zadanie w toku
+    /// albo zakończone błędem → `RuntimeError`.
     fn result<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+        let finished = self.job.result().map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let proposals = PyList::empty(py);
+        for p in rules::proposals(&self.problem, &finished.outcome, self.min_diversity) {
+            let values = PyDict::new(py);
+            for (id, lch) in &p.values {
+                values.set_item(id, PyList::new(py, lch)?)?;
+            }
+            let item = PyDict::new(py);
+            item.set_item("values", values)?;
+            item.set_item("score", p.score)?;
+            item.set_item("violations", violations_to_py(py, &p.violations)?)?;
+            item.set_item("run", p.run)?;
+            item.set_item("wave", p.wave)?;
+            proposals.append(item)?;
+        }
         let out = PyDict::new(py);
-        out.set_item("proposals", PyList::empty(py))?;
-        out.set_item("timed_out", false)?;
-        out.set_item("cancelled", false)?;
-        out.set_item("runs", 0)?;
-        out.set_item("elapsed_s", 0.0)?;
+        out.set_item("proposals", proposals)?;
+        out.set_item("timed_out", finished.outcome.timed_out)?;
+        out.set_item("cancelled", finished.outcome.cancelled)?;
+        out.set_item("runs", finished.outcome.runs)?;
+        out.set_item("elapsed_s", finished.elapsed.as_secs_f64())?;
         Ok(out)
     }
 }
 
-/// Uruchamia generowanie dla kolorów wolnych `free` (id). Kolory spoza `free` silnik bierze
-/// takie, jakie są w dokumencie (Python podaje je już po dopasowaniu do gamutu).
+/// Uruchamia generowanie dla kolorów wolnych `free` (id) i wraca natychmiast. Kolory spoza
+/// `free` silnik bierze takie, jakie są w dokumencie (Python podaje je już po dopasowaniu do
+/// gamutu). Parametry z `globals.optimizer`.
 #[pyfunction]
 fn start(session_json: &str, free: Vec<String>) -> PyResult<Job> {
     let session = parse(session_json)?;
@@ -148,7 +174,10 @@ fn start(session_json: &str, free: Vec<String>) -> PyResult<Job> {
             return Err(PyValueError::new_err(format!("free[{k}]: unknown slot id")));
         }
     }
-    Ok(Job {})
+    let problem = Arc::new(Problem::compile(&session, &free));
+    let opts = rules::driver_opts(&session, &problem);
+    let min_diversity = opts.min_diversity;
+    Ok(Job { job: optim::Job::spawn(Arc::clone(&problem), opts), problem, min_diversity })
 }
 
 /// Wartość wyliczenia po nazwie; nieznana nazwa to `ValueError("<argument>: ...")`.

@@ -5,15 +5,18 @@
 //! - `compile` — sesja `algopalette.v2` → lista termów;
 //! - `eval` — ocena termów na konkretnych kolorach i raport naruszeń ([`evaluate`]);
 //! - `hues` — cele układu odcieni ([`hue_targets`]);
-//! - `problem` — [`Problem`]: zmienne, granice i funkcja celu z dokładnym gradientem.
+//! - `problem` — [`Problem`]: zmienne, granice i funkcja celu z dokładnym gradientem;
+//! - `generate` — parametry sterownika z sesji i [`Proposal`] z jego wyniku.
 
 mod compile;
 mod eval;
+mod generate;
 pub mod hues;
 mod problem;
 mod terms;
 
 pub use eval::{Evaluation, evaluate};
+pub use generate::{Proposal, driver_opts, proposals};
 pub use hues::hue_targets;
 pub use problem::{HUE_UNIT, Problem};
 
@@ -787,6 +790,62 @@ mod tests {
                 assert!(pen.is_finite() && grad.iter().all(|g| g.is_finite()));
             }
         }
+    }
+
+    #[test]
+    fn proposals_carry_free_colors_scores_and_diversity_violations() {
+        // jeden akcent z twardym, wąskim zakresem: różnych rozwiązań nie ma
+        let mut doc = bare(2);
+        doc["slots"][2]["rules"]["lightness"] =
+            rule(json!({"lo": 0.699, "hi": 0.701, "exclude": []}), true);
+        doc["slots"][2]["rules"]["chroma"] =
+            rule(json!({"mode": "rel", "lo": 0.5, "hi": 0.501, "exclude": []}), true);
+        doc["slots"][2]["rules"]["hue"] =
+            rule(json!({"lo": 40.0, "hi": 40.5, "exclude": []}), true);
+        doc["globals"]["optimizer"]["n_proposals"] = json!(3);
+        doc["globals"]["optimizer"]["budget"] = json!(200);
+        doc["globals"]["optimizer"]["min_diversity"] = json!(0.2);
+        let session = parse(&doc);
+        let p = Problem::compile(&session, &free_ids(&["a1"]));
+        let opts = driver_opts(&session, &p);
+        assert_eq!((opts.n, opts.budget, opts.seed, opts.min_diversity), (3, 200, 0, 0.2));
+        assert_eq!(opts.time_cap, Duration::from_secs(30));
+        let outcome = generate(&p, &opts, &Control::new());
+        let list = proposals(&p, &outcome, opts.min_diversity);
+        assert_eq!(list.len(), 3);
+        for (i, prop) in list.iter().enumerate() {
+            assert_eq!(prop.values.len(), 1);
+            assert_eq!(prop.values[0].0, "a1");
+            assert!(color::in_gamut(prop.values[0].1));
+            assert!(prop.feasible());
+            assert_eq!(prop.score, p.evaluate(&outcome.chosen[i].x).objective);
+            let diversity: Vec<&Violation> =
+                prop.violations.iter().filter(|v| v.kind == ViolationKind::Diversity).collect();
+            if i == 0 {
+                assert!(
+                    diversity.is_empty(),
+                    "najlepsza propozycja nie ma naruszenia różnorodności"
+                );
+            } else {
+                let v = diversity[0];
+                assert!(!v.hard && v.key == "global:diversity" && v.slots == ["a1"]);
+                assert!(v.achieved < 0.2 && (v.amount - (0.2 - v.achieved)).abs() < 1e-12);
+                assert_eq!(serde_json::to_value(&v.req).unwrap(), json!({"min": 0.2}));
+            }
+        }
+        // bez kolorów wolnych: jedna propozycja
+        let fixed = Problem::compile(&session, &[]);
+        assert_eq!(driver_opts(&session, &fixed).n, 1);
+        let outcome = generate(&fixed, &driver_opts(&session, &fixed), &Control::new());
+        let list = proposals(&fixed, &outcome, 0.2);
+        assert_eq!(list.len(), 1);
+        assert!(list[0].values.is_empty());
+        assert_eq!(list[0].violations, evaluate(&session).violations);
+        // limit czasu 0 s to natychmiastowy limit: brak propozycji, wynik oznaczony
+        doc["globals"]["optimizer"]["time_cap_s"] = json!(0.0);
+        let session = parse(&doc);
+        let outcome = generate(&p, &driver_opts(&session, &p), &Control::new());
+        assert!(outcome.timed_out && proposals(&p, &outcome, 0.2).is_empty());
     }
 
     #[test]

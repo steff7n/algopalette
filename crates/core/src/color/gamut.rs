@@ -2,7 +2,7 @@
 //!
 //! `max_chroma` odtwarza bisekcję wyroczni (`fast.max_chroma`: przedział [0, 0.5], środek, kolor
 //! „w gamucie”, gdy kanały liniowe leżą w [−1e-6, 1 + 1e-6]), tylko doprowadzoną do pełnej
-//! precyzji: po 20 krokach bisekcji przedział ma 5e-7, a resztę robi metoda Newtona na kanale,
+//! precyzji: po 10 krokach bisekcji przedział ma 5e-4, a resztę robi metoda Newtona na kanale,
 //! który ogranicza gamut. Pochodne po L i H wynikają z twierdzenia o funkcji niejawnej dla tego
 //! kanału: `lin_k(L, C*, H) = próg` ⇒ `dC*/dθ = −(∂lin_k/∂θ) / (∂lin_k/∂C)`.
 
@@ -15,8 +15,10 @@ pub const GAMUT_EPS: f64 = 1e-6;
 
 /// Górny koniec przedziału bisekcji (żaden kolor sRGB nie ma większego C).
 const C_SEARCH_MAX: f64 = 0.5;
-/// Kroki bisekcji przed dokańczaniem metodą Newtona: 0.5 / 2^20 ≈ 4.8e-7.
-const BISECT_STEPS: usize = 20;
+/// Kroki bisekcji przed dokańczaniem metodą Newtona: 0.5 / 2^10 ≈ 4.9e-4. Mniejsza liczba
+/// kroków przyspiesza funkcję (to najczęściej wołana funkcja silnika); pierwiastek Newtona jest
+/// potem sprawdzany, a w razie wątpliwości bisekcja idzie do końca.
+const BISECT_STEPS: usize = 10;
 
 #[inline]
 fn channels_ok(lin: &[f64; 3]) -> bool {
@@ -90,10 +92,43 @@ impl Ray {
     }
 }
 
-/// Brzeg gamutu: największe C oraz ograniczenie, które go wyznacza (kanał, próg). `None`, gdy
-/// brzegu nie ma w przedziale (L poza [0, 1] albo C nieograniczone do 0.5) — pochodna jest
-/// wtedy zerowa.
-fn boundary(ray: &Ray) -> (f64, Option<(usize, f64)>) {
+/// Brzeg gamutu na półprostej stałych (L, H): największe C i dane do pochodnych.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Boundary {
+    /// Największe C w sRGB.
+    pub chroma: f64,
+    /// Kanał ograniczający i pochodna tego kanału po C w punkcie brzegu. `None`, gdy brzegu
+    /// nie ma w przedziale (L poza [0, 1]) — największe C nie zależy wtedy lokalnie od (L, H).
+    limit: Option<(usize, f64)>,
+}
+
+impl Boundary {
+    /// Największe C jako skalar: wartość z brzegu, pochodne po `l` i `h` z funkcji niejawnej
+    /// `lin_k(l, C*, h) = próg`. `l` i `h` muszą mieć wartości, dla których brzeg policzono.
+    #[inline]
+    pub fn lift<T: Scalar>(&self, l: T, h: T) -> T {
+        let Some((k, slope)) = self.limit else {
+            return T::c(self.chroma);
+        };
+        // F(l, h) = lin_k(l, C*, h) przy stałym C*; jego pochodne to ∂lin_k/∂θ.
+        let f = oklab_to_linear_srgb(oklch_to_oklab([l, T::c(self.chroma), h]))[k];
+        T::c(self.chroma) - (f - T::c(f.val())).scale(1.0 / slope)
+    }
+}
+
+/// Brzeg gamutu dla jasności `l` i odcienia `h` (stopnie).
+pub fn boundary(l: f64, h: f64) -> Boundary {
+    let ray = Ray::new(l, h);
+    let (chroma, constraint) = search(&ray);
+    let limit = constraint.and_then(|(k, _)| {
+        let slope = ray.channel(chroma, k).1;
+        (slope != 0.0 && slope.is_finite()).then_some((k, slope))
+    });
+    Boundary { chroma, limit }
+}
+
+/// Największe C oraz ograniczenie, które je wyznacza (kanał, próg).
+fn search(ray: &Ray) -> (f64, Option<(usize, f64)>) {
     let (mut lo, mut hi) = (0.0, C_SEARCH_MAX);
     for _ in 0..BISECT_STEPS {
         let mid = (lo + hi) / 2.0;
@@ -110,7 +145,7 @@ fn boundary(ray: &Ray) -> (f64, Option<(usize, f64)>) {
     if let Some((k, bound)) = ray.violated(hi) {
         let mut c = hi;
         let mut converged = false;
-        for _ in 0..8 {
+        for _ in 0..12 {
             let (value, slope) = ray.channel(c, k);
             if slope == 0.0 {
                 break;
@@ -160,18 +195,7 @@ fn finish_bisection(ray: &Ray, mut lo: f64, mut hi: f64) -> (f64, f64) {
 /// Pochodne po `l` i `h`: z funkcji niejawnej na kanale ograniczającym. W punkcie, w którym
 /// kanał ograniczający się zmienia, pochodna jest jednostronna (załamanie).
 pub fn max_chroma<T: Scalar>(l: T, h: T) -> T {
-    let ray = Ray::new(l.val(), h.val());
-    let (c, limit) = boundary(&ray);
-    let Some((k, _)) = limit else {
-        return T::c(c);
-    };
-    let slope = ray.channel(c, k).1;
-    if slope == 0.0 || !slope.is_finite() {
-        return T::c(c);
-    }
-    // F(l, h) = lin_k(l, C*, h) przy stałym C*; jego pochodne to ∂lin_k/∂θ.
-    let f = oklab_to_linear_srgb(oklch_to_oklab([l, T::c(c), h]))[k];
-    T::c(c) - (f - T::c(f.val())).scale(1.0 / slope)
+    boundary(l.val(), h.val()).lift(l, h)
 }
 
 #[cfg(test)]

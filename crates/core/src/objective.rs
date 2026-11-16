@@ -52,7 +52,29 @@ pub trait Objective: Sync {
     /// [`Objective::prepare`] (domyślnie: same punkty).
     fn repulsion(&self, x: &[f64], others: &[Vec<f64>], min_div: f64, grad: &mut [f64]) -> f64;
 
-    // -- dodatki ponad I5: mierzenie różnorodności bez dekodowania punktu przy każdej parze --
+    // -- dodatki ponad I5 --
+
+    /// Czy funkcja ma wariant doszlifowujący: tę samą funkcję celu z ciaśniejszym marginesem
+    /// twardych zasad (i sztywniejszą karą), którym sterownik na końcu zbliża rozwiązanie do
+    /// granicy twardych zasad. Wybiera go `polish = true` w [`Objective::penalized_grad`].
+    fn has_polish(&self) -> bool {
+        false
+    }
+
+    /// To, co minimalizuje przebieg: [`Objective::value_grad`] plus [`Objective::repulsion`]
+    /// od `others` (wyniki [`Objective::prepare`]; puste = bez kary). Zeruje `grad`.
+    /// Implementacja może nadpisać tę metodę, żeby policzyć oba składniki za jednym razem.
+    fn penalized_grad(
+        &self,
+        x: &[f64],
+        others: &[Vec<f64>],
+        min_div: f64,
+        _polish: bool,
+        grad: &mut [f64],
+    ) -> f64 {
+        let value = self.value_grad(x, grad);
+        if others.is_empty() { value } else { value + self.repulsion(x, others, min_div, grad) }
+    }
 
     /// Postać rozwiązania, w której mierzy się różnorodność (np. kolory wolne w OKLab).
     /// Sterownik liczy ją raz na kandydata i podaje do [`Objective::distance_prepared`] oraz
@@ -101,6 +123,21 @@ impl<T: Objective + Send + ?Sized> Objective for Arc<T> {
 
     fn repulsion(&self, x: &[f64], others: &[Vec<f64>], min_div: f64, grad: &mut [f64]) -> f64 {
         (**self).repulsion(x, others, min_div, grad)
+    }
+
+    fn has_polish(&self) -> bool {
+        (**self).has_polish()
+    }
+
+    fn penalized_grad(
+        &self,
+        x: &[f64],
+        others: &[Vec<f64>],
+        min_div: f64,
+        polish: bool,
+        grad: &mut [f64],
+    ) -> f64 {
+        (**self).penalized_grad(x, others, min_div, polish, grad)
     }
 
     fn prepare(&self, x: &[f64]) -> Vec<f64> {

@@ -249,44 +249,116 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 
 ## 0d. TOR SILNIKA (Rust) — pisze WYŁĄCZNIE agent silnikowy; kontroler tej sekcji nie edytuje
 
-**Stan na 2026-11-16.** Gałąź `feat/silnik-rust`, worktree `/home/qrikk/algopalette/.worktrees/silnik-rust`.
-Faza A (4a `50e56d4`, 5 `09de714`, 6 `796c543`) scalona przez kontrolera do `feat/zasady-silnik`; gałąź
-wyrównana `git merge --ff-only feat/zasady-silnik` na `a267a07` (model v2, migracja, nakładka `engine.py`,
-dane wzorcowe). **Faza B:** Task 14 ZROBIONY (commit `feat(engine): kompilacja zasad, funkcja celu z
-gradientem, ocena naruszeń`); Task 16 (spięcie `_engine.start` z `optim::Job`, `algopalette-bench`, progi
-jakości i W1–W4) — następny. Raporty dla kontrolera: `engine-phaseA-report.md`, `engine-phaseB-report.md` w
+**Stan na 2026-11-16 — TOR SILNIKA UKOŃCZONY (Taski 4a, 5, 6, 14, 16).** Gałąź `feat/silnik-rust`, worktree
+`/home/qrikk/algopalette/.worktrees/silnik-rust`. Faza A (4a `50e56d4`, 5 `09de714`, 6 `796c543`) scalona przez
+kontrolera do `feat/zasady-silnik`; gałąź wyrównana `git merge --ff-only` na `a267a07`. Faza B: Task 14
+`e452d55` (`feat(engine): kompilacja zasad, funkcja celu z gradientem, ocena naruszeń`), Task 16 — ostatni commit
+gałęzi (`feat(engine): generowanie natywne, benchmark, progi jakości i wydajności`). Fazy B kontroler jeszcze NIE
+scalił. `build_info()["implemented"] == ["schema", "color", "evaluate", "generate"]`. Następny krok należy do
+kontrolera: scalenie fazy B i PRZEGLĄD 1 całego toru silnika (Opus xhigh). Raporty:
+`engine-phaseA-report.md`, `engine-phaseB-report.md` w
 `.worktrees/zasady-silnik/.superpowers/sdd/2026-11-15-zasady-silnik/`.
-W fazie B kontroler NIE dotyka `engine.py`, `model.py`, `migrate.py`, `crates/`, `_engine.pyi`; ten tor NIE
-dotyka `gui/`, `forms.py`, `presets*.py`, `rules_edit.py`, `sources.py`. W `model.py`/`migrate.py` wolno zmienić
-wyłącznie stałe budżetu (`OptimizerSettings.budget`, `BUDGET_DIVISOR/MIN/MAX`) — z poprawką liczb w
-`tests/test_model.py::test_optimizer_defaults` i `tests/test_migrate.py`.
+Podział plików w fazie B: kontroler nie dotykał `engine.py`, `model.py`, `migrate.py`, `crates/`, `_engine.pyi`;
+ten tor nie dotykał `gui/`, `forms.py`, `presets*.py`, `rules_edit.py`, `sources.py`, `io.py`. Stałe budżetu
+(`OptimizerSettings.budget = 3000`, `BUDGET_DIVISOR = 10`) ZOSTAŁY bez zmian — `model.py` i `migrate.py` nietknięte.
+
+**Liczby W1–W4 (ta maszyna: i9-9880H, 8 rdzeni / 16 wątków; `algopalette-bench`, release; obciążenie 2–6).**
+- W1 sesja startowa, 6 propozycji: **4,7 ms** (mediana z 7; cel ≤ 150 ms). 6/6 bez twardych naruszeń.
+- W2 „chłodny mglisty”, 10 kolorów, 128 propozycji: **0,95–0,98 s** (mediana z 5–7; min 0,87, max 0,99; cel
+  ≤ 2 s). 128/128 bez twardych naruszeń (cel ≥ 120), 89 z miękkim naruszeniem „różnorodność”; 493 przebiegi
+  (3 fale), 747 073 wywołań funkcji celu. Na jednym wątku 7,46 s (przyspieszenie 8,2×).
+- W3 16 kolorów, protan + deutan, ΔE 2000, 128 propozycji: **0,52–0,55 s** (cel ≤ 6 s). 128/128, 0 z
+  „różnorodnością”, 192 przebiegi, 48 865 wywołań.
+- W4 `engine.current_violations`, 16 kolorów (sesja W3, 44 naruszenia), jeden kolor zmieniany przed każdą oceną:
+  **mediana 0,66 ms, p90 0,79 ms** (cel ≤ 1 ms); ta sama sesja powtarzana 0,52 ms; `engine.objective` 0,47 ms;
+  paleta skrajna (wszystkie akcenty jednakowe, 286 naruszeń) 1,07 ms. Sam silnik (rozbiór JSON + ocena): 0,28 ms.
+- **Czasy zależą od obciążenia maszyny**: przy `load average` ≈ 25 (użytkownik odświeżał czcionki, `fc-cache`)
+  ten sam W2 trwał 2,3–3,1 s. Mierz przy spokojnej maszynie i podawaj obciążenie obok liczby.
+- Profil (`algopalette-bench tests/fixtures/bench/w2.json --micro 200`): `value_grad` ≈ 8 µs/wywołanie (10
+  kolorów), z czego ≈ 5 µs to sam przebieg wartości (`score` 5,3 µs); z karą odpychającą od 128 rozwiązań
+  13,8 µs. Kosztu samego brzegu gamutu nie mierzono osobno. W2 kosztuje, bo każdy przebieg robi średnio ~1500
+  wywołań (747 073 / 493; optimum ma niezerowy wynik miękki, więc zbieżność jest wolna).
+
+**Jakość (36 sesji `quality.json`, budżet domyślny 3000):** 36/36 — liczba propozycji bez twardych naruszeń ≥
+wzorca i najlepszy wynik ≤ wzorzec × 1,05. To samo przy budżecie 600, 1000 i 1500 (zapas 5× względem
+domyślnego). 36 generowań trwa razem 1,6 s. Najtrudniejsze: „nocny wysoki kontrast” dark/apca 0 ok / wzorzec 0
+(wynik 1,51e5 wobec 1,94e5), „ziemisty” dark/apca 6 ok / 4 (39,6 wobec 155,2), „chłodny mglisty” dark/apca 6 ok
+/ 5 (40,8 wobec 168,8); „nocny wysoki kontrast” light/apca 128,7 wobec 228,6 — przechodzi dopiero dzięki
+szlifowaniu (bez niego 244,8 > 240,0). Pełna tabela w `engine-phaseB-report.md`.
+
+**Mapa (16: generowanie).**
+- `crates/py/src/lib.rs` — `IMPLEMENTED` `:19`, `Job` `:113` (`poll`, `cancel`, `result` — propozycje składane w
+  `result`), `start` `:170` (kompiluje `Problem`, uruchamia `optim::Job` z `Arc<Problem>`; wraca od razu).
+- `rules/generate.rs` — `Proposal` `:14`, `driver_opts` `:34` (bez kolorów wolnych `n = 1`), `proposals` `:48`
+  (ocena każdego rozwiązania + miękkie `diversity` dla nieróżnorodnych).
+- `optim/driver.rs` — `F_TOL = 1e-7` `:31`, `POLISH_MAX_EVALS = 400` `:34`, `generate` `:56`, `run_one` `:138`
+  (pula startów → minimalizacja → szlifowanie).
+- `objective.rs` — dodatki: `has_polish` `:60`, `penalized_grad` `:67` (to woła sterownik), `prepare`,
+  `distance_prepared`.
+- `rules/problem.rs` — `MAIN_STAGE` `:31` (margines 0,5, kara ×1), `POLISH_STAGE` `:35` (margines 0,05, kara
+  twardych ×100), `Duals` `:88`, `boundaries` `:334`, `penalty` `:380` (wspólna funkcja obu faz + kara
+  odpychająca), `repel` `:420`, `has_polish`/`penalized_grad` `:554`/`:558`.
+- `color/gamut.rs` — `BISECT_STEPS = 10` `:21`, `Boundary` `:97` (`lift` `:109`), `boundary` `:120`, `search`
+  `:131`, `max_chroma` `:197`.
+- `optim/mod.rs` — `Control::evals_used` `:74` (faktyczne wywołania), `count_eval` `:103`.
+- `schema.rs` — makro `names!` `:204` (`as_str` wyliczeń bez alokacji).
+- `rules/terms.rs` — `Field` `:426`, `Fields` `:452`, `fields_to_map` `:455` (wymaganie i metadane termu jako
+  lekkie pola; JSON powstaje dopiero dla termu naruszonego).
+- `crates/cli/src/main.rs` (pakiet `algopalette-bench`) — `bench_generate` `:73`, `bench_micro` `:122`,
+  `bench_evaluate` `:178`.
+- `src/algopalette/engine.py` — `_slot_json` `:114`, `_globals_json` `:129`, `to_engine_json` `:134` (dokument
+  składany z zapamiętanych fragmentów); reszta nakładki bez zmian.
+- `tests/test_engine_generate.py` — 56 testów (54 + 2 `slow`); `tests/fixtures/bench/{w1,w2,w3}.json`.
+
+**Decyzje (16).**
+- **Szlifowanie** (odstępstwo od „margines 0,5 × skala” ze speca §9.4, dołożone, bo bez niego 1 z 36 sesji
+  jakości nie przechodziła): po zbieżności z marginesem 0,5 rozwiązanie bez twardych naruszeń, ale z niezerowym
+  wynikiem, przechodzi drugą minimalizację (≤ 400 wywołań, z budżetu przebiegu) funkcją o marginesie 0,05 ×
+  skala i karze twardych ×100. Wynik przyjęty tylko, gdy nadal nie ma twardych naruszeń i wynik jest mniejszy —
+  inaczej zostaje rozwiązanie z marginesem 0,5. Sam mniejszy margines NIE działa: przy `hard_weight = 1000`
+  równowaga kary z miękkimi zasadami leży do 0,3 skali za zaostrzoną granicą (dowód: akcent z twardym C ≥ 0,08
+  stał na C = 0,0834 przy zaostrzonej granicy 0,085), więc bez sztywniejszej kary wynik wychodzi poza prawdziwą
+  granicę i jest odrzucany.
+- Zbieżność lokalna `F_TOL = 1e-7` (względny spadek w kroku): jakość 36/36 tak samo jak przy 1e-9, 1e-8 i 1e-6;
+  W2 na tym samym stanie kodu: 1,47 s (1e-9), 1,29 s (1e-8), 1,15 s (1e-7), 1,02 s (1e-6). Kryterium „zastoju w
+  oknie” zmierzone i odrzucone (liczba wywołań W2 spadała o < 2 %: przebiegi nie stoją, tylko wolno zbiegają).
+- `max_chroma`: 10 kroków bisekcji zamiast 20 przed metodą Newtona (2× mniej wyliczeń kanałów); pierwiastek
+  jest sprawdzany, a zgodność z wyrocznią ≤ 1e-9 nadal testowana na 2000 punktów. Brzeg gamutu liczony raz na
+  kolor i ocenę (`Boundary`), używany i dla wartości, i dla pochodnych.
+- `penalized_grad` liczy funkcję celu i karę odpychającą na tych samych kolorach (bez drugiego liczenia brzegów).
+- Sterownik trzyma dla każdego kandydata jego postać „do różnorodności” (`prepare`, OKLab kolorów wolnych):
+  wybór 128 z ~500 kandydatów nie dekoduje punktów przy każdej parze.
+- `time_cap_s = 0` to natychmiastowy limit (pusta lista, `timed_out`); `threads = 0` = wszystkie wątki.
+- `_engine.start` odrzuca nieznane id w `free`; kolor z kłódką podany w `free` byłby traktowany jako wolny
+  (nakładka nigdy go nie podaje).
+- Nakładka: `to_engine_json` pamięta zakodowane kolory (`lru_cache` po `(Slot, fit, stały?)`) i ustawienia —
+  dopasowanie do gamutu i hex przez coloraide to ~0,85 ms na 16 kolorów, czyli więcej niż cały cel W4. Przy
+  edycji jednego koloru koduje się tylko on. Dokument jest ten sam co z `io.session_to_dict` (test
+  `test_engine_document_equals_the_plain_encoding`).
 
 **Mapa (14: zasady).**
-- `rules/terms.rs` — skale `:16–22` (L 0.01, C 0.01/0.02 wzgl., H 1°, `MARGIN_FRAC = 0.5`), `Col<T>` `:41`
-  (`fixed` `:54`, `constant` `:69`, `from_vars` `:83`, `lift` `:93`), `Floor` `:113`, `Chan` `:120`,
-  `interval_v` `:167`, `hue_outside` `:191`, `angle_diff` `:204`, `op_v` `:217`, `hue_weight` `:227`, `Body`
-  `:260` (16 wariantów; komentarz przy wariancie mówi, w jakiej kolejności dostaje kolory),
-  `Body::violation<T>` `:315` (JEDYNE miejsce z semantyką termów — wartość i gradient z tego samego kodu),
-  `Body::achieved` `:391`, `Term` `:421` (`margin` `:440`, `coefficient` `:445`).
-- `rules/compile.rs` — `Compiled` `:25`, `chroma_floors` `:44`, `Builder::add` `:69` (pomija termy samych
-  kłódek), `exclusions` `:92`, `slot_rules` `:114`, `pair` `:202`, `relation` `:245`, `compile` `:308`
+- `rules/terms.rs` — skale `:16–24` (L 0.01, C 0.01/0.02 wzgl., H 1°, `MARGIN_FRAC = 0.5`, `POLISH_MARGIN_FRAC =
+  0.05`), `Col<T>` `:43` (`fixed` `:56`, `constant` `:71`, `from_vars` `:87`, `lift` `:97`), `Floor` `:117`, `Chan`
+  `:124`, `interval_v` `:171`, `hue_outside` `:195`, `angle_diff` `:208`, `op_v` `:221`, `hue_weight` `:231`,
+  `Body` `:264` (16 wariantów; komentarz przy wariancie mówi, w jakiej kolejności dostaje kolory),
+  `Body::violation<T>` `:319` (JEDYNE miejsce z semantyką termów — wartość i gradient z tego samego kodu),
+  `Body::achieved` `:395`, `Term` `:472` (`margin` `:491`, `coefficient` `:496`).
+- `rules/compile.rs` — `Compiled` `:23`, `chroma_floors` `:46`, `Builder::add` `:71` (pomija termy samych
+  kłódek), `exclusions` `:94`, `slot_rules` `:116`, `pair` `:207`, `relation` `:247`, `compile` `:310`
   (kolejność: zasady kolorów → pary → zależności → rozrzut → układ → unikane → gamut).
 - `rules/eval.rs` — `Evaluation` `:19`, `Needs` `:28`, `Active` `:62`, `Frame` `:81` (`new` `:92` liczy raz na
   paletę kontrast akcentów z tłem i współrzędne ΔE akcentów, także po CVD; `active` `:126` wybiera aktywną
   trójkę/parę dla `extreme`/`spread`; `violation` `:160`; `report` `:187`), `evaluate` `:234`.
 - `rules/hues.rs` — `JITTER_STREAM = 7919` `:11`, `base_hues` `:14`, `scheme_targets` `:35`, `hue_targets` `:57`.
-- `rules/problem.rs` — `HUE_UNIT = 100` `:26`, `FreeColor` `:34`, `Problem` `:51`, `sample_outside` `:115`,
-  `Problem::compile` `:155`, `decode` `:292`, `dual_col` `:320`, `term_grad` `:328`, `evaluate` `:348`,
-  `diversity_violation` `:354`, `impl Objective` `:394` (`sample` `:405`, `current` `:431`, `value_grad` `:447`,
-  `score` `:472`, `prepare` `:489`, `repulsion` `:499`).
-- `rules/mod.rs` — eksporty + WSZYSTKIE testy modułu od `:21` (budowanie sesji testowych: `bare` `:65`,
-  `everything` `:102` = sesja z każdym rodzajem termu; `check_gradient` `:211`).
+- `rules/problem.rs` — `HUE_UNIT = 100` `:27`, `FreeColor` `:41`, `Problem` `:58`, `sample_outside` `:137`,
+  `Problem::compile` `:177`, `decode` `:319`, `term_grad` `:359`, `evaluate` `:452`, `diversity_violation` `:458`,
+  `impl Objective` `:497` (`sample` `:508`, `current` `:534`, `value_grad` `:550`, `score` `:569`, `prepare` `:586`,
+  `repulsion` `:596`).
+- `rules/mod.rs` — eksporty + WSZYSTKIE testy modułu od `:24` (budowanie sesji testowych: `bare` `:68`,
+  `everything` `:105` = sesja z każdym rodzajem termu; `check_gradient` `:214`).
 - `color/delta_e.rs` — `prepare` `:37` i `delta_e_prepared` `:47` (przekształcenie raz na kolor, odległość na
   parę), `ictcp` `:201` (LMS obcinane do ≥ 0 przed krzywą PQ).
-- `objective.rs` — dodatki `prepare`, `distance_prepared` (domyślnie tożsamość / `distance`); `repulsion`
-  dostaje `others` w postaci z `prepare`.
-- `crates/py/src/lib.rs` — `IMPLEMENTED` `:18` (`schema`, `color`, `evaluate`), `json_to_py` `:45`,
-  `violation_to_py` `:71`, `evaluate` `:92`, `hue_targets` `:102`; `start` `:144` nadal zaślepka.
+- `crates/py/src/lib.rs` — `json_to_py` `:46`, `violation_to_py` `:72`, `evaluate` `:93`, `hue_targets` `:103`.
 - `tests/test_engine_parity.py` — 300 przypadków `eval.json`; `Case` (przypadek po migracji + stare i nowe C
   względne), `_old_amount` (odtworzenie starej wielkości), `_floor_slack`, `_on_ciede_discontinuity`.
 
@@ -471,10 +543,20 @@ instalacja narzędzia w scratchpadzie. W `pyproject.toml` ten tor zmienił TYLKO
   użytkownika składa Python.
 - `start` odrzuca nieznane id w `free` (`ValueError("free[k]: unknown slot id")`).
 
-**Zależności (wersje).** Rust: `serde 1.0.229` (derive), `serde_json 1.0.154`, `serde_path_to_error 0.1.20`
+**Zależności (wersje).** (bez zmian w fazie B; `crates/py` używa teraz także `serde_json`) Rust: `serde 1.0.229` (derive), `serde_json 1.0.154`, `serde_path_to_error 0.1.20`
 (ścieżka błędu), `rayon 1.12.0` (fale przebiegów), `pyo3 0.30.1` (`abi3-py313`; cecha `extension-module` już niepotrzebna — maturin ustawia
 `PYO3_BUILD_EXTENSION_MODULE`). Python (budowanie): `maturin 1.16.0` (`requires = ["maturin>=1.16,<2.0"]`).
 rustc/cargo 1.99.0, uv 0.13.6.
+
+**Wyniki policzone (16).** `uv run --no-sync pytest -q tests/test_engine_generate.py -m "not slow"`: 54 zielone
+(4 s); `-m slow`: 2 zielone (W2 przez Pythona ≤ 6 s, W4 ≤ 3 ms). `cargo run --release -p algopalette-bench --
+tests/fixtures/bench/w2.json --repeat 5`: mediana 0,95 s, 128/128. `cargo test -p algopalette-core`: 129 (106
+jednostkowych + 23 `schema_contract`); `optim` 38, `rules` 27. Wszystkie testy silnika w Pythonie
+(`test_engine_generate`, `test_sources`, `test_engine_api`, `test_engine_parity`, `test_engine_color`): 465
+zielonych, 2 pominięte (testy zaślepek w `test_engine_api`, wyłączają się same). `pytest tests
+--ignore=tests/gui`: 751 zielonych, 2 pominięte. Trzy testy `tests/test_sources.py` czekające na `"generate"`
+przechodzą. `cargo fmt --check`, `clippy --all-targets -D warnings`, `ruff`, `ty` czyste. Kontrola mutacją:
+przyjęcie szlifowania bez sprawdzenia twardych naruszeń → test `polish_moves_…` pada.
 
 **Wyniki policzone (14).** `cargo test -p algopalette-core rules`: 26 zielonych (2 `hues`, 9 `terms`, 15 w
 `rules::tests`); całość `cargo test -p algopalette-core`: 125 (102 jednostkowe + 23 `schema_contract`, w tym 52
@@ -555,6 +637,24 @@ backendem maturin).
    z dozwolonych odcinków (`sample_outside`).
 14. Test „skrajny kontrast” i „kontrast z tłem” na sesji o jednakowych akcentach nie był naruszony — w testach
    raportu najpierw sprawdź, że term w ogóle jest naruszony (asercja `kinds.contains`).
+
+15. Pętla `for cfg in "a b" …; do set -- $cfg` w zsh NIE dzieli napisu na słowa — zmienne środowiskowe
+   eksperymentu miały śmieciowe wartości i sześć „różnych” konfiguracji dało ten sam wynik. Skrypty
+   eksperymentów pisz w bashu (`#!/bin/bash`, `read -r A B <<< "$cfg"`).
+16. Hipoteza „fale 2–3 biją w budżet przez załamania kary odpychającej” była fałszywa: ślad przebiegów pokazał
+   ~1600–1800 wywołań na przebieg we WSZYSTKICH falach, 189/192 zbieżnych w fali 1. Zanim zaczniesz
+   optymalizować, wypisz liczbę wywołań i powód zakończenia na przebieg.
+17. Pomiary czasu przy obciążonej maszynie są bezwartościowe (W2: 0,95 s albo 3,1 s). Sprawdzaj `uptime`.
+18. W4 z Pythona przegrywało nie przez silnik, tylko przez kodowanie dokumentu: `io._enc_slot` liczy hex każdego
+   koloru przez coloraide (0,41 ms na 16 kolorów), `color.fitted` kolejne 0,11 ms. Rozwiązane pamięcią podręczną
+   w `engine.py`, bez ruszania `io.py`.
+
+**Czego NIE zweryfikowano (16).** GUI z nowym silnikiem (Task 17 i dalsze — nie ten tor). Czasów W1–W4 na innej
+maszynie i przy zimnym starcie procesu. Zachowania przy bardzo wielu naruszeniach w GUI (paleta skrajna: 1,07 ms
+na ocenę — powyżej 1 ms, poza scenariuszem W4). Pamięci podręcznej `to_engine_json` pod wielowątkowym GUI
+(`lru_cache` jest bezpieczne wątkowo, ale nie było testu). Jakości dla sesji z `jitter > 0`, z kłódkami na
+większości kolorów i dla 128 propozycji innych presetów niż „chłodny mglisty”. Instalacji `uv tool install`
+z gotowym silnikiem.
 
 **Czego NIE zweryfikowano (14).** Jakości i szybkości `Problem` w pełnym generowaniu (Task 16) — jest tylko test
 dymny (4 akcenty, 4 rozwiązania bez naruszeń). Zachowania `repulsion` przy 128 rozwiązaniach. Zgodności oceny

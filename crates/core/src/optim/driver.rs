@@ -25,6 +25,14 @@ use super::lbfgsb::{self, Settings, Stop};
 use super::select::{assemble, pick_diverse, rank};
 use super::{Candidate, Control, DriverOpts, Outcome};
 
+/// Zbieżność lokalnej minimalizacji: koniec, gdy krok obniża funkcję o mniej niż
+/// `F_TOL · max(|f|, 1)`. Dobrane pomiarem (Task 16): 1e-7 daje tę samą jakość co 1e-9 na 36
+/// sesjach wzorcowych przy ~15 % mniejszej liczbie wywołań.
+const F_TOL: f64 = 1e-7;
+
+/// Najwięcej wywołań funkcji celu na szlifowanie jednego rozwiązania.
+const POLISH_MAX_EVALS: usize = 400;
+
 /// Największa liczba fal.
 pub const MAX_WAVES: u32 = 3;
 
@@ -140,12 +148,8 @@ pub(crate) fn run_one<O: Objective>(
     let (lower, upper) = obj.bounds();
     let mut rng = Rng::new(opts.seed, u64::from(run));
     let eval = |x: &[f64], grad: &mut [f64]| {
-        let mut f = obj.value_grad(x, grad);
-        if !others.is_empty() {
-            f += obj.repulsion(x, others, opts.min_diversity, grad);
-        }
-        ctl.add_done(1);
-        f
+        ctl.count_eval();
+        obj.penalized_grad(x, others, opts.min_diversity, false, grad)
     };
 
     // Pula startów: przebieg 0 zaczyna od bieżącej palety, potem losowania.
@@ -180,17 +184,40 @@ pub(crate) fn run_one<O: Objective>(
         }
     }
 
-    let settings = Settings { max_evals: opts.budget - used, ..Settings::default() };
+    let settings = Settings { max_evals: opts.budget - used, f_tol: F_TOL, ..Settings::default() };
     let known = (used > 0).then_some((best_f, best_grad.as_slice()));
-    let minimum = lbfgsb::minimize(eval, lower, upper, &best_x, known, &settings, stop);
+    let mut minimum = lbfgsb::minimize(eval, lower, upper, &best_x, known, &settings, stop);
     if minimum.stop == Stop::Interrupted {
         return None;
     }
     used += minimum.evals;
+
+    // Szlifowanie. Rozwiązanie bez twardych naruszeń, ale z niezerowym wynikiem, stoi o cały
+    // margines od granicy twardych zasad i płaci za to miękkimi. Druga, krótka minimalizacja
+    // wariantem doszlifowującym zbliża je do granicy; wynik jest przyjmowany tylko wtedy, gdy
+    // nadal nie ma twardych naruszeń i jest lepszy.
+    let mut score = obj.score(&minimum.x);
+    let polish_evals = (opts.budget - used).min(POLISH_MAX_EVALS);
+    if obj.has_polish() && score.feasible && score.total > 0.0 && polish_evals > 0 {
+        let polish = |x: &[f64], grad: &mut [f64]| {
+            ctl.count_eval();
+            obj.penalized_grad(x, others, opts.min_diversity, true, grad)
+        };
+        let settings = Settings { max_evals: polish_evals, f_tol: F_TOL, ..Settings::default() };
+        let polished = lbfgsb::minimize(polish, lower, upper, &minimum.x, None, &settings, stop);
+        if polished.stop == Stop::Interrupted {
+            return None;
+        }
+        used += polished.evals;
+        let after = obj.score(&polished.x);
+        if after.feasible && after.total < score.total {
+            score = after;
+            minimum.x = polished.x;
+        }
+    }
     // niewykorzystany budżet liczy się jako wykonany: postęp dochodzi do 1 mimo wczesnej zbieżności
     ctl.add_done(opts.budget.saturating_sub(used) as u64);
     ctl.add_candidate();
-    let score = obj.score(&minimum.x);
     let prepared = obj.prepare(&minimum.x);
     Some((Candidate { x: minimum.x, score, run, wave, diverse: true }, prepared))
 }
@@ -198,6 +225,7 @@ pub(crate) fn run_one<O: Objective>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::objective::Score;
     use crate::optim::select::rank;
     use crate::optim::testutil::Wells;
     use std::sync::atomic::Ordering;
@@ -377,6 +405,94 @@ mod tests {
             assert!((f - obj.depths[k]).abs() <= 1e-9, "niedokończony przebieg {}", c.run);
         }
         assert!(ctl.progress() < 1.0);
+    }
+
+    /// Jedna zmienna: miękko „x blisko 2”, twardo „x ≤ 1”. Główna faza trzyma margines 0.5,
+    /// szlifowanie — `polish_margin` (ujemny = szlifowanie wychodzi poza twardą granicę).
+    struct Fence {
+        polish_margin: Option<f64>,
+    }
+
+    impl Fence {
+        fn penalty(x: f64, margin: f64, hard_weight: f64, grad: &mut [f64]) -> f64 {
+            let over = (x - (1.0 - margin)).max(0.0);
+            grad[0] = 2.0 * (x - 2.0) + 2.0 * hard_weight * over;
+            (x - 2.0).powi(2) + hard_weight * over * over
+        }
+    }
+
+    impl Objective for Fence {
+        fn dim(&self) -> usize {
+            1
+        }
+        fn bounds(&self) -> (&[f64], &[f64]) {
+            (&[-10.0], &[10.0])
+        }
+        fn sample(&self, rng: &mut Rng, out: &mut [f64]) {
+            out[0] = rng.range(-3.0, 0.0);
+        }
+        fn current(&self, out: &mut [f64]) {
+            out[0] = 0.0;
+        }
+        fn value_grad(&self, x: &[f64], grad: &mut [f64]) -> f64 {
+            Self::penalty(x[0], 0.5, 1000.0, grad)
+        }
+        fn score(&self, x: &[f64]) -> Score {
+            Score { feasible: x[0] <= 1.0 + 1e-9, total: (x[0] - 2.0).powi(2) }
+        }
+        fn distance(&self, a: &[f64], b: &[f64]) -> f64 {
+            (a[0] - b[0]).abs()
+        }
+        fn repulsion(&self, _: &[f64], _: &[Vec<f64>], _: f64, _: &mut [f64]) -> f64 {
+            0.0
+        }
+        fn has_polish(&self) -> bool {
+            self.polish_margin.is_some()
+        }
+        fn penalized_grad(
+            &self,
+            x: &[f64],
+            _others: &[Vec<f64>],
+            _min_div: f64,
+            polish: bool,
+            grad: &mut [f64],
+        ) -> f64 {
+            match (polish, self.polish_margin) {
+                (true, Some(margin)) => Self::penalty(x[0], margin, 100_000.0, grad),
+                _ => self.value_grad(x, grad),
+            }
+        }
+    }
+
+    #[test]
+    fn polish_moves_a_feasible_solution_closer_to_the_hard_boundary() {
+        let mut options = opts(1, 500, 1);
+        options.min_diversity = 0.0;
+        // bez szlifowania: równowaga kary tuż za zaostrzoną granicą 0.5
+        let plain = generate(&Fence { polish_margin: None }, &options, &Control::new());
+        let x = plain.chosen[0].x[0];
+        assert!((0.5..0.51).contains(&x), "x = {x}");
+        // ze szlifowaniem: tuż za granicą 0.95, nadal bez twardego naruszenia i z lepszym wynikiem
+        let polished = generate(&Fence { polish_margin: Some(0.05) }, &options, &Control::new());
+        let best = &polished.chosen[0];
+        assert!((0.95..0.951).contains(&best.x[0]), "x = {}", best.x[0]);
+        assert!(best.score.feasible && best.score.total < plain.chosen[0].score.total);
+        // szlifowanie, które wychodzi poza twardą granicę, jest odrzucane
+        let rejected = generate(&Fence { polish_margin: Some(-0.2) }, &options, &Control::new());
+        assert_eq!(rejected.chosen[0].x, plain.chosen[0].x);
+        assert!(rejected.chosen[0].score.feasible);
+    }
+
+    #[test]
+    fn polish_stays_within_the_run_budget() {
+        for budget in [1, 9, 12, 40, 500] {
+            let obj = Fence { polish_margin: Some(0.05) };
+            let ctl = Control::new();
+            let cand = run_one(&obj, &opts(1, budget, 1), &ctl, &|| false, 3, 1, &[]);
+            assert!(cand.is_some());
+            assert!(ctl.evals_used() <= budget as u64, "budżet {budget}: {}", ctl.evals_used());
+            assert_eq!(ctl.evals_done(), budget as u64);
+        }
     }
 
     #[test]

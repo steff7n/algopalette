@@ -1,5 +1,5 @@
 [package]
-name = "algopalette-cli"
+name = "algopalette-bench"
 description = "algopalette-bench: benchmarki i uruchamianie silnika na pliku sesji bez GUI"
 version.workspace = true
 edition.workspace = true

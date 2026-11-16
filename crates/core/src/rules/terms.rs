@@ -20,6 +20,8 @@ pub(crate) const SCALE_C_REL: f64 = 0.02;
 pub(crate) const SCALE_H: f64 = 1.0;
 /// Zaostrzenie twardych zasad przy optymalizacji, w ułamku skali termu.
 pub(crate) const MARGIN_FRAC: f64 = 0.5;
+/// Zaostrzenie twardych zasad przy końcowym szlifowaniu rozwiązania.
+pub(crate) const POLISH_MARGIN_FRAC: f64 = 0.05;
 
 pub(crate) fn scale_contrast(metric: ContrastMetric) -> f64 {
     match metric {
@@ -80,8 +82,10 @@ impl Col<f64> {
 
 impl<T: Scalar> Col<T> {
     /// Kolor wolny ze zmiennych (L, u, H°): `C = u · max_chroma(L, H)`, więc leży w gamucie.
-    pub fn from_vars(l: T, u: T, h: T) -> Self {
-        let maxc = color::max_chroma(l, h);
+    /// `boundary` to brzeg gamutu policzony dla wartości (L, H) — bisekcja nie jest powtarzana,
+    /// gdy ten sam kolor liczy się drugi raz z pochodnymi.
+    pub fn from_vars(l: T, u: T, h: T, boundary: &color::Boundary) -> Self {
+        let maxc = boundary.lift(l, h);
         let c = u * maxc;
         let relc = if maxc.val() > 1e-9 { u } else { T::c(0.0) };
         Self { l, c, h, maxc, relc, lab: color::oklch_to_oklab([l, c, h]) }
@@ -416,6 +420,53 @@ impl Body {
     }
 }
 
+/// Wartość pola wymagania albo metadanych naruszenia. Na JSON zamieniana dopiero w raporcie
+/// naruszenia: kompilacja sesji (kilkaset termów) nie buduje map, których nikt nie przeczyta.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum Field {
+    Num(f64),
+    Opt(Option<f64>),
+    Text(&'static str),
+    Null,
+}
+
+impl From<f64> for Field {
+    fn from(v: f64) -> Self {
+        Self::Num(v)
+    }
+}
+
+impl From<Option<f64>> for Field {
+    fn from(v: Option<f64>) -> Self {
+        Self::Opt(v)
+    }
+}
+
+impl From<&'static str> for Field {
+    fn from(v: &'static str) -> Self {
+        Self::Text(v)
+    }
+}
+
+/// Pola wymagania / metadanych w kolejności dodania.
+pub(crate) type Fields = Vec<(&'static str, Field)>;
+
+/// Pola jako obiekt JSON raportu naruszenia.
+pub(crate) fn fields_to_map(fields: &Fields) -> Map<String, Value> {
+    fields
+        .iter()
+        .map(|&(name, field)| {
+            let value = match field {
+                Field::Num(v) => Value::from(v),
+                Field::Opt(v) => v.map_or(Value::Null, Value::from),
+                Field::Text(t) => Value::from(t),
+                Field::Null => Value::Null,
+            };
+            (name.to_owned(), value)
+        })
+        .collect()
+}
+
 /// Jeden term funkcji celu.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Term {
@@ -431,14 +482,14 @@ pub(crate) struct Term {
     /// kandydaci; aktywna trójka / para jest wybierana przy każdej ocenie.
     pub slots: Vec<usize>,
     /// Wymaganie w liczbach (pola stałe; `bound` i `hi` dopisuje ocena).
-    pub req: Map<String, Value>,
-    pub meta: Map<String, Value>,
+    pub req: Fields,
+    pub meta: Fields,
 }
 
 impl Term {
-    /// Margines twardej zasady przy optymalizacji.
-    pub fn margin(&self) -> f64 {
-        if self.hard { MARGIN_FRAC * self.scale } else { 0.0 }
+    /// Margines twardej zasady przy optymalizacji: `frac × skala`.
+    pub fn margin(&self, frac: f64) -> f64 {
+        if self.hard { frac * self.scale } else { 0.0 }
     }
 
     /// Mnożnik `waga · (twarda ? hard_weight : 1) / skala²` przy kwadracie naruszenia.
@@ -547,7 +598,9 @@ mod tests {
 
     #[test]
     fn lifted_color_keeps_value_and_moves_derivatives() {
-        let c = Col::from_vars(Dual::<3>::var(0.7, 0), Dual::var(0.5, 1), Dual::var(40.0, 2));
+        let edge = color::boundary(0.7, 40.0);
+        let c =
+            Col::from_vars(Dual::<3>::var(0.7, 0), Dual::var(0.5, 1), Dual::var(40.0, 2), &edge);
         let up: Col<Dual<9>> = c.lift(2);
         assert_eq!(up.c.v, c.c.v);
         assert_eq!(&up.c.d[6..9], &c.c.d);
