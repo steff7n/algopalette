@@ -2,6 +2,34 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
+## 0f. MOTYWY Z SIECI (2026-11-16) — spec i plan gotowe, implementacja NIE rozpoczęta
+
+- **STAN NA TERAZ:** gałąź `feat/motywy-z-sieci` (worktree `/home/qrikk/algopalette/.worktrees/motywy-z-sieci`),
+  odgałęziona od `feat/zasady-silnik` @ `8291a8b` (model v2 + kłódka zasad; tamta gałąź NIE jest w `main` i ma
+  w toku przegląd 1 — patrz §0c). Spec: `docs/superpowers/specs/2026-11-16-motywy-z-sieci-design.md` (zaakceptowany
+  „zgadza się”). Plan: `docs/superpowers/plans/2026-11-16-motywy-z-sieci.md` + `.tasks.json` (8 zadań; natywne
+  #1–#8). Kolejność: 1 → {2, 3, 4, 6} równolegle (rozłączne pliki) → 5 → 7 → 8 → JEDEN przegląd całości (Opus
+  xhigh) i pętla napraw z `~/.claude/CLAUDE.md`. Postęp zadań dopisuj niżej po każdym zadaniu.
+- **Prośba:** przeglądanie i pobieranie motywów z sieci „na wzór chessboard studio” (zakładka „Pobierz
+  z internetu”, `~/chessboard_transcriber/studio/src/ui/TextureDownload.svelte`); motyw ładowany do „Palety”,
+  NIE zapisywany na dysk (zapis tylko „Zapisz / Zapisz jako…”). Źródła — wybór agenta.
+- **Decyzje użytkownika (WIĄŻĄCE, nie otwieraj ponownie):** checkbox „Nie zmieniaj ustawień palety” (domyślnie
+  odznaczony = import dopasowuje ustawienia „pod siebie”), „wyjątkiem są zablokowane ustawienia kolorów […] te
+  ograniczenia zostają, jeżeli są włączone, niezależnie od ustawień importu” (= kłódka zasad `rules_lock`);
+  podgląd wariant C (lista z paskiem próbek + duży podgląd terminal/kod); `httpx` + `PyYAML` zaakceptowane;
+  rozstrzygnięcia agenta 1–9 ze specu zaakceptowane („zgadza się”).
+- **Źródła (sprawdzone na żywo 2026-11-16):** tinted-theming `codeload…/tar.gz/HEAD` (376 base16 + 250 base24;
+  domyślna gałąź `spec-0.11`, `main` → 404!), Gogh `data/themes.json` (1257), atomcorp/themes `themes.json` (264),
+  Lospec `palette-list/load?…` (10 na stronę, filtr tylko po TAGU, `tag=sweetie` → 0 wyników — tagi to np. warm,
+  gameboy). Pełne iTerm2-Color-Schemes pominięte (setki plików).
+- **O co łatwo się potknąć:** (a) w menu Widok jest już „Motyw” = wygląd okna — nowa funkcja to „Motywy z sieci”,
+  pomoc musi je rozróżniać; (b) `sources.apply_character` ZDEJMUJE kłódki i zeruje `avoid_colors` — import ma
+  tego NIE robić (Task 4 wydziela `character_settings`); (c) `add_accent` kopiuje zasady ostatniego koloru, ale
+  nie `rules_lock`; (d) paczka ma rozszerzenie Rust (maturin) — po dodaniu zależności `uv sync`, a launcher
+  `uv tool install --editable . --force` (decyzja o reinstalacji i scaleniu = użytkownik); (e) testy nie mogą
+  dotykać sieci ani `~/.cache` — `tests/conftest.py` z Tasku 1.
+- **Stan zadań:** (brak — implementacja nie rozpoczęta)
+
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 
 - **Prośba:** „możliwość blokowania/kłódkowania ustawień danego akcentu, tak, aby przy przełączaniu się między
