@@ -50,6 +50,11 @@ OLD_NINE = [
 ]
 
 
+# Akcenty L 0.70–0.80 na ciemnym tle nie osiągają |Lc| ≥ 75 (potrzeba L ≥ 0.803): stary silnik
+# dawał tu 0 z 6 propozycji bez twardych naruszeń, a spec §8 wymaga 5 z 6 dla każdego presetu.
+FIXED_OLD_CASE = ("nocny wysoki kontrast", "dark", "apca")
+
+
 @pytest.fixture(autouse=True)
 def _cfg(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
@@ -115,7 +120,13 @@ def test_old_nine_equal_migrated_reference(case):
     expected = aio.session_from_dict(out)
     got = apply_preset(start(case["polarity"], case["metric"]), case["mood"])
     assert got.preset == case["mood"] == expected.preset
-    assert [s.rules for s in got.slots] == [s.rules for s in expected.slots]
+    wanted = [s.rules for s in expected.slots]
+    if (case["mood"], case["polarity"], case["metric"]) == FIXED_OLD_CASE:
+        # jedyne odstępstwo od dawnych nastrojów: wariant, który był niespełnialny
+        assert case["ok_count"] == 0
+        assert all(r.lightness == Rule(Band(0.70, 0.80)) for r in wanted[2:])
+        wanted[2:] = [replace(r, lightness=Rule(Band(0.80, 0.92))) for r in wanted[2:]]
+    assert [s.rules for s in got.slots] == wanted
     assert [s.use_scheme for s in got.slots] == [s.use_scheme for s in expected.slots]
     assert got.globals.hue_scheme == expected.globals.hue_scheme
     assert got.globals.lightness_spread == expected.globals.lightness_spread

@@ -274,31 +274,48 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     `rules.gen.min_diversity` („dwie fale”), `rules.gen.time_cap` (stan ⏱ dla wszystkich propozycji)
     i `rules.gen.threads` (wynik niezależny od liczby wątków) pochodzą ze speca §9 — porównać z kodem
     `crates/core` i poprawić treść, jeśli agent coś zmienił.
-  - **Task 19 ◐ (presety — deklaracje gotowe, STROJENIE NA SILNIKU CZEKA na fazę B)** —
-    `presets_builtin.py`: **58 presetów** w 11 kategoriach (6/6/6/6/5/5/6/5/5/5/3), rejestr `_REGISTRY`
-    (kategoria → wpisy `_p(nazwa, opis, builder, polaryzacje)`), `BUILTIN` budowany z niego w kolejności
-    `CATEGORIES` (dawne nastroje pierwsze w swojej kategorii; ich buildery nietknięte). Tylko ciemne: „północ”;
-    tylko jasne: „papier i atrament”, „gazeta”. Nadpisania per akcent (`AccentOverride`, akcent 1): „gazeta”,
-    „szarości z akcentem”, „burza”. Twardy układ z własnej listy: „duotone”, „jeden odcień, wiele jasności”,
-    „dwa bieguny”. `cvd`: dwa presety „bezpieczny przy…”; `contrast_metric="apca"`: „APCA do długiego czytania”
-    (builder ignoruje metrykę sesji). Pastelowe poza dawnym „pastel” mają kontrast akcentów obniżony do
-    3:1 / APCA 45 — inaczej jasne akcenty na jasnym tle są niespełnialne.
+  - **Task 19 ☑ (58 presetów, nastrojone na silniku)** — `presets_builtin.py`: **58 presetów** w 11
+    kategoriach (6/6/6/6/5/5/6/5/5/5/3), rejestr `_REGISTRY` (kategoria → wpisy `_p(nazwa, opis, builder,
+    polaryzacje)`), `BUILTIN` budowany z niego w kolejności `CATEGORIES` (dawne nastroje pierwsze w swojej
+    kategorii). Tylko ciemne: „północ”; tylko jasne: „papier i atrament”, „gazeta”. Nadpisania per akcent
+    (`AccentOverride`, akcent 1): „gazeta”, „szarości z akcentem”, „burza”. Twardy układ z własnej listy:
+    „duotone”, „jeden odcień, wiele jasności”, „dwa bieguny”. `cvd`: dwa presety „bezpieczny przy…”;
+    `contrast_metric="apca"`: „APCA do długiego czytania” (builder ignoruje metrykę sesji). Pastelowe poza
+    dawnym „pastel” mają kontrast akcentów obniżony do 3:1 / APCA 45 — inaczej jasne akcenty na jasnym tle są
+    niespełnialne.
+    **Wynik na prawdziwym silniku:** `uv run pytest -q tests/test_presets_quality.py -m slow` →
+    **452 passed w 14,5 s** (preset × polaryzacja × metryka × 10/7 kolorów → ≥ 5/6 `ok`). Pierwszy przebieg:
+    450/452 — padały tylko oba przypadki dawnego „nocny wysoki kontrast | dark | apca”.
+    **Jedyne odstępstwo od „dziewięć dawnych bez zmian” (ruling w ledgerze):** ten wariant miał akcenty
+    L 0.70–0.80 przy |Lc| ≥ 75 — niespełnialne (potrzeba L ≥ 0.803; `quality.json` starego silnika:
+    `ok_count` 0). Teraz dla ciemnego tła i APCA akcenty mają L 0.80–0.92; pozostałe 35 wariantów dawnych
+    nastrojów jest bajt w bajt jak migracja wzorca (`test_old_nine_equal_migrated_reference`, wyjątek
+    `FIXED_OLD_CASE` z asercją, że wzorzec miał 0 dobrych propozycji).
+    Strojenie wyglądu po obejrzeniu pasków próbek (pierwsza propozycja, ciemne i jasne tło, 10 kolorów;
+    skrypt `preset_strips.py` był w scratchpadzie sesji): „ognisko” ciemne L 0.60–0.86 → 0.58–0.80,
+    „terakota” ciemne L 0.60–0.82 → 0.58–0.78 i C 0.06–0.12 → 0.07–0.13 (wychodziły różowo). Reszta nazw
+    pasuje do wyglądu bez zmian.
     Testy: `tests/test_presets.py` 130 (liczba, ≥ 3 na kategorię, kolejność, opisy, parami różne dla 2
     polaryzacji × 2 metryk, nałożenie + zapis/odczyt dla 1/5/8/14 akcentów, prawdziwość opisów „Ograniczone”
-    i „Dostępność”). `tests/test_presets_quality.py` (znacznik `slow`, 452 przypadki = preset × polaryzacja ×
-    metryka × 10/7 kolorów → ≥ 5/6 `ok`) — **dziś 452 skipped**, bo `_engine` jeszcze nie generuje.
-    `tools/preset_feasibility.py` — kontrola statyczna bez generowania (siatka L/C/odcień w tolerancji celu,
-    kontrast przez `_engine.contrast`): czy istnieje tło, przy którym tekst i każdy akcent mieszczą się
-    w twardych zasadach. Wynik dla 58 presetów: niespełnialne tylko 4 kombinacje, wszystkie dawnego
-    „nocny wysoki kontrast”: ciemne + APCA (10 i 7 kolorów: żaden akcent — L ≤ 0.80 nie daje |Lc| ≥ 75) oraz
-    jasne (10 kolorów, akcent 5 przy celu 200°: C ≥ 0.08 nieosiągalne przy L ≤ 0.42; układ miękki, więc silnik
-    zejdzie z celu). **Dowód, że to wada dawnego nastroju, nie nowego modelu:**
-    `tests/fixtures/v1_reference/quality.json` ma dla „nocny wysoki kontrast | dark | apca” `ok_count` 0,
-    a dla „ziemisty | dark | apca” 4. Spec §8 wymaga ≥ 5/6 dla KAŻDEGO presetu, plan — dziewięciu dawnych bez
-    zmian: sprzeczność do rozstrzygnięcia przy strojeniu (spec wiąże → poprawić liczby tych dwóch przypadków
-    i dopisać wyjątek w `test_old_nine_equal_migrated_reference`, z rulingiem w ledgerze).
-    **Do zrobienia po scaleniu fazy B:** `uv run pytest -q tests/test_presets_quality.py -m slow` w tle,
-    strojenie liczb presetów bez 5/6, obraz z paskami próbek (ciemne i jasne tło) obejrzany, commit końcowy.
+    i „Dostępność”). `tools/preset_feasibility.py` — kontrola statyczna bez generowania (siatka L/C/odcień
+    w tolerancji celu): przydatna przy dopisywaniu presetu, zanim puści się test jakości.
+    **NIE zweryfikowano:** jakości presetów przy liczbie akcentów innej niż 8 i 5 (np. 14) ani przy
+    128 propozycjach; pasków próbek dla metryki APCA (oglądane tylko WCAG).
+  - **Task 16 ☑ / scalenie fazy B (commit agenta `9f70eb2`, merge `3ee7491`)** — `_engine` generuje naprawdę
+    (`build_info()["implemented"] == ["schema", "color", "evaluate", "generate"]`). Po `uv sync`:
+    `uv run pytest -q -m "not slow"` → **1083 passed, 2 skipped** (2 = samowyłączające się testy zaślepek
+    w `tests/test_engine_api.py`), `cargo test --workspace` → **106 + 23 passed**. Test przepływu
+    `tests/gui/test_workflow.py::test_rules_to_proposals_to_palette` przechodzi na prawdziwym silniku.
+    W1–W4 (pomiary agenta, i9-9880H, `load` 2–6): W1 0,0047 s (próg 0,15); W2 0,95–0,98 s, 128/128 bez
+    twardych (próg 2 s, ≥ 120); W3 0,52–0,55 s (próg 6 s); W4 mediana 0,66 ms (próg 1 ms). Szczegóły, tabela
+    36 sesji jakości (36/36) i lista odstępstw: §0d oraz
+    `.superpowers/sdd/2026-11-15-zasady-silnik/engine-phaseB-report.md`.
+    **Do oceny w PRZEGLĄDZIE 1 (zgłoszone przez agenta jako obawy):** (1) „szlifowanie” — druga krótka
+    minimalizacja z marginesem 0,05 × skala i karą ×100, świadome odstępstwo od speca §9.4 (margines 0,5);
+    (2) ΔE `itp` obcina LMS, nie kanały sRGB (moja wcześniejsza decyzja mówiła o kanałach liniowych — agent
+    uzasadnił zmianę zgodnością ze wzorcem dla par po symulacji CVD); (3) zmiany w rdzeniu poza listą plików
+    Tasku 16 (dla W2/W4); (4) pamięć podręczna `to_engine_json` wymaga hashowalnych `Slot`/`GlobalSettings`;
+    (5) `_engine.start` nie sprawdza kłódek w `free` (nakładka ich nie podaje).
   - **Task 20 ◐ (część niezależna od silnika zrobiona wcześniej, bo faza B jeszcze trwa)** —
     `__main__.py`: `startup_session` zwraca teraz `Startup(session, notice, path, migration_notes)` (było
     3-krotką); autozapis w v1 → `_migrated_autosave`: kopia `last.v1.json` (istniejącej NIE nadpisuje; gdy
@@ -1251,3 +1268,5 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 19 (część 1): 58 presetów wbudowanych w 11 kategoriach zadeklarowanych, 130 testów presetów; test jakości (452 przypadki, `slow`) i strojenie czekają na generujący silnik; kontrola statyczna `tools/preset_feasibility.py` wskazuje tylko dawny „nocny wysoki kontrast”.
 - 2026-11-16 — Task 20 (część 1, przed silnikiem): migracja autozapisu v1 z kopią `last.v1.json`, komunikaty migracji przy starcie, `tests/gui/test_workflow.py` (8 + 1 czekający na silnik), README na nowym modelu; pełny zestaw 720 passed / 458 skipped.
 - 2026-11-16 — scalony Task 14 agenta (ocena zasad, cele układu): pełny zestaw 1025 passed / 458 skipped; przykłady pomocy o układach odcieni potwierdzone prawdziwym silnikiem; paleta startowa ma 8 miękkich naruszeń układu (jak w starym programie).
+- 2026-11-16 — Task 16 ☑ (faza B agenta scalona): silnik generuje; 1083 passed / 2 skipped, cargo 106 + 23; W1–W4 dotrzymane.
+- 2026-11-16 — Task 19 ☑: 58 presetów nastrojonych na silniku, test jakości 452/452; poprawiony niespełnialny wariant „nocny wysoki kontrast” (ciemne + APCA); paski próbek obejrzane.

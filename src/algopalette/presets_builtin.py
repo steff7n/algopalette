@@ -191,7 +191,11 @@ def _night_contrast(pol: Polarity, metric: ContrastMetric) -> PresetRules:
             "contrast_bg": _contrast(metric, 15.0, 100.0),
         },
         accent={
-            "lightness": _pick(pol, (0.70, 0.80), (0.30, 0.42)),
+            # Ciemne tło + APCA: |Lc| ≥ 75 wymaga L ≥ 0.803, więc dawny zakres 0.70–0.80 był
+            # niespełnialny (stary silnik: 0 z 6 propozycji bez twardych naruszeń).
+            "lightness": _pick(
+                pol, (0.80, 0.92) if metric == "apca" else (0.70, 0.80), (0.30, 0.42)
+            ),
             "chroma": _abs(0.08, 0.16),
             "contrast_bg": _contrast(metric, 7.0, 75.0),
         },
@@ -478,7 +482,7 @@ def _campfire(pol: Polarity, metric: ContrastMetric) -> PresetRules:
             "chroma": _abs(0.008, 0.03),
             "hue": _arc(20.0, 50.0, hard=False),
         },
-        accent={"lightness": _pick(pol, (0.60, 0.86), (0.38, 0.58)), "chroma": _rel(0.60, 0.95)},
+        accent={"lightness": _pick(pol, (0.58, 0.80), (0.38, 0.58)), "chroma": _rel(0.60, 0.95)},
         hue_scheme=_custom(CAMPFIRE, 10.0),
     )
 
@@ -489,8 +493,8 @@ def _terracotta(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         metric,
         bg={"chroma": _abs(0.01, 0.03), "hue": _arc(35.0, 70.0, hard=False)},
         accent={
-            "lightness": _pick(pol, (0.60, 0.82), (0.36, 0.56)),
-            "chroma": _abs(0.06, 0.12),
+            "lightness": _pick(pol, (0.58, 0.78), (0.36, 0.56)),
+            "chroma": _abs(0.07, 0.13),
             "min_distance": _soft(0.05),
         },
         hue_scheme=_fan(40.0, 50.0, 10.0),
