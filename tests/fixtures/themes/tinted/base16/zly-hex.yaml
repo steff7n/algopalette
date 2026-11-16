@@ -1,0 +1,8 @@
+system: "base16"
+name: "Zły hex"
+author: "x"
+variant: "dark"
+palette:
+  base00: "#000000"
+  base05: "#ffffff"
+  base08: "nie-kolor"
