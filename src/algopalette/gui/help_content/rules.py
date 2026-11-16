@@ -101,7 +101,9 @@ i zmienia tło. Preset własny przywraca tło i metrykę, przy których go zapis
 przelicza wtedy progi w zależnościach.
 
 Zasady, które miały kolory wcześniej, są zastępowane w całości — także te ustawione ręcznie.
-Wartości kolorów, kłódki, nazwy i zależności zostają. Nałożenie to jeden krok cofania.""",
+Wyjątek: kolory z [kłódką zasad](help:rules.lock) zachowują swoje zasady i przełącznik „układ
+odcieni: stosuj”. Wartości kolorów, kłódki, nazwy i zależności zostają. Nałożenie to jeden krok
+cofania.""",
         Z,
     ),
     "rules.preset.current": Topic(
@@ -111,7 +113,8 @@ Wartości kolorów, kłódki, nazwy i zależności zostają. Nałożenie to jede
         """Program porównuje bieżące zasady kolorów, przełączniki „układ odcieni: stosuj”, układ odcieni
 i rozrzut jasności ze świeżo nałożonym presetem (dla bieżącego tła i metryki). Zmiana wartości
 kolorów, kłódek, zależności czy ustawień generowania nie daje „(zmieniony)”, bo preset ich nie
-ustawia. „— (własne zasady)” oznacza, że żadnego presetu nie nałożono albo zdjął go tryb
+ustawia. Kolory z [kłódką zasad](help:rules.lock) nie są porównywane — ich odstępstwo jest
+zamierzone. „— (własne zasady)” oznacza, że żadnego presetu nie nałożono albo zdjął go tryb
 z zakładki Źródło. Od tego oznaczenia zależy, co stanie się przy [zmianie tła](help:rules.polarity).""",
         Z,
     ),
@@ -175,7 +178,8 @@ rozkładają się na wszystkie akcenty.""",
 - **Ctrl+klik** — dokłada kolor do zaznaczenia albo go odejmuje (ostatniego zaznaczonego nie da się
   odjąć).
 - **Shift+klik** — zaznacza zakres od ostatnio klikniętego koloru.
-- **wszystkie akcenty** — zaznacza wszystkie akcenty naraz.
+- **wszystkie akcenty** — zaznacza wszystkie akcenty naraz, z pominięciem tych z
+  [kłódką zasad](help:rules.lock) (🔒 przy nazwie); gdy kłódkę mają wszystkie — zaznacza wszystkie.
 - **cała paleta** — zamiast kolorów pokazuje [ustawienia wspólne](help:rules.palette).
 
 Zmiana zasady trafia do **wszystkich** zaznaczonych kolorów jednym krokiem cofania — tak ustawia się
@@ -400,6 +404,31 @@ i zasadą „najsłabszy” łamie ją o 0.8: musiałby zejść poniżej 5.2. Te
 akcentowi — dwa „najsłabsze” wykluczają się nawzajem.""",
         K,
         term=True,
+    ),
+    "rules.lock": Topic(
+        "Kłódka zasad",
+        "Chroni zasady zaznaczonych kolorów przed presetem: po nałożeniu innego presetu zostają "
+        "takie, jak są.",
+        """Kłódka zasad to coś innego niż kłódka na zakładce Paleta: tamta chroni **wartość** koloru przed
+generowaniem, ta — jego **zasady** przed [presetem](help:rules.preset.apply). Kolor z kłódką ma 🔒
+przy nazwie na pasku kolorów.
+
+- **wyłączona** — preset zastępuje zasady koloru jak zwykle.
+- **zasady (odcień dalej z układu palety)** — preset nie zmienia zasad koloru ani przełącznika
+  „układ odcieni: stosuj”. Cel odcienia liczy jednak [układ odcieni](help:rules.hues) całej palety,
+  a ten preset zmienia — więc cel akcentu może się przesunąć.
+- **zasady + zamrożony cel odcienia** (tylko akcenty) — jak wyżej, a dodatkowo bieżący cel z układu
+  („cel 70° ± 4°”) w chwili wyboru staje się własną [zasadą odcienia](help:rules.hue) akcentu
+  (łuk 66–74°, twardość i waga z układu; gdy akcent miał już własny łuk — część wspólna obu),
+  a „układ odcieni: stosuj” się wyłącza. Odcień nie zależy już od presetu; pozostałe akcenty dzielą
+  układ między siebie.
+
+Kłódka nie blokuje ręcznej edycji — zasady koloru z kłódką zmienisz jak każde inne. Zdjęcie kłódki
+niczego nie przywraca (zamrożony łuk odcienia zostaje). „Wszystkie akcenty” pomija kolory z kłódką.
+Tryb z zakładki Źródło zastępuje zasady wszystkich kolorów i zdejmuje kłódki. Przy zmianie
+[tła](help:rules.polarity) z ponownym nałożeniem presetu kolory z kłódką też zachowują zasady —
+także progi jasności dobrane do poprzedniego tła.""",
+        K,
     ),
     "rules.scheme_use": Topic(
         "Układ odcieni: stosuj",

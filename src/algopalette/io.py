@@ -43,6 +43,7 @@ from algopalette.model import (
     RelOp,
     Role,
     Rule,
+    RulesLock,
     Session,
     Slot,
     SlotRules,
@@ -194,6 +195,7 @@ _CVD_METHODS = get_args(CvdMethod)
 _FIT = get_args(FitMethod)
 _CHROMA_MODES = get_args(ChromaMode)
 _REL_KINDS = get_args(RelKind)
+_RULES_LOCKS = get_args(RulesLock)
 _REL_OPS = get_args(RelOp)
 _REL_METRICS = (*_METRICS, *_DELTA_E)
 _EXTREMES = ("weakest", "strongest")
@@ -357,7 +359,7 @@ def _dec_relation_raw(d: dict[str, Any], path: str) -> Relation:
 
 
 def _enc_slot(s: Slot, fit: FitMethod) -> dict[str, Any]:
-    return {
+    out = {
         "id": s.id,
         "name": s.name,
         "locked": s.locked,
@@ -367,6 +369,9 @@ def _enc_slot(s: Slot, fit: FitMethod) -> dict[str, Any]:
         "rules": _enc_rules(s.rules),
         "relations": [_enc_relation(r) for r in s.relations],
     }
+    if s.rules_lock != "off":  # klucz opcjonalny: bez kłódki dokument jak przed jej dodaniem
+        out["rules_lock"] = s.rules_lock
+    return out
 
 
 def _dec_slot(v: Any, path: str, role: Role) -> Slot:
@@ -382,6 +387,8 @@ def _dec_slot(v: Any, path: str, role: Role) -> Slot:
         relations=tuple(
             _dec_relation(r, _join(_join(path, "relations"), i)) for i, r in enumerate(rels)
         ),
+        # Pole dopisane po wydaniu v2: starsze pliki go nie mają.
+        rules_lock=_lit(d, "rules_lock", path, _RULES_LOCKS) if "rules_lock" in d else "off",
     )
 
 

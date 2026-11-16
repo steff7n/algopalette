@@ -3,6 +3,7 @@
 Nałożenie presetu zastępuje zasady wszystkich kolorów, ich ``use_scheme``, układ odcieni i rozrzut
 jasności (oraz ustawienia daltonizmu i metrykę kontrastu, jeśli preset je określa). Nie rusza
 wartości kolorów, kłódek, nazw, zależności, ustawień generowania ani listy unikanych kolorów.
+Kolory z kłódką zasad (``Slot.rules_lock != "off"``) zachowują swoje zasady i ``use_scheme``.
 
 Presety wbudowane są deklaracjami z ``presets_builtin`` (zależą od polaryzacji i metryki). Presety
 użytkownika to zapisane zasady według pozycji koloru w ``config_dir()/presets.json``, ważne dla
@@ -263,7 +264,7 @@ def apply_preset(session: Session, name: str, *, polarity: str | None = None) ->
         cvd=s.globals.cvd if res.cvd is None else res.cvd,
     )
     slots = tuple(
-        replace(slot, rules=rules, use_scheme=use_scheme)
+        slot if slot.rules_lock != "off" else replace(slot, rules=rules, use_scheme=use_scheme)
         for slot, (rules, use_scheme) in zip(s.slots, res.colors, strict=True)
     )
     return replace(s, globals=g2, slots=slots, preset=name)
@@ -273,8 +274,9 @@ def is_modified(session: Session) -> bool:
     """Czy zasady sesji różnią się od świeżo nałożonego ``session.preset``.
 
     Liczą się zasady kolorów, ``use_scheme``, układ odcieni i rozrzut jasności (oraz daltonizm i
-    metryka, jeśli preset je określa). Bez presetu → ``False``; preset, którego już nie ma albo
-    który nie pasuje do polaryzacji sesji → ``True``.
+    metryka, jeśli preset je określa). Kolory z kłódką zasad się nie liczą (ich odstępstwo od
+    presetu jest zamierzone). Bez presetu → ``False``; preset, którego już nie ma albo który nie
+    pasuje do polaryzacji sesji → ``True``.
     """
     if session.preset is None:
         return False
@@ -294,6 +296,7 @@ def is_modified(session: Session) -> bool:
     return any(
         (slot.rules, slot.use_scheme) != expected
         for slot, expected in zip(session.slots, res.colors, strict=True)
+        if slot.rules_lock == "off"
     )
 
 

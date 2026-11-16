@@ -122,7 +122,9 @@ def _slot_json(slot: Slot, fit: FitMethod, fixed: bool) -> str:
         slot = replace(slot, value=col.fitted(slot.value, fit))
     base = _template()
     holder = replace(base, globals=replace(base.globals, fit_method=fit), slots=(slot,))
-    return json.dumps(aio.session_to_dict(holder)["slots"][0], ensure_ascii=False, allow_nan=False)
+    doc = aio.session_to_dict(holder)["slots"][0]
+    doc.pop("rules_lock", None)  # kłódka zasad dotyczy tylko presetów; silnik jej nie zna
+    return json.dumps(doc, ensure_ascii=False, allow_nan=False)
 
 
 @lru_cache(maxsize=16)
@@ -134,7 +136,8 @@ def _globals_json(settings: GlobalSettings) -> str:
 def to_engine_json(session: Session, free: Collection[str]) -> str:
     """Sesja jako dokument ``algopalette.v2``; kolory spoza ``free`` po dopasowaniu do gamutu.
 
-    Ten sam dokument co ``io.session_to_dict`` (po podmianie kolorów stałych), składany z
+    Ten sam dokument co ``io.session_to_dict`` (po podmianie kolorów stałych, bez ``rules_lock``),
+    składany z
     zapamiętanych fragmentów.
     """
     fit = session.globals.fit_method

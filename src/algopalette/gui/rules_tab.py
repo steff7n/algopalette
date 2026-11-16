@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, cast
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -130,6 +131,7 @@ class RulesTab(QWidget):
         self.scheme_row: SchemeRow | None = None
         self.relations: RelationsEditor | None = None
         self.editing_label: QLabel | None = None
+        self.lock_combo: QComboBox | None = None
         self.hue_box: QGroupBox | None = None
         self.custom_picker: ListPicker | None = None
         self.avoid_picker: ListPicker | None = None
@@ -208,7 +210,13 @@ class RulesTab(QWidget):
         s = self.win.session
         fit = s.globals.fit_method
         return [
-            StripEntry(sl.id, self.label(i), col.to_hex(sl.value, fit), role_of(i) == "accent")
+            StripEntry(
+                sl.id,
+                self.label(i) + ("  🔒" if sl.rules_lock != "off" else ""),
+                col.to_hex(sl.value, fit),
+                role_of(i) == "accent",
+                sl.rules_lock != "off",
+            )
             for i, sl in enumerate(s.slots)
         ]
 
@@ -266,7 +274,8 @@ class RulesTab(QWidget):
             broken = {i for sid, i in broken_relations(s) if sid == slot.id}
             names = tuple(self.label(i) for i in range(len(s.slots)))
             rel = (tuple((r.kind, i in broken) for i, r in enumerate(slot.relations)), names)
-        return ("colors", ids, self.base_color(), rows, accents, rel)
+        locks = rules_edit.merged_rules_lock(s, ids)
+        return ("colors", ids, self.base_color(), rows, accents, rel, locks)
 
     def _schedule_rebuild(self) -> None:
         if not self._pending:
@@ -295,6 +304,7 @@ class RulesTab(QWidget):
         scroll = bar.value()
         clear_layout(self._editor_lay)
         self.rows, self.scheme_row, self.relations = {}, None, None
+        self.lock_combo = None
         self.hue_box, self.custom_picker, self.avoid_picker = None, None, None
         self.palette_widgets = {}
         if self.strip.selection().palette:
@@ -313,6 +323,7 @@ class RulesTab(QWidget):
         self.editing_label.setWordWrap(True)
         help.attach(self.editing_label, "rules.editing")
         self._editor_lay.addWidget(self.editing_label)
+        self._editor_lay.addWidget(self._lock_row(all(role_of(index[i]) == "accent" for i in ids)))
         for f in rules_edit.applicable_fields(s, ids):
             row = RuleRow(self, f)
             self.rows[f] = row
@@ -330,6 +341,41 @@ class RulesTab(QWidget):
             note = hint("Zależności edytuje się przy jednym zaznaczonym kolorze.")
             help.attach(note, "rel.overview")
             self._editor_lay.addWidget(note)
+
+    def _lock_row(self, accents: bool) -> QWidget:
+        """„kłódka zasad: [wyłączona ▾]” — ochrona zasad zaznaczonych kolorów przed presetem."""
+        options: list[tuple[str, Any]] = [
+            ("wyłączona", "off"),
+            ("zasady (odcień dalej z układu palety)" if accents else "zasady", "rules"),
+        ]
+        if accents:
+            options.append(("zasady + zamrożony cel odcienia", "hue"))
+        current = rules_edit.merged_rules_lock(self.win.session, self.ids)
+        if current is None:
+            options.insert(0, ("— różnie —", None))
+        elif current == "hue" and not accents:
+            current = "rules"
+        self.lock_combo = combo(options, current)
+        self.lock_combo.setCurrentIndex(self.lock_combo.findData(current))
+        self.lock_combo.activated.connect(self._lock_changed)
+        label = QLabel("🔒 kłódka zasad:")
+        row = hbox(label, self.lock_combo, None)
+        help.attach(row, "rules.lock", children=True)
+        return row
+
+    def _lock_changed(self, _index: int) -> None:
+        combo_box = self.lock_combo
+        mode = combo_box.currentData() if combo_box is not None else None
+        if mode is None:
+            return
+        s = self.win.session
+        try:
+            new = rules_edit.set_rules_lock(s, self.ids, mode, self.hue_targets())
+        except ValueError as e:
+            self.win.notify(str(e), error=True)
+            return
+        if new is not s:
+            self.write(new)
 
     def show_scheme_settings(self) -> None:
         """Odnośnik z wiersza „układ odcieni”: „cała paleta”, przewinięte do układu odcieni."""
@@ -439,7 +485,9 @@ class RulesTab(QWidget):
             self.win.notify(str(e), error=True)
             return
         self.write(new)
-        self.win.notify(f"Preset „{name}” zastąpił zasady wszystkich kolorów (Ctrl+Z cofa).")
+        kept = [self.label(i) for i, sl in enumerate(new.slots) if sl.rules_lock != "off"]
+        what = f"kolorów bez kłódki (zostały: {', '.join(kept)})" if kept else "wszystkich kolorów"
+        self.win.notify(f"Preset „{name}” zastąpił zasady {what} (Ctrl+Z cofa).")
 
     def _preset_save(self) -> None:
         name = self.preset_name.text().strip()

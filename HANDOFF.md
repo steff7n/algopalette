@@ -2,6 +2,41 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
+## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
+
+- **Prośba:** „możliwość blokowania/kłódkowania ustawień danego akcentu, tak, aby przy przełączaniu się między
+  presetami ustawienia tego zablokowanego nie zmieniały się”. Użytkownik zbudował i zainstalował gałąź sam
+  („apka działa świetnie … nie testuj już nic, jeżeli coś wyjdzie, to poinformuję”).
+- **Decyzje użytkownika (wiążące):** „zarówno A jak i B, po prostu dwa ustawienia kłódki” — B = `"rules"`: zasady
+  i `use_scheme` zostają, ale cel odcienia dalej liczy układ odcieni palety (preset go zmienia → cel się
+  przesuwa); A = `"hue"`: dodatkowo w chwili zablokowania bieżący cel układu (± `hue_scheme.tol`) staje się
+  własną zasadą odcienia akcentu (twardość/waga z układu), `use_scheme=False`. „Nie rób specyfikacji ani planu,
+  to jest szybka zmiana.” Zaakceptowane też moje propozycje: kłódka działa i dla tła/tekstu (tam bez „hue”),
+  „wszystkie akcenty” pomija zablokowane.
+- **Mapa:** `model.py:23` `RulesLock`, `model.py:196` `Slot.rules_lock`; `io.py:363–` klucz zapisywany TYLKO gdy ≠ „off”, odczyt
+  opcjonalny (stare pliki v2 bez klucza → `"off"`, format NIE podbity; pliki `tests/fixtures/v2_contract/` czytane też przez
+  testy Rusta zostają bez zmian — dlatego klucz jest opcjonalny); `engine.py:126` klucz usuwany z JSON-u dla
+  silnika (Rust `Slot` ma `deny_unknown_fields` — dzięki temu bez przebudowy `_engine`); `presets.py:267`
+  `apply_preset` pomija zablokowane, `presets.py:299` `is_modified` ich nie porównuje; `sources.py` (oba tryby
+  Źródła) zdejmują kłódkę zasad tak jak kłódkę wartości; `rules_edit.py:136–` `merged_rules_lock`,
+  `set_rules_lock(session, ids, mode, targets)` (targets = `engine.hue_targets`), `_frozen_hue` — przy własnym
+  włączonym łuku odcienia część wspólna z celem (dłuższy kawałek; rozłączne → wygrywa cel), zakazy własne
+  zostają; `gui/rules_tab.py:345` `_lock_row` (kombi „🔒 kłódka zasad:” pod „Edytujesz:”, „— różnie —” przy
+  mieszanym zaznaczeniu), `rules_tab.py:215` 🔒 przy nazwie na pasku, sygnatura edytora zawiera stan kłódki;
+  `gui/colorstrip.py:267` `_all_accents` (bez zablokowanych; gdy wszystkie zablokowane → wszystkie);
+  pomoc: temat `rules.lock` w `help_content/rules.py` + dopiski w `rules.preset.apply`, `rules.preset.current`,
+  `rules.strip`.
+- **Świadome uproszczenia:** zdjęcie kłódki niczego nie przywraca (zamrożony łuk zostaje, `use_scheme` wyłączony);
+  kłódka nie blokuje ręcznej edycji; przy zmianie tła z ponownym nałożeniem presetu zablokowane tło/tekst
+  zachowują progi jasności dobrane do poprzedniego tła (opisane w pomocy). Presety własne zapisują zasady
+  wszystkich kolorów, kłódki nie zapisują.
+- **Weryfikacja:** `tests/test_rules_lock.py` 16 passed; `tests/gui/test_rules_tab.py -k rules_lock` 2 passed;
+  `uv run pytest -q -m "not slow"` → 1101 passed, 2 skipped, 454 deselected; `ruff check .`, `ruff format --check .`,
+  `ty check` bez uwag. NIE uruchamiane: testy `slow` (jakość presetów — kłódka ich nie dotyczy, presety nakładane
+  bez kłódek), `cargo test` (Rust nietknięty). Ręcznie w oknie NIE sprawdzane.
+- `docs/superpowers/plans/2026-11-15-zasady-silnik.md.tasks.json` był zmodyfikowany przed tą sesją (nie mój) —
+  nie stageowany.
+
 ## 0c. JEDEN PANEL ZASAD + SILNIK W RUST — STAN NA 2026-11-16: wszystkie 20 zadań planu wykonane, pełny zestaw zielony; PRZEGLĄD 1 (etap silnika, Opus xhigh) zlecony i w toku; PRZEGLĄD 2 (całość) i scalenie przed nami
 
 - **STAN NA TERAZ (czytaj najpierw):**
@@ -1302,3 +1337,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 16 ☑ (faza B agenta scalona): silnik generuje; 1083 passed / 2 skipped, cargo 106 + 23; W1–W4 dotrzymane.
 - 2026-11-16 — Task 19 ☑: 58 presetów nastrojonych na silniku, test jakości 452/452; poprawiony niespełnialny wariant „nocny wysoki kontrast” (ciemne + APCA); paski próbek obejrzane.
 - 2026-11-16 — Task 20 ☑: pełny zestaw 1537 passed / 2 skipped, cargo 106 + 23, wszystkie lintery czyste, instalacja z czystego klonu w scratchpadzie działa, README z benchmarkiem; PRZEGLĄD 1 (silnik) zlecony.
+- 2026-11-16 — kłódka zasad (§0e): dwa tryby („rules”, „hue” z zamrożeniem celu odcienia), preset i „(zmieniony)” pomijają zablokowane, kombi w zakładce Zasady, temat pomocy `rules.lock`; 1101 passed (bez `slow`), lintery czyste.

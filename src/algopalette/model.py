@@ -18,6 +18,9 @@ FitMethod = Literal["clip", "minde-chroma", "lch-chroma", "oklch-chroma", "raytr
 ViewModel = Literal["oklch", "hsl"]
 ChromaMode = Literal["abs", "rel"]  # rel = część największego C w sRGB przy (L, H), 0–1
 Polarity = Literal["dark", "light"]
+# Kłódka zasad (chroni zasady koloru przed presetem): "off"; "rules" — zasady zostają, odcień
+# dalej z układu odcieni palety; "hue" — jak "rules", a cel układu zamrożony w zasadzie odcienia.
+RulesLock = Literal["off", "rules", "hue"]
 
 
 @dataclass(frozen=True)
@@ -190,6 +193,7 @@ class Slot:
     rules: SlotRules = SlotRules()
     use_scheme: bool = True  # tylko akcenty: czy kolor dostaje cel z układu odcieni
     relations: tuple[Relation, ...] = ()
+    rules_lock: RulesLock = "off"
 
 
 @dataclass(frozen=True)

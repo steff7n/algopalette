@@ -611,3 +611,57 @@ def test_help_covers_elements_added_later(win, qtbot):
     for key, topic in gh.TOPICS.items():
         if key.startswith("rules."):
             assert topic.title and topic.short, key
+
+
+def pick_lock(win: MainWindow, mode: str) -> None:
+    box = win.rules_tab.lock_combo
+    assert box is not None
+    box.setCurrentIndex(box.findData(mode))
+    box.activated.emit(box.currentIndex())
+    settle(win)
+
+
+def test_rules_lock_survives_preset_and_freezes_hue(win):
+    tab = win.rules_tab
+    (a1,) = select(win, 2)
+    box = tab.lock_combo
+    assert box is not None and [box.itemData(i) for i in range(box.count())] == [
+        "off",
+        "rules",
+        "hue",
+    ]
+    target = tab.hue_targets()[a1]
+    tol = win.session.globals.hue_scheme.tol
+    pick_lock(win, "hue")
+    slot = win.session.slots[2]
+    assert slot.rules_lock == "hue" and slot.use_scheme is False
+    assert slot.rules.hue is not None
+    assert slot.rules.hue.value.lo == pytest.approx((target - tol) % 360, abs=1e-6)
+    assert tab.strip.chips[2].text().endswith("🔒")
+    assert tab.lock_combo is not None and tab.lock_combo.currentData() == "hue"
+    kept = slot.rules
+    tab.preset_combo.setCurrentIndex(tab.preset_combo.findData("pastel"))
+    tab.apply_btn.click()
+    settle(win)
+    assert win.session.preset == "pastel"
+    assert win.session.slots[2].rules == kept
+    assert win.session.slots[3].rules == presets.apply_preset(win.session, "pastel").slots[3].rules
+    assert "(zmieniony)" not in tab.current_label.text()
+
+
+def test_rules_lock_mixed_selection_and_all_accents_skip_locked(win):
+    tab = win.rules_tab
+    ids = select(win, 2)
+    pick_lock(win, "rules")
+    tab.strip.select_all_accents()
+    settle(win)
+    assert ids[0] not in tab.ids
+    assert len(tab.ids) == len(win.session.slots) - 3
+    select(win, 2, 3)
+    box = tab.lock_combo
+    assert box is not None and box.currentData() is None  # „— różnie —”
+    pick_lock(win, "off")
+    assert {sl.rules_lock for sl in win.session.slots} == {"off"}
+    select(win, 0, 2)
+    box = tab.lock_combo
+    assert box is not None and box.findData("hue") == -1  # tło: bez zamrażania odcienia

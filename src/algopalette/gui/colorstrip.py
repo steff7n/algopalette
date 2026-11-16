@@ -37,6 +37,7 @@ class StripEntry:
     label: str
     hex: str
     accent: bool
+    locked: bool = False  # kłódka zasad: „wszystkie akcenty” pomija taki kolor
 
 
 @dataclass(frozen=True)
@@ -263,8 +264,13 @@ class ColorStrip(QWidget):
     def select_palette(self) -> None:
         self._apply(set())
 
+    def _all_accents(self) -> set[str]:
+        """Akcenty bez kłódki zasad; gdy wszystkie ją mają — wszystkie akcenty."""
+        accents = [e for e in self._entries if e.accent]
+        return {e.id for e in accents if not e.locked} or {e.id for e in accents}
+
     def select_all_accents(self) -> None:
-        self._apply({e.id for e in self._entries if e.accent})
+        self._apply(self._all_accents())
 
     def _apply(self, selected: set[str]) -> None:
         if selected == self._selected:
@@ -309,7 +315,7 @@ class ColorStrip(QWidget):
 
     def _sync(self) -> None:
         self.palette_button.setChecked(not self._selected)
-        accents = {e.id for e in self._entries if e.accent}
+        accents = self._all_accents()
         self.accents_button.setChecked(bool(accents) and self._selected == accents)
         for chip in self.chips:
             chip.setChecked(chip.entry_id in self._selected)

@@ -245,6 +245,7 @@ def apply_character(
             locked=False,
             rules=by_index[i] if i < 2 else accent,
             use_scheme=True,
+            rules_lock="off",
         )
         for i, s in enumerate(session.slots)
     )
@@ -288,10 +289,10 @@ def apply_transfer(
     )
     slots = list(session.slots)
     bg_rules = replace(default_rules("bg", pol, metric), hue=_bg_hue(src_bg))
-    slots[0] = replace(slots[0], locked=False, rules=bg_rules, use_scheme=True)
+    slots[0] = replace(slots[0], locked=False, rules=bg_rules, use_scheme=True, rules_lock="off")
     fg_base = default_rules("fg", pol, metric)
     fg_rules = fg_base if src_fg is None else _transfer_rules(src_fg, src_bg, metric, tol, fg_base)
-    slots[1] = replace(slots[1], locked=False, rules=fg_rules, use_scheme=True)
+    slots[1] = replace(slots[1], locked=False, rules=fg_rules, use_scheme=True, rules_lock="off")
     accent_base = default_rules("accent", pol, metric)
     for k, c in enumerate(rest):
         slots[2 + k] = replace(
@@ -300,6 +301,7 @@ def apply_transfer(
             rules=_transfer_rules(c, src_bg, metric, tol, accent_base),
             use_scheme=False,
             relations=(),
+            rules_lock="off",
         )
     return replace(session, globals=g2, slots=tuple(slots), preset=None)
 
