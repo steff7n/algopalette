@@ -53,6 +53,7 @@ KEEP_SETTINGS_KEY = "themes_keep_settings"
 PAGE_SIZE = 50
 LOSPEC_DEBOUNCE_MS = 400
 LOCAL_DEBOUNCE_MS = 150
+CANCELLED = "pobieranie przerwane — kliknij „Odśwież katalogi”"
 LOSPEC_HINT = (
     "Lospec szuka po tagach (np. warm, gameboy, pastel); puste pole = najczęściej pobierane."
 )
@@ -117,12 +118,18 @@ class ThemesDialog(QDialog):
         self._lospec_page = -1
         self._lospec_gen = 0
         self._lospec_tag = ""
+        self._lospec_done = False  # ostatnia strona serwera już pobrana
+        self._lospec_skipped = 0
+        self._lospec_res: catalog.CatalogResult | None = None
         self._filtered: list[Theme] = []
         self._shown = 0
         self._build()
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._query_changed)
+        # Ctrl+Z / Ctrl+Y działają także wtedy, gdy aktywne jest to okno (komunikat importu o nie prosi)
+        self.addAction(win.act_undo)
+        self.addAction(win.act_redo)
         self._source_changed()
 
     # --- budowa ------------------------------------------------------------------------------
@@ -284,10 +291,25 @@ class ThemesDialog(QDialog):
         if lospec:
             self._start_lospec(self.search.text(), refresh=False)
         else:
-            for src in self._file_sources():
-                if src not in self._catalogs and src not in self._loading:
-                    self._start_catalog(src, refresh=False)
+            self._ensure_loaded(retry_errors=False)
         self._rebuild()
+
+    def _ensure_loaded(self, *, retry_errors: bool) -> None:
+        """Startuje brakujące pobrania bieżącego wyboru (po ponownym otwarciu: też przerwane/błędne)."""
+        if self._is_lospec():
+            if self._lospec_page == -1 and "lospec" not in self._loading:
+                if retry_errors or "lospec" not in self._errors:
+                    self._start_lospec(self.search.text(), refresh=False)
+            return
+        for src in self._file_sources():
+            if src in self._catalogs or src in self._loading:
+                continue
+            if retry_errors or src not in self._errors:
+                self._start_catalog(src, refresh=False)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self._ensure_loaded(retry_errors=True)
 
     def _schedule_query(self, *_args: Any) -> None:
         self._timer.start(LOSPEC_DEBOUNCE_MS if self._is_lospec() else LOCAL_DEBOUNCE_MS)
@@ -322,6 +344,7 @@ class ThemesDialog(QDialog):
             self._jobs.discard(w)
             if self._loading.get(key) is w:
                 del self._loading[key]
+            self._refresh_enabled()
             self._update_status()
 
         def ok(res: object) -> None:
@@ -340,6 +363,7 @@ class ThemesDialog(QDialog):
         w.signals.progress.connect(self._progress)
         self._errors.pop(key, None)
         self._pool.start(w)
+        self._refresh_enabled()
         self._update_status()
 
     def _start_catalog(self, src: SourceId, *, refresh: bool) -> None:
@@ -353,7 +377,7 @@ class ThemesDialog(QDialog):
         def done(res: catalog.CatalogResult) -> None:
             self._catalogs[src] = res
             if src in self._file_sources():
-                self._rebuild()
+                self._rebuild(keep_shown=True)
 
         self._run(src, job, done)
 
@@ -364,6 +388,9 @@ class ThemesDialog(QDialog):
             self._lospec_total = None
             self._lospec_page = -1
             self._lospec_tag = catalog.lospec_tag(text)
+            self._lospec_done = False
+            self._lospec_skipped = 0
+            self._lospec_res = None
             self._errors.pop("lospec", None)
             old = self._loading.get("lospec")
             if old is not None:
@@ -376,11 +403,22 @@ class ThemesDialog(QDialog):
         def done(res: catalog.CatalogResult) -> None:
             if gen != self._lospec_gen:
                 return  # wynik starszego wyszukiwania
-            self._lospec.extend(res.themes)
+            seen = {t.id for t in self._lospec}
+            new = [t for t in res.themes if t.id not in seen]
+            self._lospec.extend(new)
             self._lospec_total = res.total
             self._lospec_page = page
+            self._lospec_skipped += res.skipped
+            self._lospec_res = res
+            # koniec: strony serwera wyczerpane albo pusta strona (totalCount liczy też palety,
+            # które parser pomija, więc liczba sparsowanych nigdy go nie dogoni)
+            pages_done = res.total is None or (page + 1) * catalog.LOSPEC_PAGE_SIZE >= res.total
+            self._lospec_done = pages_done or not res.themes and not res.skipped
             if self._is_lospec():
-                self._rebuild(keep_shown=True)
+                if page == 0:
+                    self._rebuild()
+                else:
+                    self._append(new)
 
         self._run("lospec", job, done)
         if page == 0:
@@ -394,22 +432,22 @@ class ThemesDialog(QDialog):
             self.progress.setRange(0, 0)
 
     def cancel_loading(self) -> None:
-        for w in list(self._loading.values()):
+        for key, w in list(self._loading.items()):
             w.cancel.set()
+            self._errors[key] = CANCELLED
         self._loading.clear()
-        self.status.setText("Anulowano.")
-        self._update_status(keep_text=True)
+        self._rebuild(keep_shown=True)
 
     def refresh_catalogs(self) -> None:
+        """Wszystkie katalogi plikowe od nowa + strony Lospec wyczyszczone (spec §9)."""
         catalog.refresh_all()
-        if self._is_lospec():
-            self._start_lospec(self.search.text(), refresh=True)
-            return
-        for src in self._file_sources():
+        for src in FULL_CATALOG_SOURCES:
             old = self._loading.get(src)
             if old is not None:
                 old.cancel.set()
             self._start_catalog(src, refresh=True)
+        if self._is_lospec():
+            self._start_lospec(self.search.text(), refresh=True)
 
     def shutdown(self) -> None:
         """Przerywa pobierania (zamknięcie okna albo programu); nie czeka na wątki."""
@@ -434,22 +472,62 @@ class ThemesDialog(QDialog):
         return filter_themes(pool, self.search.text(), self._bg())
 
     def _rebuild(self, *, keep_shown: bool = False) -> None:
+        """Lista od nowa. ``keep_shown``: nie zwijaj dołożonych porcji i zostaw zaznaczony motyw."""
         current = self.current_theme()
         self._filtered = self._themes()
+        n = len(self._filtered)
         if self._is_lospec():
-            self._shown = len(self._filtered)
-        elif not keep_shown:
-            self._shown = min(PAGE_SIZE, len(self._filtered))
+            shown = n
+        elif keep_shown:
+            shown = max(self._shown, PAGE_SIZE)
+            if current is not None:
+                key = (current.source, current.id)
+                for i, t in enumerate(self._filtered):
+                    if (t.source, t.id) == key:
+                        shown = max(shown, i + 1)
+                        break
+        else:
+            shown = PAGE_SIZE
+        self._shown = min(shown, n)
         self._fill(current)
+        self._update_status()
+
+    def _item(self, t: Theme) -> QStandardItem:
+        item = QStandardItem(t.name)
+        item.setData(t, THEME_ROLE)
+        item.setEnabled(self._source_key(t) not in self._loading)
+        return item
+
+    def _source_key(self, t: Theme) -> str:
+        return "lospec" if t.source == "lospec" else t.source
+
+    def _refresh_enabled(self) -> None:
+        """Wiersze źródła, które się właśnie pobiera, są wyszarzone (spec §8)."""
+        for i in range(self.model.rowCount()):
+            item = self.model.item(i)
+            t = item.data(THEME_ROLE)
+            if isinstance(t, Theme):
+                on = self._source_key(t) not in self._loading
+                if item.isEnabled() != on:
+                    item.setEnabled(on)
+
+    def _append(self, themes: list[Theme]) -> None:
+        """Dokłada wiersze bez przebudowy (widok się nie przewija, zaznaczenie zostaje)."""
+        self._filtered = self._themes()
+        had_rows = self.model.rowCount() > 0
+        for t in themes:
+            self.model.appendRow(self._item(t))
+        self._shown = self.model.rowCount()
+        if not had_rows and self.model.rowCount():
+            self.view.setCurrentIndex(self.model.index(0, 0))
+        self._update_more()
         self._update_status()
 
     def _fill(self, keep: Theme | None) -> None:
         self.model.clear()
         row_keep = -1
         for i, t in enumerate(self._filtered[: self._shown]):
-            item = QStandardItem(t.name)
-            item.setData(t, THEME_ROLE)
-            self.model.appendRow(item)
+            self.model.appendRow(self._item(t))
             if keep is not None and (t.source, t.id) == (keep.source, keep.id):
                 row_keep = i
         if row_keep >= 0:
@@ -465,14 +543,17 @@ class ThemesDialog(QDialog):
             if "lospec" not in self._loading:
                 self._start_lospec(self._lospec_tag, refresh=False, page=self._lospec_page + 1)
             return
-        self._shown = min(self._shown + PAGE_SIZE, len(self._filtered))
-        current = self.current_theme()
-        self._fill(current)
+        start = self._shown
+        end = min(start + PAGE_SIZE, len(self._filtered))
+        for t in self._filtered[start:end]:
+            self.model.appendRow(self._item(t))
+        self._shown = end
+        self._update_more()
+        self._update_status()
 
     def _update_more(self) -> None:
         if self._is_lospec():
-            total = self._lospec_total
-            visible = total is not None and len(self._lospec) < total
+            visible = self._lospec_page >= 0 and not self._lospec_done
         else:
             visible = self._shown < len(self._filtered)
         self.more.setVisible(visible)
@@ -525,24 +606,28 @@ class ThemesDialog(QDialog):
         self.win.import_theme(t, p, keep_settings=self.keep_settings.isChecked())
 
     # --- pasek stanu okna ------------------------------------------------------------------------
-    def _update_status(self, *, keep_text: bool = False) -> None:
+    def _update_status(self) -> None:
         busy = bool(self._loading)
         self.progress.setVisible(busy)
         self.cancel.setVisible(busy)
         if busy and self.progress.maximum() != 0 and len(self._loading) > 1:
             self.progress.setRange(0, 0)
-        if keep_text:
-            theme.mark_text(self.status, None)
-            return
         keys: tuple[str, ...] = ("lospec",) if self._is_lospec() else self._file_sources()
         notes: list[str] = []
-        errors = [f"{self._label(k)}: {self._errors[k]}" for k in keys if k in self._errors]
+        errors = [
+            f"{self._label(k)}: {self._errors[k].rstrip('.')}" for k in keys if k in self._errors
+        ]
         for k in keys:
-            res = self._catalogs.get(cast(SourceId, k)) if k != "lospec" else None
-            if res is not None and res.offline:
+            res = self._lospec_res if k == "lospec" else self._catalogs.get(cast(SourceId, k))
+            if res is None:
+                continue
+            if res.offline:
                 notes.append(f"{self._label(k)}: katalog z {_date(res.fetched_at)} (offline)")
-            if res is not None and res.cache_error:
-                notes.append(res.cache_error)
+            if res.cache_error:
+                notes.append(res.cache_error.rstrip(".") + ".")
+            skipped = self._lospec_skipped if k == "lospec" else res.skipped
+            if skipped:
+                notes.append(f"{self._label(k)}: pominięto {skipped} (za mało kolorów lub błędny zapis)")
         loading = [self._label(k) for k in keys if k in self._loading]
         if loading:
             text = "Pobieranie katalogu: " + ", ".join(loading) + "…"
@@ -555,7 +640,7 @@ class ThemesDialog(QDialog):
         else:
             shown = f"{min(self._shown, len(self._filtered))} z {len(self._filtered)}"
             if self._is_lospec() and self._lospec_total is not None:
-                shown += f" (Lospec ma {self._lospec_total} pasujących)"
+                shown += f" (Lospec: {self._lospec_total} pasujących palet)"
             text = f"Motywy: {shown}."
             if errors:
                 text += " Błędy: " + "; ".join(errors) + "."

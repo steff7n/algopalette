@@ -272,6 +272,8 @@ class SwatchDelegate(QStyledItemDelegate):
 
         painter.save()
         try:
+            if not opt.state & QStyle.StateFlag.State_Enabled:
+                painter.setOpacity(0.4)  # źródło w trakcie odświeżania
             # plakietka źródła (po prawej)
             badge_font = QFont(opt.font)
             badge_font.setPointSizeF(max(badge_font.pointSizeF() * 0.82, 7.0))
