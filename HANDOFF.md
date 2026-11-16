@@ -56,6 +56,11 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     on_progress, cancelled)` strumieniowo. `themes/cache.py`: `cache_dir`, `load` (uszkodzony → None), `save`
     (atomowo), `is_fresh`, `clear(prefix)`; format `{"version": 1, …}`. Po scaleniu `tests/themes` 50 passed,
     ruff czysto, ty 0 błędów. Prawdziwej sieci NIE sprawdzano (Task 8).
+  - Task 6 ☑ (Sonnet, `feat/motywy-t6` scalona `d09b80d`) — `gui/theme_preview.py`: `THEME_ROLE`/`PALETTE_ROLE`
+    (UserRole+1/+2), `ROLES`, `ThemePreview` (`set_palette(palette|None, *, message)`, właściwość `message`,
+    `snippet_colors()`; paleta z 0 akcentów = jak None), `SwatchDelegate` (bez `PALETTE_ROLE` rysuje hexy z
+    `Theme.colors`). Role base16 kanoniczne, inaczej kolejne akcenty; komentarz = mieszanka tekst/tło 50 % OKLab.
+    `tests/gui/test_theme_preview.py` 13 passed. Zrzut obejrzany (czytelny, 3 motywy).
 
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 
