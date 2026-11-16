@@ -380,18 +380,74 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
 
 ## 0d. TOR SILNIKA (Rust) — pisze WYŁĄCZNIE agent silnikowy; kontroler tej sekcji nie edytuje
 
-**Stan na 2026-11-16.** Gałąź `feat/silnik-rust`, worktree `/home/qrikk/algopalette/.worktrees/silnik-rust`
-(odgałęziona od `feat/zasady-silnik` @ `bc85502`). Faza A = Task 4a → 5 → 6, osobny commit na każde.
-**Faza A ZAKOŃCZONA:** 4a (`50e56d4` `feat: przestrzeń Cargo, moduł _engine (kontrakty)`), 5 (`09de714`
-`feat(engine): matematyka koloru w Ruście z pochodnymi`), 6 (`feat(engine): optymalizator, sterownik
-równoległy, zadanie z postępem` — ostatni commit gałęzi). Następne: czekać na wiadomość kontrolera z fazą B (Task 14: `rules/` —
-`Problem`, funkcja celu, gradienty, ocena; Task 16: spięcie `_engine.evaluate/hue_targets/start`, benchmark,
-progi W1–W4). `_engine.start` jest nadal zaślepką (prawdziwy `optim::Job` podpina Task 16).
-Faza B (Task 14, 16) dopiero po scaleniu przez kontrolera modelu v2/migracji/nakładki do tej gałęzi.
-Nic z tej gałęzi nie jest jeszcze scalone do `feat/zasady-silnik`. Raport fazy A dla kontrolera:
-`.worktrees/zasady-silnik/.superpowers/sdd/2026-11-15-zasady-silnik/engine-phaseA-report.md`.
+**Stan na 2026-11-16.** Gałąź `feat/silnik-rust`, worktree `/home/qrikk/algopalette/.worktrees/silnik-rust`.
+Faza A (4a `50e56d4`, 5 `09de714`, 6 `796c543`) scalona przez kontrolera do `feat/zasady-silnik`; gałąź
+wyrównana `git merge --ff-only feat/zasady-silnik` na `a267a07` (model v2, migracja, nakładka `engine.py`,
+dane wzorcowe). **Faza B:** Task 14 ZROBIONY (commit `feat(engine): kompilacja zasad, funkcja celu z
+gradientem, ocena naruszeń`); Task 16 (spięcie `_engine.start` z `optim::Job`, `algopalette-bench`, progi
+jakości i W1–W4) — następny. Raporty dla kontrolera: `engine-phaseA-report.md`, `engine-phaseB-report.md` w
+`.worktrees/zasady-silnik/.superpowers/sdd/2026-11-15-zasady-silnik/`.
+W fazie B kontroler NIE dotyka `engine.py`, `model.py`, `migrate.py`, `crates/`, `_engine.pyi`; ten tor NIE
+dotyka `gui/`, `forms.py`, `presets*.py`, `rules_edit.py`, `sources.py`. W `model.py`/`migrate.py` wolno zmienić
+wyłącznie stałe budżetu (`OptimizerSettings.budget`, `BUDGET_DIVISOR/MIN/MAX`) — z poprawką liczb w
+`tests/test_model.py::test_optimizer_defaults` i `tests/test_migrate.py`.
 
-**O co najłatwiej się potknąć w fazie B.**
+**Mapa (14: zasady).**
+- `rules/terms.rs` — skale `:16–22` (L 0.01, C 0.01/0.02 wzgl., H 1°, `MARGIN_FRAC = 0.5`), `Col<T>` `:41`
+  (`fixed` `:54`, `constant` `:69`, `from_vars` `:83`, `lift` `:93`), `Floor` `:113`, `Chan` `:120`,
+  `interval_v` `:167`, `hue_outside` `:191`, `angle_diff` `:204`, `op_v` `:217`, `hue_weight` `:227`, `Body`
+  `:260` (16 wariantów; komentarz przy wariancie mówi, w jakiej kolejności dostaje kolory),
+  `Body::violation<T>` `:315` (JEDYNE miejsce z semantyką termów — wartość i gradient z tego samego kodu),
+  `Body::achieved` `:391`, `Term` `:421` (`margin` `:440`, `coefficient` `:445`).
+- `rules/compile.rs` — `Compiled` `:25`, `chroma_floors` `:44`, `Builder::add` `:69` (pomija termy samych
+  kłódek), `exclusions` `:92`, `slot_rules` `:114`, `pair` `:202`, `relation` `:245`, `compile` `:308`
+  (kolejność: zasady kolorów → pary → zależności → rozrzut → układ → unikane → gamut).
+- `rules/eval.rs` — `Evaluation` `:19`, `Needs` `:28`, `Active` `:62`, `Frame` `:81` (`new` `:92` liczy raz na
+  paletę kontrast akcentów z tłem i współrzędne ΔE akcentów, także po CVD; `active` `:126` wybiera aktywną
+  trójkę/parę dla `extreme`/`spread`; `violation` `:160`; `report` `:187`), `evaluate` `:234`.
+- `rules/hues.rs` — `JITTER_STREAM = 7919` `:11`, `base_hues` `:14`, `scheme_targets` `:35`, `hue_targets` `:57`.
+- `rules/problem.rs` — `HUE_UNIT = 100` `:26`, `FreeColor` `:34`, `Problem` `:51`, `sample_outside` `:115`,
+  `Problem::compile` `:155`, `decode` `:292`, `dual_col` `:320`, `term_grad` `:328`, `evaluate` `:348`,
+  `diversity_violation` `:354`, `impl Objective` `:394` (`sample` `:405`, `current` `:431`, `value_grad` `:447`,
+  `score` `:472`, `prepare` `:489`, `repulsion` `:499`).
+- `rules/mod.rs` — eksporty + WSZYSTKIE testy modułu od `:21` (budowanie sesji testowych: `bare` `:65`,
+  `everything` `:102` = sesja z każdym rodzajem termu; `check_gradient` `:211`).
+- `color/delta_e.rs` — `prepare` `:37` i `delta_e_prepared` `:47` (przekształcenie raz na kolor, odległość na
+  parę), `ictcp` `:201` (LMS obcinane do ≥ 0 przed krzywą PQ).
+- `objective.rs` — dodatki `prepare`, `distance_prepared` (domyślnie tożsamość / `distance`); `repulsion`
+  dostaje `others` w postaci z `prepare`.
+- `crates/py/src/lib.rs` — `IMPLEMENTED` `:18` (`schema`, `color`, `evaluate`), `json_to_py` `:45`,
+  `violation_to_py` `:71`, `evaluate` `:92`, `hue_targets` `:102`; `start` `:144` nadal zaślepka.
+- `tests/test_engine_parity.py` — 300 przypadków `eval.json`; `Case` (przypadek po migracji + stare i nowe C
+  względne), `_old_amount` (odtworzenie starej wielkości), `_floor_slack`, `_on_ciede_discontinuity`.
+
+**Decyzje (14).**
+- Zmienne koloru wolnego `(L, u, H/100)`, `C = u · max_chroma(L, H)`. Granice: twardy włączony zakres jasności
+  (∩ [0, 1]; sprzeczny → [0, 1]), twardy włączony zakres nasycenia WZGLĘDNEGO, twardy włączony łuk odcienia o
+  szerokości < 360° (`[lo, lo + szer.]`, może wyjść ponad 360) albo — gdy go nie ma — twardy układ odcieni
+  (`cel ± tol`) dla akcentu z `use_scheme`. Bez twardego łuku odcień nie ma granic (±inf).
+- Starty: odcień z własnego włączonego łuku (także miękkiego), inaczej `cel układu ± tol`, inaczej 0–360;
+  jasność, nasycenie względne i odcień losowane DOKŁADNIE z dozwolonego zbioru (zakres minus zakazy,
+  `sample_outside`), zakaz nasycenia bezwzględnego przez odrzucanie (64 próby). Zakazy pokrywające wszystko →
+  losowanie z całego zakresu.
+- Zakaz `(a, b)`: wielkość `min(X − a, b − X)` dla `a < X < b`; zawsze twardy, waga 1, skala kanału; z
+  marginesem `m` przedział poszerzony o `m` z obu stron; dla odcienia razy wygaszanie. Działa tylko, gdy
+  zasada kanału jest włączona.
+- Term `scheme` powstaje dla akcentu z celem układu i `use_scheme = true`, niezależnie od własnej zasady
+  odcienia; tło i tekst nigdy. `hue_targets` zwraca cele wszystkich akcentów.
+- `value_grad`: przebieg 1 liczy wartości wszystkich „żywych” termów w `f64` (pary z gotowych współrzędnych
+  ΔE), przebieg 2 liczy liczby dualne TYLKO dla termów naruszonych (kolor wolny z pochodnymi powstaje dopiero,
+  gdy trzeba). `Dual<3>`/`<6>`/`<9>` wg liczby aktywnych kolorów. Termy bez koloru wolnego są stałe: nie wchodzą
+  do `value_grad`, wchodzą do `score` (`const_total`, `const_infeasible`).
+- `extreme` i `spread`: aktywny element wybierany z wartości (remis → wcześniejszy kolor), gradient przez niego.
+- `repulsion` = `((min_div − d) / 0.01)²` na każde rozwiązanie bliższe niż `min_div`, `d` = średnie ΔE ok
+  kolorów wolnych (jak `_diversity_penalty@4b71aeb`); `prepare` = OKLab kolorów wolnych spłaszczone.
+- ΔE `itp` (decyzja kontrolera): LMS obcinane do ≥ 0 przed krzywą PQ. Obcinanie kanałów sRGB zamiast LMS
+  psułoby zgodność ze wzorcem dla par po symulacji CVD (kolory po symulacji mają ujemne kanały sRGB, ale
+  dodatnie LMS — tam coloraide liczy poprawnie i wzorzec to zawiera).
+- `decode`: gdy `u · maxC` wypada 1 ulp poza gamutem, nasycenie jest zmniejszane krokami `1 − 1e-9`.
+
+**Wskazówki z fazy A (nadal aktualne).**
 - Odcień w całym rdzeniu jest w STOPNIACH (`oklch_to_oklab`, `max_chroma(l, h)`); zmienna okresowa optymalizatora
   ma granice ±inf — skaluj zmienne tak, żeby wszystkie były rzędu 1 (pierwszy krok minimalizacji ma długość 1).
 - Gradient termu licz liczbami dualnymi (`Dual<3>` na kolor, `Dual<6>` na parę) i składaj regułą łańcuchową do
@@ -551,6 +607,18 @@ instalacja narzędzia w scratchpadzie. W `pyproject.toml` ten tor zmienił TYLKO
 `PYO3_BUILD_EXTENSION_MODULE`). Python (budowanie): `maturin 1.16.0` (`requires = ["maturin>=1.16,<2.0"]`).
 rustc/cargo 1.99.0, uv 0.13.6.
 
+**Wyniki policzone (14).** `cargo test -p algopalette-core rules`: 26 zielonych (2 `hues`, 9 `terms`, 15 w
+`rules::tests`); całość `cargo test -p algopalette-core`: 125 (102 jednostkowe + 23 `schema_contract`, w tym 52
+pliki kontraktu). `uv run --no-sync pytest -q tests/test_engine_parity.py`: 304 zielone (300 przypadków + 4).
+`tests/test_engine_api.py`: 19 zielonych, 1 pominięty (test zaślepki oceny). `tests/test_engine_color.py`: 70.
+`cargo fmt --check`, `clippy -D warnings`, `ruff`, `ty` czyste. **Zgodność z `eval.json`:** 300/300 przypadków
+w tolerancjach testu; ściśle (1e-6 wzgl. / 1e-4 dla ΔE 2000/itp/cam16, bez żadnych poprawek) 100/300 — w
+pozostałych 200 JEDYNĄ różnicą są termy liczone z nasycenia względnego (463 termy: stare `max_chroma` zaniża
+największe C o ≤ 7,6e-6; test odtwarza starą wartość `fast.max_chroma` i wzorzec zgadza się z nią do 1e-6), 15
+termów odcienia z podłogą nasycenia względnego (granica błędu wyprowadzona) i 1 term na skoku CIEDE2000.
+Termy `gamut`: po obu stronach < 2e-5, wkład odejmowany od funkcji celu. Kontrola mutacją: zamiana `max` na
+`min` w wadze pary → 121 przypadków pada; pochodna odcienia bez `HUE_UNIT` → testy gradientu padają.
+
 **Wyniki policzone (6).** `cargo test -p algopalette-core optim`: 35 zielonych w module `optim` (13 `lbfgsb`, 4
 `select`, 12 `driver`, 6 `job`) + 1 trafiony filtrem w `schema_contract`; 32 uruchomienia bez porażki po
 poprawce z pułapki 11, w tym 20 pod sztucznym obciążeniem procesora (32–96 pętli na 16 wątkach); testy czasowe
@@ -608,6 +676,22 @@ backendem maturin).
    pętli bez porażki. Wniosek: testy czasowe uruchamiaj także pod obciążeniem, zanim uznasz je za stabilne.
 10. `f64::max` ignoruje NaN — norma rzutowanego gradientu liczona `fold(max)` nie wykryje NaN w gradiencie;
    taki przypadek kończy się i tak `Stalled` (kierunek z NaN nie jest spadkowy).
+
+12. CIEDE2000 ma skok, gdy odcienie CIELAB pary różnią się o 180°. Kolory po symulacji dichromazji leżą na
+   płaszczyźnie przez oś szarości, więc dla ciemnych par (liniowa gałąź CIELAB) różnica wynosi 180° co do
+   zaokrągleń: w przypadku 247 `eval.json` wejścia różniące się o 1e-13 dają ΔE 1,0052 albo 1,0061. To
+   własność metryki (stary silnik miał to samo), nie błąd portu — test zgodności pomija takie termy (4 w danych).
+13. Łączne odrzucanie przy losowaniu startów (jasność i nasycenie i odcień naraz) przepuszczało starty w
+   zakazach: przy zakazach zostawiających 5 % miejsca 24 próby zawodzą w 29 % losowań. Stąd losowanie dokładne
+   z dozwolonych odcinków (`sample_outside`).
+14. Test „skrajny kontrast” i „kontrast z tłem” na sesji o jednakowych akcentach nie był naruszony — w testach
+   raportu najpierw sprawdź, że term w ogóle jest naruszony (asercja `kinds.contains`).
+
+**Czego NIE zweryfikowano (14).** Jakości i szybkości `Problem` w pełnym generowaniu (Task 16) — jest tylko test
+dymny (4 akcenty, 4 rozwiązania bez naruszeń). Zachowania `repulsion` przy 128 rozwiązaniach. Zgodności oceny
+dla zakazów i `use_scheme` z jakimkolwiek wzorcem zewnętrznym (to nowe elementy v2 — testy z ręcznie policzonymi
+wartościami). Sesji z `jitter > 0` wobec starego silnika (stary używał generatora numpy — ciąg jest z definicji
+inny; plan to dopuszcza).
 
 **Czego NIE zweryfikowano (6).** Optymalizatora na prawdziwej funkcji celu palety (`Problem` powstaje w Tasku
 14): jakości wobec wzorca §9.5, progów W1–W4, zachowania na załamaniach funkcji (zmiana kanału `max_chroma`,

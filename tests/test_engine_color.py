@@ -72,14 +72,21 @@ def _max_abs(a: object, b: object) -> float:
     return float(np.max(np.abs(np.asarray(a, dtype=np.float64) - np.asarray(b, dtype=np.float64))))
 
 
-def _max_scaled(got: Sequence[float], want: Sequence[float]) -> float:
-    """Największy błąd ΔE: bezwzględny w skali ~0–100, względny (na 100) dla wartości większych.
+def _non_negative(c: Sequence[float]) -> bool:
+    """Czy wszystkie kanały liniowe sRGB koloru są ≥ 0."""
+    return bool(np.all(fast.oklch_to_linear_srgb(c) >= 0.0))
 
-    ΔE ``itp`` koloru prawie czarnego, którego kanał liniowy jest minimalnie ujemny (w granicach
-    tolerancji gamutu 1e-6), wybucha w samym coloraide do ~1e60 (mianownik krzywej PQ przechodzi
-    przez zero). Silnik odtwarza to zachowanie co do ~12 cyfr; błąd bezwzględny nie ma tam sensu.
+
+def _oracle_pairs(pairs: list[tuple[Lch, Lch]], method: str) -> list[tuple[Lch, Lch]]:
+    """Pary, na których silnik ma się zgadzać z coloraide.
+
+    ΔE ``itp`` koloru z ujemnym kanałem liniowym (np. prawie czarnego, w tolerancji gamutu 1e-6)
+    wybucha w coloraide do ~1e60: mianownik krzywej PQ przechodzi przez zero dla ujemnego LMS.
+    Silnik obcina LMS do ≥ 0 przed krzywą PQ, więc porównanie ma sens tylko dla kanałów ≥ 0.
     """
-    return max(abs(g - w) / max(1.0, abs(w) / 100.0) for g, w in zip(got, want, strict=True))
+    if method != "itp":
+        return pairs
+    return [(a, b) for a, b in pairs if _non_negative(a) and _non_negative(b)]
 
 
 # ---------------------------------------------------------------------------
@@ -175,11 +182,25 @@ def test_contrast_with_itself(metric: str) -> None:
     [("ok", 1e-6), ("hyab", 1e-6), ("2000", 1e-4), ("itp", 1e-4), ("cam16", 1e-4)],
 )
 def test_delta_e_matches_coloraide(method: str, tol: float) -> None:
-    pairs = list(zip(COLORS, OTHERS, strict=True)) + EDGE_PAIRS
+    pairs = _oracle_pairs(list(zip(COLORS, OTHERS, strict=True)) + EDGE_PAIRS, method)
+    assert len(pairs) > 1900
     got = [_engine.delta_e(a, b, method) for a, b in pairs]
     want = [slow.delta_e(_ok(a), _ok(b), method) for a, b in pairs]  # ty: ignore[invalid-argument-type]
     assert all(math.isfinite(g) for g in got)
-    assert _max_scaled(got, want) <= tol
+    assert _max_abs(got, want) <= tol
+
+
+def test_delta_e_itp_of_near_black_with_negative_channel_is_small_and_finite() -> None:
+    """Kolor prawie czarny z kanałami ≈ −4e-7 (w tolerancji gamutu): coloraide daje ~3e62."""
+    dark = [0.00025226392678323606, 0.016693928320144356, 154.00122067068102]
+    mid = [0.7218156380507523, 0.11816813009406159, 156.9038883531302]
+    assert _engine.in_gamut(dark) and not _non_negative(dark)
+    assert slow.delta_e(_ok(dark), _ok(mid), "itp") > 1e30
+    assert 0.0 < _engine.delta_e(dark, mid, "itp") < 400.0
+    assert 0.0 <= _engine.delta_e(dark, [0.0, 0.0, 0.0], "itp") < 5.0
+    # dla wszystkich losowych kolorów w gamucie wartości są zwykłej wielkości
+    got = [_engine.delta_e(a, b, "itp") for a, b in zip(COLORS, OTHERS, strict=True)]
+    assert max(got) < 1000.0
 
 
 @pytest.mark.parametrize("method", ["ok", "hyab"])
@@ -205,6 +226,8 @@ def test_delta_e_of_close_colors_matches_coloraide(method: str) -> None:
             max(a[1] + rng.normal(0, 0.005), 0.0),
             a[2] + rng.normal(0, 3.0),
         ]
+        if not _oracle_pairs([(a, b)], method):
+            continue
         want = slow.delta_e(_ok(a), _ok(b), method)  # ty: ignore[invalid-argument-type]
         assert abs(_engine.delta_e(a, b, method) - want) <= tol
 

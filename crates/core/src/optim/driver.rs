@@ -59,7 +59,9 @@ pub fn generate<O: Objective>(obj: &O, opts: &DriverOpts, ctl: &Control) -> Outc
         false
     };
 
-    let mut all: Vec<Candidate> = Vec::new();
+    // kandydaci razem z postacią do mierzenia różnorodności (liczoną raz, w wątku przebiegu)
+    let mut all: Vec<(Candidate, Vec<f64>)> = Vec::new();
+    let mut prepared: Vec<Vec<f64>> = Vec::new();
     let mut picked: Vec<usize> = Vec::new();
     if opts.n > 0 {
         let pool = thread_pool(opts.threads);
@@ -68,7 +70,7 @@ pub fn generate<O: Objective>(obj: &O, opts: &DriverOpts, ctl: &Control) -> Outc
             let (count, others): (usize, Vec<Vec<f64>>) = if wave == 1 {
                 (first_wave_runs(opts.n), Vec::new())
             } else {
-                let chosen = picked.iter().map(|&i| all[i].x.clone()).collect();
+                let chosen = picked.iter().map(|&i| prepared[i].clone()).collect();
                 (refill_runs(opts.n - picked.len()), chosen)
             };
             if stop() {
@@ -78,14 +80,15 @@ pub fn generate<O: Objective>(obj: &O, opts: &DriverOpts, ctl: &Control) -> Outc
             let first = next_run;
             let one = |k: usize| run_one(obj, opts, ctl, &stop, first + k as u32, wave, &others);
             // `collect` zachowuje kolejność indeksów, niezależnie od kolejności zakończenia
-            let finished: Vec<Option<Candidate>> = match &pool {
+            let finished: Vec<Option<(Candidate, Vec<f64>)>> = match &pool {
                 Some(pool) => pool.install(|| (0..count).into_par_iter().map(one).collect()),
                 None => (0..count).map(one).collect(),
             };
             next_run += count as u32;
             all.extend(finished.into_iter().flatten());
-            all.sort_by(rank);
-            picked = pick_diverse(obj, &all, opts.n, opts.min_diversity);
+            all.sort_by(|a, b| rank(&a.0, &b.0));
+            prepared = all.iter().map(|(_, p)| p.clone()).collect();
+            picked = pick_diverse(obj, &prepared, opts.n, opts.min_diversity);
             if picked.len() >= opts.n || stop() {
                 break;
             }
@@ -97,12 +100,9 @@ pub fn generate<O: Objective>(obj: &O, opts: &DriverOpts, ctl: &Control) -> Outc
     if !cancelled && !timed_out {
         ctl.finish();
     }
-    Outcome {
-        chosen: assemble(&all, &picked, opts.n),
-        timed_out,
-        cancelled,
-        runs: all.len() as u32,
-    }
+    let runs = all.len() as u32;
+    let sorted: Vec<Candidate> = all.into_iter().map(|(c, _)| c).collect();
+    Outcome { chosen: assemble(&sorted, &picked, opts.n), timed_out, cancelled, runs }
 }
 
 /// Pula wątków na jedno generowanie; `None` = wykonanie w wątku wywołującym (jeden wątek albo
@@ -124,8 +124,9 @@ fn thread_pool(threads: usize) -> Option<rayon::ThreadPool> {
 
 /// Jeden przebieg: pula startów → lokalna minimalizacja. `None`, gdy przebieg przerwano.
 ///
-/// `others` to rozwiązania, od których przebieg ma się odpychać (puste w fali 1). Liczba
-/// wywołań `value_grad` nie przekracza `opts.budget`.
+/// `others` to rozwiązania (w postaci z `Objective::prepare`), od których przebieg ma się
+/// odpychać (puste w fali 1). Liczba wywołań `value_grad` nie przekracza `opts.budget`. Razem
+/// z kandydatem zwraca jego postać do mierzenia różnorodności.
 pub(crate) fn run_one<O: Objective>(
     obj: &O,
     opts: &DriverOpts,
@@ -134,7 +135,7 @@ pub(crate) fn run_one<O: Objective>(
     run: u32,
     wave: u32,
     others: &[Vec<f64>],
-) -> Option<Candidate> {
+) -> Option<(Candidate, Vec<f64>)> {
     let n = obj.dim();
     let (lower, upper) = obj.bounds();
     let mut rng = Rng::new(opts.seed, u64::from(run));
@@ -190,7 +191,8 @@ pub(crate) fn run_one<O: Objective>(
     ctl.add_done(opts.budget.saturating_sub(used) as u64);
     ctl.add_candidate();
     let score = obj.score(&minimum.x);
-    Some(Candidate { x: minimum.x, score, run, wave, diverse: true })
+    let prepared = obj.prepare(&minimum.x);
+    Some((Candidate { x: minimum.x, score, run, wave, diverse: true }, prepared))
 }
 
 #[cfg(test)]

@@ -6,13 +6,16 @@
 //! `NotImplementedError`.
 
 use algopalette_core::color::{self, ContrastMetric, CvdKind, CvdMethod, DeltaE};
+use algopalette_core::rules;
 use algopalette_core::schema::{self, SchemaError, Session};
+use algopalette_core::violation::Violation;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
+use serde_json::{Map, Value};
 
 /// Funkcje gotowe w tej kompilacji (`build_info()["implemented"]`).
-const IMPLEMENTED: &[&str] = &["schema", "color"];
+const IMPLEMENTED: &[&str] = &["schema", "color", "evaluate"];
 
 fn schema_error(e: SchemaError) -> PyErr {
     PyValueError::new_err(e.to_string())
@@ -38,22 +41,70 @@ fn validate(session_json: &str) -> PyResult<()> {
     parse(session_json).map(|_| ())
 }
 
-/// Ocena bieżących wartości sesji: `{"objective": float, "violations": [V, ...]}`.
-/// Zaślepka do Tasku 14: pusty wynik.
-#[pyfunction]
-fn evaluate<'py>(py: Python<'py>, session_json: &str) -> PyResult<Bound<'py, PyDict>> {
-    parse(session_json)?;
+/// Wartość JSON z raportu naruszenia jako obiekt Pythona.
+fn json_to_py<'py>(py: Python<'py>, value: &Value) -> PyResult<Bound<'py, PyAny>> {
+    Ok(match value {
+        Value::Null => py.None().into_bound(py),
+        Value::Bool(b) => b.into_pyobject(py)?.to_owned().into_any(),
+        Value::Number(n) => match n.as_f64() {
+            Some(f) => f.into_pyobject(py)?.into_any(),
+            None => py.None().into_bound(py),
+        },
+        Value::String(s) => s.into_pyobject(py)?.into_any(),
+        Value::Array(items) => {
+            let converted: PyResult<Vec<_>> = items.iter().map(|v| json_to_py(py, v)).collect();
+            PyList::new(py, converted?)?.into_any()
+        }
+        Value::Object(map) => map_to_py(py, map)?.into_any(),
+    })
+}
+
+fn map_to_py<'py>(py: Python<'py>, map: &Map<String, Value>) -> PyResult<Bound<'py, PyDict>> {
     let out = PyDict::new(py);
-    out.set_item("objective", 0.0)?;
-    out.set_item("violations", PyList::empty(py))?;
+    for (key, value) in map {
+        out.set_item(key, json_to_py(py, value)?)?;
+    }
     Ok(out)
 }
 
-/// Cele układu odcieni `{id: stopnie}`. Zaślepka do Tasku 14: `{}`.
+/// Naruszenie w kształcie `V` z tabeli I3.
+fn violation_to_py<'py>(py: Python<'py>, v: &Violation) -> PyResult<Bound<'py, PyDict>> {
+    let out = PyDict::new(py);
+    out.set_item("key", &v.key)?;
+    out.set_item("slots", PyList::new(py, &v.slots)?)?;
+    out.set_item("kind", v.kind.as_str())?;
+    out.set_item("hard", v.hard)?;
+    out.set_item("amount", v.amount)?;
+    out.set_item("achieved", v.achieved)?;
+    out.set_item("req", map_to_py(py, &v.req)?)?;
+    out.set_item("meta", map_to_py(py, &v.meta)?)?;
+    Ok(out)
+}
+
+fn violations_to_py<'py>(py: Python<'py>, list: &[Violation]) -> PyResult<Bound<'py, PyList>> {
+    let converted: PyResult<Vec<_>> = list.iter().map(|v| violation_to_py(py, v)).collect();
+    PyList::new(py, converted?)
+}
+
+/// Ocena bieżących wartości sesji: `{"objective": float, "violations": [V, ...]}` — funkcja
+/// celu bez marginesu twardych zasad i naruszenia o wielkości > 1e-9.
+#[pyfunction]
+fn evaluate<'py>(py: Python<'py>, session_json: &str) -> PyResult<Bound<'py, PyDict>> {
+    let evaluation = rules::evaluate(&parse(session_json)?);
+    let out = PyDict::new(py);
+    out.set_item("objective", evaluation.objective)?;
+    out.set_item("violations", violations_to_py(py, &evaluation.violations)?)?;
+    Ok(out)
+}
+
+/// Cele układu odcieni `{id: stopnie}` dla wszystkich akcentów (pusty, gdy układ nie daje celów).
 #[pyfunction]
 fn hue_targets<'py>(py: Python<'py>, session_json: &str) -> PyResult<Bound<'py, PyDict>> {
-    parse(session_json)?;
-    Ok(PyDict::new(py))
+    let out = PyDict::new(py);
+    for (id, hue) in rules::hue_targets(&parse(session_json)?) {
+        out.set_item(id, hue)?;
+    }
+    Ok(out)
 }
 
 /// Zadanie generowania. Zaślepka do Tasku 16: od razu `done` z pustą listą propozycji.

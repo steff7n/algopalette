@@ -6,12 +6,14 @@
 //! - [`color`] — przekształcenia, gamut, kontrast, ΔE, symulacja CVD.
 //! - [`objective`] — kontrakt funkcji celu dla optymalizatora.
 //! - [`optim`] — minimalizacja w pudełku, sterownik równoległy, zadanie w tle.
+//! - [`rules`] — zasady palety jako funkcja celu: kompilacja sesji, ocena, problem.
 //! - [`violation`] — naruszenie zasady w kształcie przekazywanym do Pythona.
 
 pub mod color;
 pub mod objective;
 pub mod optim;
 pub mod rng;
+pub mod rules;
 pub mod scalar;
 pub mod schema;
 pub mod violation;
