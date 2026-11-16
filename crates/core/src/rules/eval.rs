@@ -12,7 +12,7 @@ use crate::schema::Session;
 use crate::violation::Violation;
 
 use super::compile::{Compiled, compile};
-use super::terms::{Body, Col, Cvd, Term};
+use super::terms::{Body, Col, Cvd, Term, fields_to_map};
 
 /// Wynik oceny bieżących wartości sesji.
 #[derive(Debug, Clone, PartialEq)]
@@ -207,7 +207,7 @@ impl Frame {
     ) -> Violation {
         let cols = self.cols_of(active);
         let cols = &cols[..active.len];
-        let mut req = term.req.clone();
+        let mut req = fields_to_map(&term.req);
         match &term.body {
             Body::Extreme { .. } => {
                 req.insert("bound".into(), json!(self.bg_contrast[active.slots[1]]));
@@ -225,7 +225,7 @@ impl Frame {
             amount,
             achieved: term.body.achieved(cols),
             req,
-            meta: term.meta.clone(),
+            meta: fields_to_map(&term.meta),
         }
     }
 }

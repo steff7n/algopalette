@@ -200,6 +200,34 @@ impl RelMetric {
     }
 }
 
+/// Nazwy wartości wyliczeń takie jak w dokumencie — bez alokacji, do raportów naruszeń.
+macro_rules! names {
+    ($($ty:ident { $($variant:ident => $name:literal),+ $(,)? })+) => {
+        $(impl $ty {
+            /// Nazwa wartości w dokumencie `algopalette.v2`.
+            pub fn as_str(self) -> &'static str {
+                match self {
+                    $(Self::$variant => $name),+
+                }
+            }
+        })+
+    };
+}
+
+names! {
+    ContrastMetric { Wcag21 => "wcag21", Apca => "apca" }
+    DeltaE { Ok => "ok", Ciede2000 => "2000", Hyab => "hyab", Itp => "itp", Cam16 => "cam16" }
+    CvdKind { Protan => "protan", Deutan => "deutan", Tritan => "tritan" }
+    ChromaMode { Abs => "abs", Rel => "rel" }
+    ChromaOp { Add => "add", Mul => "mul" }
+    Extreme { Weakest => "weakest", Strongest => "strongest" }
+    RelKind {
+        Hue => "hue", Lightness => "lightness", Chroma => "chroma", Contrast => "contrast",
+        Distance => "distance", Mix => "mix",
+    }
+    RelOp { Eq => "eq", Ge => "ge", Le => "le" }
+}
+
 /// Wartość wyliczenia po nazwie z dokumentu, np. `"2000"` → [`DeltaE::Ciede2000`].
 pub fn enum_from_name<'a, T: Deserialize<'a>>(name: &'a str) -> Option<T> {
     use serde::de::value::{BorrowedStrDeserializer, Error};
@@ -590,6 +618,38 @@ fn validate(s: &Session) -> Result<(), SchemaError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `as_str` musi dawać tę samą nazwę co serde (dokument i raport naruszeń mówią jednym
+    /// językiem).
+    #[test]
+    fn static_names_match_serde_names() {
+        fn check<T: Serialize + Copy>(values: &[T], name: fn(T) -> &'static str) {
+            for &v in values {
+                assert_eq!(serde_json::to_value(v).unwrap(), serde_json::json!(name(v)));
+            }
+        }
+        check(&[ContrastMetric::Wcag21, ContrastMetric::Apca], ContrastMetric::as_str);
+        check(
+            &[DeltaE::Ok, DeltaE::Ciede2000, DeltaE::Hyab, DeltaE::Itp, DeltaE::Cam16],
+            DeltaE::as_str,
+        );
+        check(&[CvdKind::Protan, CvdKind::Deutan, CvdKind::Tritan], CvdKind::as_str);
+        check(&[ChromaMode::Abs, ChromaMode::Rel], ChromaMode::as_str);
+        check(&[ChromaOp::Add, ChromaOp::Mul], ChromaOp::as_str);
+        check(&[Extreme::Weakest, Extreme::Strongest], Extreme::as_str);
+        check(
+            &[
+                RelKind::Hue,
+                RelKind::Lightness,
+                RelKind::Chroma,
+                RelKind::Contrast,
+                RelKind::Distance,
+                RelKind::Mix,
+            ],
+            RelKind::as_str,
+        );
+        check(&[RelOp::Eq, RelOp::Ge, RelOp::Le], RelOp::as_str);
+    }
 
     #[test]
     fn enums_are_found_by_document_name() {

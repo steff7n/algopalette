@@ -20,7 +20,7 @@ pub use convert::{
 };
 pub use cvd::simulate_cvd;
 pub use delta_e::{delta_e, delta_e_prepared, prepare};
-pub use gamut::{GAMUT_EPS, in_gamut, max_chroma};
+pub use gamut::{Boundary, GAMUT_EPS, boundary, in_gamut, max_chroma};
 
 /// Wspólne narzędzia testów koloru: losowe kolory i sprawdzanie pochodnych.
 #[cfg(test)]

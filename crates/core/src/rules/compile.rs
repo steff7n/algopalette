@@ -5,8 +5,6 @@
 //! odcieni, unikane kolory, gamut. Termy dotyczące wyłącznie kolorów pod kłódką są pomijane,
 //! tak samo zależności wyłączone i zerwane (cel nie istnieje).
 
-use serde_json::{Map, Value, json};
-
 use crate::color::{self, ContrastMetric, CvdKind, DeltaE};
 use crate::schema::{ChromaMode, ChromaOp, Extreme, RelKind, Relation, Rule, Session};
 use crate::violation::{
@@ -16,8 +14,8 @@ use crate::violation::{
 
 use super::hues;
 use super::terms::{
-    Body, Chan, Cvd, Floor, Quantity, SCALE_C_ABS, SCALE_C_REL, SCALE_H, SCALE_L, Term, arc_width,
-    scale_contrast, scale_de,
+    Body, Chan, Cvd, Field, Fields, Floor, Quantity, SCALE_C_ABS, SCALE_C_REL, SCALE_H, SCALE_L,
+    Term, arc_width, scale_contrast, scale_de,
 };
 
 /// Sesja po kompilacji: kolory w kolejności dokumentu i termy.
@@ -32,8 +30,12 @@ pub(crate) struct Compiled {
     pub hard_weight: f64,
 }
 
-fn obj(pairs: &[(&str, Value)]) -> Map<String, Value> {
-    pairs.iter().map(|(k, v)| ((*k).to_owned(), v.clone())).collect()
+fn obj(pairs: &[(&'static str, Field)]) -> Fields {
+    pairs.to_vec()
+}
+
+fn field<T: Into<Field>>(value: T) -> Field {
+    value.into()
 }
 
 fn enabled<T>(rule: &Option<Rule<T>>) -> Option<&Rule<T>> {
@@ -74,8 +76,8 @@ impl Builder<'_> {
         slots: Vec<usize>,
         (hard, weight, scale): (bool, f64, f64),
         body: Body,
-        req: Map<String, Value>,
-        meta: Map<String, Value>,
+        req: Fields,
+        meta: Fields,
     ) {
         // term samych kłódek niczego nie może zmienić — pomijany także w ocenie
         if !report.is_empty() && report.iter().all(|&i| self.locked[i]) {
@@ -92,10 +94,10 @@ impl Builder<'_> {
     fn exclusions(&mut self, i: usize, chan: Chan, pairs: &[[f64; 2]], floor: Floor) {
         for (k, &[a, b]) in pairs.iter().enumerate() {
             let hi = if chan == Chan::H { a + (b - a).rem_euclid(360.0) } else { b };
-            let mut meta = obj(&[("channel", json!(chan.name()))]);
+            let mut meta = obj(&[("channel", field(chan.name()))]);
             match chan {
-                Chan::CAbs => drop(meta.insert("mode".into(), json!("abs"))),
-                Chan::CRel => drop(meta.insert("mode".into(), json!("rel"))),
+                Chan::CAbs => meta.push(("mode", field("abs"))),
+                Chan::CRel => meta.push(("mode", field("rel"))),
                 _ => {}
             }
             self.add(
@@ -105,7 +107,7 @@ impl Builder<'_> {
                 vec![i],
                 (true, 1.0, chan.scale()),
                 Body::Exclude { chan, lo: a, hi, floor },
-                obj(&[("lo", json!(a)), ("hi", json!(b))]),
+                obj(&[("lo", field(a)), ("hi", field(b))]),
                 meta,
             );
         }
@@ -124,8 +126,8 @@ impl Builder<'_> {
                 vec![i],
                 (r.hard, r.weight, SCALE_L),
                 Body::Interval { chan: Chan::L, lo: r.value.lo, hi: r.value.hi },
-                obj(&[("lo", json!(r.value.lo)), ("hi", json!(r.value.hi))]),
-                Map::new(),
+                obj(&[("lo", field(r.value.lo)), ("hi", field(r.value.hi))]),
+                Vec::new(),
             );
             self.exclusions(i, Chan::L, &r.value.exclude, floor);
         }
@@ -138,8 +140,8 @@ impl Builder<'_> {
                 vec![i],
                 (r.hard, r.weight, chan.scale()),
                 Body::Interval { chan, lo: r.value.lo, hi: r.value.hi },
-                obj(&[("lo", json!(r.value.lo)), ("hi", json!(r.value.hi))]),
-                obj(&[("mode", json!(r.value.mode))]),
+                obj(&[("lo", field(r.value.lo)), ("hi", field(r.value.hi))]),
+                obj(&[("mode", field(r.value.mode.as_str()))]),
             );
             self.exclusions(i, chan, &r.value.exclude, floor);
         }
@@ -151,8 +153,8 @@ impl Builder<'_> {
                 vec![i],
                 (r.hard, r.weight, SCALE_H),
                 Body::HueArc { lo: r.value.lo, width: arc_width(r.value.lo, r.value.hi), floor },
-                obj(&[("lo", json!(r.value.lo)), ("hi", json!(r.value.hi))]),
-                Map::new(),
+                obj(&[("lo", field(r.value.lo)), ("hi", field(r.value.hi))]),
+                Vec::new(),
             );
             self.exclusions(i, Chan::H, &r.value.exclude, floor);
         }
@@ -167,8 +169,8 @@ impl Builder<'_> {
                 vec![i, 0],
                 (r.hard, r.weight, scale_contrast(metric)),
                 Body::Contrast { metric, lo: r.value.lo, hi: r.value.hi },
-                obj(&[("lo", json!(r.value.lo)), ("hi", json!(r.value.hi))]),
-                obj(&[("metric", json!(metric))]),
+                obj(&[("lo", field(r.value.lo)), ("hi", field(r.value.hi))]),
+                obj(&[("metric", field(metric.as_str()))]),
             );
         }
         if i >= 2
@@ -191,8 +193,11 @@ impl Builder<'_> {
                         others,
                         bg: 0,
                     },
-                    Map::new(),
-                    obj(&[("which", json!(r.value)), ("metric", json!(metric_g))]),
+                    Vec::new(),
+                    obj(&[
+                        ("which", field(r.value.as_str())),
+                        ("metric", field(metric_g.as_str())),
+                    ]),
                 );
             }
         }
@@ -218,16 +223,13 @@ impl Builder<'_> {
             None => (
                 key_pair_distance(self.id(i), self.id(j)),
                 ViolationKind::PairDistance,
-                obj(&[("method", json!(method))]),
+                obj(&[("method", field(method.as_str()))]),
             ),
-            Some(kind) => {
-                let name = json!(kind);
-                (
-                    key_pair_cvd(self.id(i), self.id(j), name.as_str().unwrap_or_default()),
-                    ViolationKind::PairCvd,
-                    obj(&[("method", json!(method)), ("cvd", name)]),
-                )
-            }
+            Some(kind) => (
+                key_pair_cvd(self.id(i), self.id(j), kind.as_str()),
+                ViolationKind::PairCvd,
+                obj(&[("method", field(method.as_str())), ("cvd", field(kind.as_str()))]),
+            ),
         };
         let cvd = cvd.map(|kind| Cvd { kind, method: g.method, severity: g.severity });
         self.add(
@@ -237,7 +239,7 @@ impl Builder<'_> {
             vec![i, j],
             (hard, weight, scale_de(method)),
             Body::Pair { min, method, cvd },
-            obj(&[("min", json!(min))]),
+            obj(&[("min", field(min))]),
             meta,
         );
     }
@@ -248,7 +250,7 @@ impl Builder<'_> {
         let Some(j) = index(&rel.target) else { return };
         let (op, value, tol) = (rel.op, rel.value, rel.tol);
         let mut slots = vec![i, j];
-        let mut metric_name = Value::Null;
+        let mut metric_name = Field::Null;
         let (scale, body) = match rel.kind {
             RelKind::Hue => {
                 (SCALE_H, Body::RelHue { op, value, tol, floors: [floors[i], floors[j]] })
@@ -270,13 +272,13 @@ impl Builder<'_> {
                     .metric
                     .and_then(|m| m.as_contrast())
                     .unwrap_or(session.globals.contrast_metric);
-                metric_name = json!(metric);
+                metric_name = field(metric.as_str());
                 (scale_contrast(metric), Body::RelContrast { metric, op, value, tol })
             }
             RelKind::Distance => {
                 let method: DeltaE =
                     rel.metric.and_then(|m| m.as_delta_e()).unwrap_or(session.globals.delta_e);
-                metric_name = json!(method);
+                metric_name = field(method.as_str());
                 (scale_de(method), Body::RelDistance { method, op, value, tol })
             }
             RelKind::Mix => {
@@ -285,19 +287,19 @@ impl Builder<'_> {
                 (scale_de(DeltaE::Ok), Body::RelMix { t: rel.t, tol })
             }
         };
-        let kind_name = json!(rel.kind);
+        let kind_name = rel.kind.as_str();
         self.add(
-            key_rel(self.id(i), kind_name.as_str().unwrap_or_default(), n),
+            key_rel(self.id(i), kind_name, n),
             ViolationKind::Rel,
             slots.clone(),
             slots,
             (rel.hard, rel.weight, scale),
             body,
-            obj(&[("op", json!(op)), ("value", json!(value)), ("tol", json!(tol))]),
+            obj(&[("op", field(op.as_str())), ("value", field(value)), ("tol", field(tol))]),
             obj(&[
-                ("rel_kind", kind_name),
-                ("chroma_op", json!(rel.chroma_op)),
-                ("chroma_mode", json!(rel.chroma_mode)),
+                ("rel_kind", field(kind_name)),
+                ("chroma_op", field(rel.chroma_op.as_str())),
+                ("chroma_mode", field(rel.chroma_mode.as_str())),
                 ("metric", metric_name),
             ]),
         );
@@ -327,7 +329,7 @@ pub(crate) fn compile(session: &Session) -> Compiled {
 
     // Pary akcentów: minimalna odległość i odróżnialność przy daltonizmie.
     let mut kinds = g.cvd.types.clone();
-    kinds.sort_by_key(|k| json!(k).as_str().unwrap_or_default().to_owned());
+    kinds.sort_by_key(|k| k.as_str());
     kinds.dedup();
     for (pos, &i) in accents.iter().enumerate() {
         for &j in &accents[pos + 1..] {
@@ -356,8 +358,8 @@ pub(crate) fn compile(session: &Session) -> Compiled {
             accents.clone(),
             (sp.hard, sp.weight, SCALE_L),
             Body::Spread { accents: accents.clone(), lo: sp.value.lo, hi: sp.value.hi },
-            obj(&[("lo", json!(sp.value.lo)), ("hi", json!(sp.value.hi))]),
-            Map::new(),
+            obj(&[("lo", field(sp.value.lo)), ("hi", field(sp.value.hi))]),
+            Vec::new(),
         );
     }
 
@@ -375,8 +377,8 @@ pub(crate) fn compile(session: &Session) -> Compiled {
             vec![i],
             (scheme.hard, scheme.weight, SCALE_H),
             Body::Scheme { target, tol: scheme.tol, floor: floors[i] },
-            obj(&[("target", json!(target)), ("tol", json!(scheme.tol))]),
-            Map::new(),
+            obj(&[("target", field(target)), ("tol", field(scheme.tol))]),
+            Vec::new(),
         );
     }
 
@@ -394,8 +396,8 @@ pub(crate) fn compile(session: &Session) -> Compiled {
                         reference: color::oklch_to_oklab([src.l, src.c, src.h]),
                         min: g.avoid_distance,
                     },
-                    obj(&[("min", json!(g.avoid_distance))]),
-                    Map::new(),
+                    obj(&[("min", field(g.avoid_distance))]),
+                    Vec::new(),
                 );
             }
         }
@@ -411,8 +413,8 @@ pub(crate) fn compile(session: &Session) -> Compiled {
                 vec![i],
                 (true, 1.0, SCALE_C_ABS),
                 Body::Gamut,
-                Map::new(),
-                Map::new(),
+                Vec::new(),
+                Vec::new(),
             );
         }
     }

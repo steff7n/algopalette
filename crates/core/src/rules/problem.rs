@@ -20,12 +20,19 @@ use crate::violation::Violation;
 
 use super::compile::{Compiled, compile};
 use super::eval::{Active, Evaluation, Frame, Needs};
-use super::terms::{Col, Term, arc_width};
+use super::terms::{Col, MARGIN_FRAC, POLISH_MARGIN_FRAC, Term, arc_width};
+use crate::color::Boundary;
 
 /// Stopnie odcienia na jednostkę zmiennej.
 pub const HUE_UNIT: f64 = 100.0;
 /// Skala kary za zbyt małą różnorodność (jak ΔE ok).
 const DIVERSITY_SCALE: f64 = 0.01;
+/// Główna faza optymalizacji: (margines twardych zasad w ułamku skali, mnożnik kary twardych).
+const MAIN_STAGE: (f64, f64) = (MARGIN_FRAC, 1.0);
+/// Szlifowanie: ciaśniejszy margines i 100× sztywniejsza kara twardych zasad. Sama zmiana
+/// marginesu nie wystarcza: przy `hard_weight = 1000` równowaga kary z miękkimi zasadami potrafi
+/// leżeć 0,3 skali za zaostrzoną granicą, czyli przy marginesie 0,05 już poza prawdziwą.
+const POLISH_STAGE: (f64, f64) = (POLISH_MARGIN_FRAC, 100.0);
 /// Próby losowania nasycenia poza zakazem nasycenia bezwzględnego.
 const SAMPLE_TRIES: usize = 64;
 
@@ -80,13 +87,28 @@ struct Hit<'a> {
 /// Kolory wolne z pochodnymi po swoich zmiennych, liczone dopiero wtedy, gdy są potrzebne.
 struct Duals<'a> {
     x: &'a [f64],
+    /// Brzegi gamutu kolorów wolnych policzone przy wartościach (bez powtarzania bisekcji).
+    bounds: &'a [Boundary],
     cols: Vec<Option<Col<Dual<3>>>>,
 }
 
-impl Duals<'_> {
+impl<'a> Duals<'a> {
+    fn new(x: &'a [f64], bounds: &'a [Boundary]) -> Self {
+        Self { x, bounds, cols: vec![None; bounds.len()] }
+    }
+
     fn col(&mut self, k: usize) -> &Col<Dual<3>> {
-        let x = self.x;
-        self.cols[k].get_or_insert_with(|| Problem::dual_col(x, k))
+        let (x, bounds) = (self.x, self.bounds);
+        self.cols[k].get_or_insert_with(|| {
+            let (l, u, h) = Problem::vars(x, k);
+            // obcięcie i sprowadzenie odcienia do [0, 360) nie zmieniają pochodnych w granicach
+            Col::from_vars(
+                Dual::var(l, 0),
+                Dual::var(u, 1),
+                Dual { v: h, d: [0.0, 0.0, HUE_UNIT] },
+                &bounds[k],
+            )
+        })
     }
 }
 
@@ -280,6 +302,11 @@ impl Problem {
         &self.free_ids
     }
 
+    /// Indeksy kolorów wolnych w dokumencie, w kolejności zmiennych.
+    pub fn free_slots(&self) -> impl Iterator<Item = usize> + '_ {
+        self.free.iter().map(|c| c.slot)
+    }
+
     /// Jasność, nasycenie względne i odcień (stopnie, [0, 360)) koloru wolnego nr `k`.
     fn vars(x: &[f64], k: usize) -> (f64, f64, f64) {
         let l = x[3 * k].clamp(0.0, 1.0);
@@ -303,24 +330,28 @@ impl Problem {
         out
     }
 
-    fn cols(&self, x: &[f64]) -> Vec<Col<f64>> {
+    /// Brzegi gamutu kolorów wolnych w punkcie `x`.
+    fn boundaries(&self, x: &[f64]) -> Vec<Boundary> {
+        (0..self.free.len())
+            .map(|k| {
+                let (l, _, h) = Self::vars(x, k);
+                color::boundary(l, h)
+            })
+            .collect()
+    }
+
+    /// Wszystkie kolory w punkcie `x` (wolne z gotowymi brzegami gamutu).
+    fn cols(&self, x: &[f64], bounds: &[Boundary]) -> Vec<Col<f64>> {
         let mut cols = self.base.clone();
         for (k, c) in self.free.iter().enumerate() {
             let (l, u, h) = Self::vars(x, k);
-            cols[c.slot] = Col::from_vars(l, u, h);
+            cols[c.slot] = Col::from_vars(l, u, h, &bounds[k]);
         }
         cols
     }
 
     fn frame(&self, x: &[f64]) -> Frame {
-        Frame::new(self.cols(x), &self.needs)
-    }
-
-    /// Kolor wolny nr `k` z pochodnymi po swoich trzech zmiennych.
-    fn dual_col(x: &[f64], k: usize) -> Col<Dual<3>> {
-        let (l, u, h) = Self::vars(x, k);
-        // obcięcie i sprowadzenie odcienia do [0, 360) nie zmieniają pochodnych wewnątrz granic
-        Col::from_vars(Dual::var(l, 0), Dual::var(u, 1), Dual { v: h, d: [0.0, 0.0, HUE_UNIT] })
+        Frame::new(self.cols(x, &self.boundaries(x)), &self.needs)
     }
 
     /// Dodaje do `grad` gradient naruszonego termu pomnożony przez `hit.factor`: term liczony
@@ -342,6 +373,79 @@ impl Problem {
                 }
             }
         }
+    }
+
+    /// Funkcja celu z marginesem twardych zasad `margin_frac × skala` (twarde termy dodatkowo
+    /// × `hard_factor`) plus kara odpychająca od `others`, razem z gradientem.
+    fn penalty(
+        &self,
+        x: &[f64],
+        grad: &mut [f64],
+        (margin_frac, hard_factor): (f64, f64),
+        others: &[Vec<f64>],
+        min_div: f64,
+    ) -> f64 {
+        grad.fill(0.0);
+        let bounds = self.boundaries(x);
+        let frame = Frame::new(self.cols(x, &bounds), &self.needs);
+        let mut duals = Duals::new(x, &bounds);
+        let mut total = 0.0;
+        for &index in &self.live {
+            let term = &self.compiled.terms[index];
+            let m = term.margin(margin_frac);
+            let active = frame.active(term);
+            let v = frame.violation(term, &active, m);
+            if v <= 0.0 {
+                continue;
+            }
+            let coefficient = term.coefficient(self.compiled.hard_weight)
+                * if term.hard { hard_factor } else { 1.0 };
+            total += coefficient * v * v;
+            let hit = Hit { term, active, m, factor: 2.0 * coefficient * v };
+            match active.len {
+                1 => self.term_grad::<3>(&hit, &mut duals, grad),
+                2 => self.term_grad::<6>(&hit, &mut duals, grad),
+                _ => self.term_grad::<9>(&hit, &mut duals, grad),
+            }
+        }
+        if !others.is_empty() {
+            let labs: Vec<f64> = self.free.iter().flat_map(|c| frame.cols[c.slot].lab).collect();
+            total += self.repel(&labs, others, min_div, &mut duals, grad);
+        }
+        total
+    }
+
+    /// Kara `((min_div − d) / 0.01)²` za każde rozwiązanie z `others` bliższe niż `min_div`
+    /// (`d` = średnie ΔE ok kolorów wolnych); dodaje gradient do `grad`.
+    fn repel(
+        &self,
+        labs: &[f64],
+        others: &[Vec<f64>],
+        min_div: f64,
+        duals: &mut Duals,
+        grad: &mut [f64],
+    ) -> f64 {
+        let n = self.free.len();
+        let mut total = 0.0;
+        for other in others {
+            let d = mean_delta_e(labs, other);
+            if d >= min_div {
+                continue;
+            }
+            let v = (min_div - d) / DIVERSITY_SCALE;
+            total += v * v;
+            // d(v²)/d(d) = −2v / skala; d = średnia ΔE ok po kolorach
+            let factor = -2.0 * v / DIVERSITY_SCALE / n as f64;
+            for k in 0..n {
+                let reference = [other[3 * k], other[3 * k + 1], other[3 * k + 2]];
+                let de =
+                    color::delta_e::delta_e_ok(duals.col(k).lab, reference.map(Dual::constant));
+                for j in 0..3 {
+                    grad[3 * k + j] += factor * de.d[j];
+                }
+            }
+        }
+        total
     }
 
     /// Ocena palety zakodowanej w `x`: funkcja celu bez marginesu i naruszenia.
@@ -366,12 +470,11 @@ impl Problem {
     }
 
     /// OKLab kolorów wolnych, spłaszczone (3 liczby na kolor).
-    fn free_labs(&self, x: &[f64]) -> Vec<f64> {
+    fn free_labs(&self, x: &[f64], bounds: &[Boundary]) -> Vec<f64> {
         let mut out = Vec::with_capacity(3 * self.free.len());
-        for k in 0..self.free.len() {
+        for (k, boundary) in bounds.iter().enumerate() {
             let (l, u, h) = Self::vars(x, k);
-            let chroma = u * color::max_chroma(l, h);
-            out.extend(color::oklch_to_oklab([l, chroma, h]));
+            out.extend(color::oklch_to_oklab([l, u * boundary.chroma, h]));
         }
         out
     }
@@ -445,28 +548,22 @@ impl Objective for Problem {
     }
 
     fn value_grad(&self, x: &[f64], grad: &mut [f64]) -> f64 {
-        grad.fill(0.0);
-        let frame = self.frame(x);
-        let mut duals = Duals { x, cols: vec![None; self.free.len()] };
-        let mut total = 0.0;
-        for &index in &self.live {
-            let term = &self.compiled.terms[index];
-            let m = term.margin();
-            let active = frame.active(term);
-            let v = frame.violation(term, &active, m);
-            if v <= 0.0 {
-                continue;
-            }
-            let coefficient = term.coefficient(self.compiled.hard_weight);
-            total += coefficient * v * v;
-            let hit = Hit { term, active, m, factor: 2.0 * coefficient * v };
-            match active.len {
-                1 => self.term_grad::<3>(&hit, &mut duals, grad),
-                2 => self.term_grad::<6>(&hit, &mut duals, grad),
-                _ => self.term_grad::<9>(&hit, &mut duals, grad),
-            }
-        }
-        total
+        self.penalty(x, grad, MAIN_STAGE, &[], 0.0)
+    }
+
+    fn has_polish(&self) -> bool {
+        true
+    }
+
+    fn penalized_grad(
+        &self,
+        x: &[f64],
+        others: &[Vec<f64>],
+        min_div: f64,
+        polish: bool,
+        grad: &mut [f64],
+    ) -> f64 {
+        self.penalty(x, grad, if polish { POLISH_STAGE } else { MAIN_STAGE }, others, min_div)
     }
 
     fn score(&self, x: &[f64]) -> Score {
@@ -483,11 +580,11 @@ impl Objective for Problem {
     }
 
     fn distance(&self, a: &[f64], b: &[f64]) -> f64 {
-        mean_delta_e(&self.free_labs(a), &self.free_labs(b))
+        mean_delta_e(&self.prepare(a), &self.prepare(b))
     }
 
     fn prepare(&self, x: &[f64]) -> Vec<f64> {
-        self.free_labs(x)
+        self.free_labs(x, &self.boundaries(x))
     }
 
     fn distance_prepared(&self, a: &[f64], b: &[f64]) -> f64 {
@@ -497,31 +594,11 @@ impl Objective for Problem {
     /// Kara `((min_div − d) / 0.01)²` za każde rozwiązanie z `others` bliższe niż `min_div`
     /// (`d` = średnie ΔE ok kolorów wolnych). `others` to wyniki [`Objective::prepare`].
     fn repulsion(&self, x: &[f64], others: &[Vec<f64>], min_div: f64, grad: &mut [f64]) -> f64 {
-        let n = self.free.len();
-        if n == 0 || others.is_empty() {
+        if self.free.is_empty() || others.is_empty() {
             return 0.0;
         }
-        let labs = self.free_labs(x);
-        let mut total = 0.0;
-        let mut duals: Option<Vec<Col<Dual<3>>>> = None;
-        for other in others {
-            let d = mean_delta_e(&labs, other);
-            if d >= min_div {
-                continue;
-            }
-            let v = (min_div - d) / DIVERSITY_SCALE;
-            total += v * v;
-            // d(v²)/d(d) = −2v / skala; d = średnia ΔE ok po kolorach
-            let factor = -2.0 * v / DIVERSITY_SCALE / n as f64;
-            let cols = duals.get_or_insert_with(|| (0..n).map(|k| Self::dual_col(x, k)).collect());
-            for (k, col) in cols.iter().enumerate() {
-                let reference = [other[3 * k], other[3 * k + 1], other[3 * k + 2]];
-                let de = color::delta_e::delta_e_ok(col.lab, reference.map(Dual::constant));
-                for j in 0..3 {
-                    grad[3 * k + j] += factor * de.d[j];
-                }
-            }
-        }
-        total
+        let bounds = self.boundaries(x);
+        let labs = self.free_labs(x, &bounds);
+        self.repel(&labs, others, min_div, &mut Duals::new(x, &bounds), grad)
     }
 }
