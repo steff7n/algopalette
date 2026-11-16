@@ -61,6 +61,17 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     `snippet_colors()`; paleta z 0 akcentów = jak None), `SwatchDelegate` (bez `PALETTE_ROLE` rysuje hexy z
     `Theme.colors`). Role base16 kanoniczne, inaczej kolejne akcenty; komentarz = mieszanka tekst/tło 50 % OKLab.
     `tests/gui/test_theme_preview.py` 13 passed. Zrzut obejrzany (czytelny, 3 motywy).
+  - Task 2 ☑ (Sonnet, `feat/motywy-t2` scalona `b82baf9`) — `themes/parsers.py`: `Parsed(themes, skipped)`,
+    `parse_tinted` (tar.gz w pamięci, `<dowolny>/base16|base24/*.yaml`, pliki > 256 KB pomijane), `parse_gogh`
+    (autor: `author_name`, potem `author`), `parse_wt` (autor `meta.credits[0].name`), `parse_lospec` → `(Parsed,
+    totalCount)` (brak `totalCount` → `ThemeError`). id Gogh/WT = nazwa (bez deduplikacji id). Fixture
+    `tests/fixtures/themes/` 17 KB. Na prawdziwych danych z 2026-11-16: Gogh 1250 (+7 pominiętych), WT 264, tinted
+    623; parsowanie wszystkich 0,68 s, `filter_themes` 2137 motywów 0,04 s. base24 `0x96f` ma `base12 == base0F` →
+    13 akcentów (deduplikacja).
+  - Task 5 ☑ (kontroler) — `themes/catalog.py`: `CATALOG_URLS`, `CATALOG_TTL_S`, `LOSPEC_TTL_S`, `CatalogResult`,
+    `lospec_tag`, `lospec_url`, `load_catalog`, `lospec_page`, `refresh_all`; klucz Lospec
+    `lospec-<tag|_>-<strona>` (cache zamienia znaki spoza `[a-z0-9-]` na `-`). `tests/themes/test_themes_catalog.py`
+    6 passed; `tests/themes` razem 119 passed.
 
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 
