@@ -2,7 +2,7 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0f. MOTYWY Z SIECI (2026-11-16) — spec i plan gotowe, implementacja NIE rozpoczęta
+## 0f. MOTYWY Z SIECI (2026-11-16) — Taski 1–8 ☑; przegląd całości (Opus xhigh) zlecony; scalenie = decyzja użytkownika
 
 - **STAN NA TERAZ:** gałąź `feat/motywy-z-sieci` (worktree `/home/qrikk/algopalette/.worktrees/motywy-z-sieci`),
   odgałęziona od `feat/zasady-silnik` @ `8291a8b` (model v2 + kłódka zasad; tamta gałąź NIE jest w `main` i ma
@@ -88,6 +88,16 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
     **Prawdziwa sieć (ręcznie, 2026-11-16, cache w scratchpadzie):** base16 623 (1,4 s), Gogh 1250 + 7 pominiętych
     (0,9 s), WT 264 (0,3 s), każdy `resolve` bez błędu; Lospec strona 0 = 9 palet (total 3171), tag `warm` 10/177;
     drugi odczyt Gogh z pamięci 0,01 s.
+  - Task 8 ☑ — **weryfikacja policzona:** `uv run pytest -q -m "not slow"` → **1244 passed, 2 skipped, 454 deselected
+    w 40 s**; `ruff check .` + `ruff format --check .` czyste; `ty check` 0 błędów (14 ostrzeżeń bazowych).
+    Instalacja z gałęzi w scratchpadzie (`UV_TOOL_DIR`/`UV_TOOL_BIN_DIR`): `algopalette --help` działa, import
+    `algopalette.gui.themes_dialog`, `httpx`, `yaml` OK. Testy `slow` NIE uruchamiane (presety/silnik nietknięte).
+  - **Czego NIE zweryfikowano:** ręcznego użycia okna przez człowieka (tylko pytest-qt offscreen + zrzuty);
+    okna z prawdziwą siecią (sieć sprawdzona tylko na poziomie `catalog`); zachowania przy bardzo wolnym łączu
+    (limit 20 s, anulowanie między porcjami — połączenie w toku może trzymać wątek do 20 s przy wyjściu z programu).
+  - **Co dalej:** przegląd całości `8291a8b..HEAD` (Opus xhigh) → pętla napraw z `~/.claude/CLAUDE.md`. Potem
+    scalenie — NAJPIERW `feat/zasady-silnik` do `main` (ma własny przegląd w toku, §0c), potem ta gałąź; decyzja
+    i reinstalacja launchera (`uv tool install --editable . --force` w `/home/qrikk/algopalette`) = użytkownik.
 
 ## 0e. KŁÓDKA ZASAD (2026-11-16) — zrobione na `feat/zasady-silnik`, bez speca i planu (decyzja użytkownika)
 
