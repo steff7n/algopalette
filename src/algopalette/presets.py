@@ -1,7 +1,7 @@
 """Presety: nazwane zestawy zasad całej palety.
 
 Nałożenie presetu zastępuje zasady wszystkich kolorów, ich ``use_scheme``, układ odcieni i rozrzut
-jasności (oraz ustawienia daltonizmu i metrykę kontrastu, jeśli preset je określa). Nie rusza
+jasności (oraz metrykę kontrastu, jeśli preset ją określa). Nie rusza
 wartości kolorów, kłódek, nazw, zależności, ustawień generowania ani listy unikanych kolorów.
 Kolory z kłódką zasad (``Slot.rules_lock != "off"``) zachowują swoje zasady i ``use_scheme``.
 
@@ -24,7 +24,6 @@ from algopalette import io as aio
 from algopalette.globals_logic import change_metric
 from algopalette.model import (
     ContrastMetric,
-    CvdSettings,
     HueScheme,
     Interval,
     Polarity,
@@ -74,7 +73,6 @@ class _Resolved:
     contrast_metric: ContrastMetric
     hue_scheme: HueScheme
     lightness_spread: Rule[Interval] | None
-    cvd: CvdSettings | None
     colors: tuple[tuple[SlotRules, bool], ...]  # (zasady, use_scheme) według pozycji
 
 
@@ -151,7 +149,6 @@ def _decode_entry(name: str, entry: dict[str, Any], n_slots: int) -> _Resolved:
             lightness_spread=aio._dec_rule(
                 "lightness_spread", entry["lightness_spread"], "lightness_spread"
             ),
-            cvd=None,
             colors=tuple(colors),
         )
     except (aio.SessionFormatError, KeyError, TypeError) as e:
@@ -240,9 +237,7 @@ def _resolve(
             if override.use_scheme is not None:
                 use_scheme = override.use_scheme
         colors.append((accent, use_scheme))
-    return _Resolved(
-        polarity, metric, rules.hue_scheme, rules.lightness_spread, rules.cvd, tuple(colors)
-    )
+    return _Resolved(polarity, metric, rules.hue_scheme, rules.lightness_spread, tuple(colors))
 
 
 def apply_preset(session: Session, name: str, *, polarity: str | None = None) -> Session:
@@ -261,7 +256,6 @@ def apply_preset(session: Session, name: str, *, polarity: str | None = None) ->
         polarity=res.polarity,
         hue_scheme=res.hue_scheme,
         lightness_spread=res.lightness_spread,
-        cvd=s.globals.cvd if res.cvd is None else res.cvd,
     )
     slots = tuple(
         slot if slot.rules_lock != "off" else replace(slot, rules=rules, use_scheme=use_scheme)
@@ -273,8 +267,8 @@ def apply_preset(session: Session, name: str, *, polarity: str | None = None) ->
 def is_modified(session: Session) -> bool:
     """Czy zasady sesji różnią się od świeżo nałożonego ``session.preset``.
 
-    Liczą się zasady kolorów, ``use_scheme``, układ odcieni i rozrzut jasności (oraz daltonizm i
-    metryka, jeśli preset je określa). Kolory z kłódką zasad się nie liczą (ich odstępstwo od
+    Liczą się zasady kolorów, ``use_scheme``, układ odcieni i rozrzut jasności (oraz metryka,
+    jeśli preset ją określa). Kolory z kłódką zasad się nie liczą (ich odstępstwo od
     presetu jest zamierzone). Bez presetu → ``False``; preset, którego już nie ma albo który nie
     pasuje do polaryzacji sesji → ``True``.
     """
@@ -290,8 +284,6 @@ def is_modified(session: Session) -> bool:
     if res.contrast_metric != g.contrast_metric:
         return True
     if res.hue_scheme != g.hue_scheme or res.lightness_spread != g.lightness_spread:
-        return True
-    if res.cvd is not None and res.cvd != g.cvd:
         return True
     return any(
         (slot.rules, slot.use_scheme) != expected
@@ -357,7 +349,6 @@ def _mood_as_session(v1_globals: Any) -> Session:
             "lightness",
             "contrast_bg",
             "min_distance",
-            "cvd_min_distance",
             "extreme",
         )
     )

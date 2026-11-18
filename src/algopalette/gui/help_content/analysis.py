@@ -1,20 +1,10 @@
-"""Pomoc: zakładka Analiza — koło odcieni, przekrój L–C, macierze, próbki, przełączniki widoku."""
+"""Pomoc: zakładka Analiza — koło odcieni, przekrój L–C, macierze, próbki, przełączniki."""
 
 from algopalette.gui.help_content.topic import Topic
 
 A = "Analiza"
 
 TOPICS: dict[str, Topic] = {
-    "analysis.view": Topic(
-        "Widok (normalny / daltonizm)",
-        "Pokazuje wykresy, macierze i próbki tak, jak widzi je osoba z protanopią, deuteranopią albo "
-        "tritanopią. Nie zmienia palety.",
-        """Symulacja używa metody i nasilenia z ustawień całej palety → [daltonizm](help:rules.cvd).
-W widoku daltonizmu macierz ΔE zaznacza na czerwono pary poniżej progu zasady
-[odróżnialność](help:rules.cvd_min_distance), ale tylko dla typów zaznaczonych w tych ustawieniach —
-dla pozostałych typów zasada nie działa, więc nic nie jest zaznaczane.""",
-        A,
-    ),
     "analysis.matrix_kind": Topic(
         "Rodzaj macierzy",
         "ΔE akcentów (jak bardzo się różnią) albo kontrast par akcentów (każdy akcent jako tekst na każdym "
@@ -75,9 +65,8 @@ Oś C przełączasz polem [oś C](help:analysis.axis).""",
         "Odległość każdej pary akcentów w metodzie ΔE palety. Czerwone pole = para poniżej wymaganej "
         "odległości. Ostatnia kolumna: kontrast z tłem.",
         """Wiersze i kolumny to akcenty (numer, próbka, nazwa). Czerwone pole oznacza, że para łamie zasadę
-[odległość od innych akcentów](help:rules.min_distance) (w widoku daltonizmu —
-[odróżnialność](help:rules.cvd_min_distance)); podpowiedź na polu podaje wymagany próg. Ostatnia
-kolumna to kontrast akcentu z tłem w metryce palety. Skala liczb zależy od metody
+[odległość od innych akcentów](help:rules.min_distance); podpowiedź na polu podaje wymagany próg.
+Ostatnia kolumna to kontrast akcentu z tłem w metryce palety. Skala liczb zależy od metody
 [ΔE](help:concept.delta_e).""",
         A,
     ),
@@ -95,9 +84,8 @@ od razu widać, czy para jest czytelna. Wymagania kontrastu między kolorami ust
     "analysis.samples": Topic(
         "Próbki na tle",
         "Napis „Aa nazwa” w każdym kolorze palety na prawdziwym tle — najszybszy test czytelności na oko.",
-        """Pokazuje kolory w praktyce: tekst i akcenty na tle palety, w bieżącym widoku (także z symulacją
-daltonizmu). Jeśli coś trudno przeczytać, sprawdź zasadę
-[kontrast z tłem](help:rules.contrast_bg) tego koloru.""",
+        """Pokazuje kolory w praktyce: tekst i akcenty na tle palety. Jeśli coś trudno przeczytać,
+sprawdź zasadę [kontrast z tłem](help:rules.contrast_bg) tego koloru.""",
         A,
     ),
 }

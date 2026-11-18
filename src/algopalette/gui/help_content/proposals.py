@@ -34,8 +34,8 @@ ukończyć. Status dostaje dopisek „(przerwano)”. Przerwane generowanie nie 
     "proposals.progress": Topic(
         "Postęp generowania",
         "Jak daleko jest silnik w liczeniu wszystkich propozycji. Widoczny tylko podczas generowania.",
-        """Czas zależy od liczby propozycji, liczby wolnych kolorów, zasad (szczególnie daltonizmu
-i wolniejszych metod ΔE), [budżetu](help:rules.gen.budget) i liczby [wątków](help:rules.gen.threads).
+        """Czas zależy od liczby propozycji, liczby wolnych kolorów, zasad (szczególnie wolniejszych
+metod ΔE i wielu zależności), [budżetu](help:rules.gen.budget) i liczby [wątków](help:rules.gen.threads).
 Gdy silnik musi doliczyć kolejną falę przebiegów, żeby zebrać dość różnych propozycji, pasek nie cofa
 się, tylko na chwilę zwalnia.""",
         P,

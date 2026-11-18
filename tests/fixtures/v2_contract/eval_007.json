@@ -6,13 +6,6 @@
   "polarity": "dark",
   "contrast_metric": "wcag21",
   "delta_e": "hyab",
-  "cvd": {
-   "types": [
-    "tritan"
-   ],
-   "method": "brettel",
-   "severity": 0.6
-  },
   "fit_method": "oklch-chroma",
   "hue_scheme": {
    "kind": "analogous",
@@ -75,7 +68,6 @@
     "hue": null,
     "contrast_bg": null,
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -150,7 +142,6 @@
      "weight": 2.0
     },
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": []
@@ -214,12 +205,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.04,
-     "enabled": true,
-     "hard": false,
-     "weight": 1.0
-    },
     "extreme": null
    },
    "relations": []
@@ -273,12 +258,6 @@
      "enabled": true,
      "hard": true,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 0.04,
-     "enabled": true,
-     "hard": false,
-     "weight": 1.0
     },
     "extreme": null
    },

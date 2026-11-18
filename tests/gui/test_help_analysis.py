@@ -9,10 +9,7 @@ def test_analysis_covered_each_mode(win, qtbot):
     tab = win.analysis_tab
     assert gh.uncovered(tab) == []  # przed pierwszym rysowaniem też
     win.tabs.setCurrentWidget(tab)
-    for v, m, a in itertools.product(
-        range(tab.view.count()), range(tab.matrix_kind.count()), range(tab.axis.count())
-    ):
-        tab.view.setCurrentIndex(v)
+    for m, a in itertools.product(range(tab.matrix_kind.count()), range(tab.axis.count())):
         tab.matrix_kind.setCurrentIndex(m)
         tab.axis.setCurrentIndex(a)
         tab.refresh_from_session()

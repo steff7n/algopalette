@@ -243,10 +243,6 @@ def test_violation_text_for_every_kind():
             ("odległość akcent 1 – słowa", "ΔE ≥ 0.080", "0.051"),
         ),
         (
-            _v("pair_cvd", [a1, a2], 0.01, {"min": 0.04}, {"method": "ok", "cvd": "deutan"}),
-            ("odróżnialność przy deuteranopii: akcent 1 – akcent 2", "ΔE ≥ 0.040", "0.010"),
-        ),
-        (
             _v("spread", [a1, a2, a3], 0.2, {"lo": None, "hi": 0.12}),
             ("rozrzut jasności akcentów", "≤ 0.120", "0.200"),
         ),

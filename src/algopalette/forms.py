@@ -27,7 +27,6 @@ LABELS = {
     "hue": "odcień",
     "contrast_bg": "kontrast z tłem",
     "min_distance": "odległość od innych akcentów",
-    "cvd_min_distance": "odróżnialność (daltonizm)",
     "extreme": "skrajny kontrast",
 }
 
@@ -40,7 +39,6 @@ DESCRIPTIONS = {
     "hue": "Dozwolony łuk odcienia w stopniach; „od” większe niż „do” to łuk przez 0°.",
     "contrast_bg": "Kontrast tego koloru z tłem (WCAG 2.1 albo APCA |Lc|).",
     "min_distance": "Najmniejsza odległość ΔE od każdego innego akcentu.",
-    "cvd_min_distance": "Najmniejsza odległość ΔE od innych akcentów przy symulacji daltonizmu.",
     "extreme": "Ten akcent ma najsłabszy albo najmocniejszy kontrast z tłem spośród akcentów.",
 }
 
@@ -50,7 +48,6 @@ DEFAULTS: dict[str, Any] = {
     "hue": HueArc(0.0, 60.0),
     "contrast_bg": ContrastBound(None, 4.5, None),
     "min_distance": 0.08,
-    "cvd_min_distance": 0.04,
     "extreme": "weakest",
 }
 
@@ -64,7 +61,7 @@ def default_for(field: str, session: Session) -> Any:
     g = session.globals
     if field == "contrast_bg":
         return ContrastBound(None, 4.5 if g.contrast_metric == "wcag21" else 60.0, None)
-    if field in ("min_distance", "cvd_min_distance"):
+    if field == "min_distance":
         return default_distance(g.delta_e, float(DEFAULTS[field]))
     return DEFAULTS[field]
 
@@ -89,7 +86,7 @@ def range_spec(field: str, cond_value: Any, session: Session) -> dict[str, Any]:
         if metric == "wcag21":
             return {"minimum": 1.0, "maximum": 21.0, "step": 0.1, "fmt": ".2f", "allow_none": True}
         return {"minimum": 0.0, "maximum": 108.0, "step": 1.0, "fmt": ".1f", "allow_none": True}
-    # min_distance / cvd_min_distance
+    # min_distance
     if g.delta_e in ("ok", "hyab"):
         return {"minimum": 0.0, "maximum": 0.5, "step": 0.005, "fmt": ".3f"}
     return {"minimum": 0.0, "maximum": 100.0, "step": 0.5, "fmt": ".1f"}
@@ -161,8 +158,6 @@ DELTA_E = [
     ("cam16 (CAM16-UCS)", "cam16"),
 ]
 FITS = [(m, m) for m in ("oklch-chroma", "raytrace", "minde-chroma", "lch-chroma", "scale", "clip")]
-CVD = [("protanopia", "protan"), ("deuteranopia", "deutan"), ("tritanopia", "tritan")]
-CVD_METHODS = [("Machado", "machado"), ("Viénot", "vienot"), ("Brettel", "brettel")]
 POLARITIES = [("ciemne tło", "dark"), ("jasne tło", "light")]
 CONTRAST_GLOBAL = [("WCAG 2.1 (1–21)", "wcag21"), ("APCA |Lc| (0–108)", "apca")]
 
@@ -197,7 +192,7 @@ def rule_summary(field: str, rule: Any, session: Session) -> str:
     elif field == "contrast_bg":
         fmt, unit = _contrast_fmt(v.metric or session.globals.contrast_metric)
         text = _fmt_interval(v.lo, v.hi, fmt, unit)
-    elif field in ("min_distance", "cvd_min_distance"):
+    elif field == "min_distance":
         fine = session.globals.delta_e in ("ok", "hyab")
         text = f"ΔE ≥ {float(v):.3f}" if fine else f"ΔE ≥ {float(v):.1f}"
     else:  # extreme
@@ -214,7 +209,6 @@ def rule_summary(field: str, rule: Any, session: Session) -> str:
 
 # --- teksty naruszeń ---------------------------------------------------------------------------
 
-_CVD_NAMES = {"protan": "protanopii", "deutan": "deuteranopii", "tritan": "tritanopii"}
 _REL_NAMES = {
     "hue": "odcień",
     "lightness": "jasność",
@@ -301,13 +295,6 @@ def violation_text(v: Violation, session: Session) -> tuple[str, str, str]:
         )
     if kind == "pair_distance":
         return f"odległość {name(0)} – {name(1)}", f"ΔE ≥ {req['min']:.3f}", f"{got:.3f}"
-    if kind == "pair_cvd":
-        cvd = _CVD_NAMES.get(meta.get("cvd", ""), "daltonizmie")
-        return (
-            f"odróżnialność przy {cvd}: {name(0)} – {name(1)}",
-            f"ΔE ≥ {req['min']:.3f}",
-            f"{got:.3f}",
-        )
     if kind == "rel":
         return _relation_text(v, name)
     if kind == "spread":

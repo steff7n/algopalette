@@ -2,7 +2,7 @@
 //!
 //! [`Frame`] to kolory jednej palety razem z wielkościami liczonymi raz na kolor, a używanymi
 //! przez wiele termów (kontrast akcentów z tłem dla zasad „skrajny kontrast”, współrzędne ΔE
-//! akcentów — także po symulacji CVD — dla termów par).
+//! akcentów dla termów par).
 
 use serde_json::json;
 
@@ -12,7 +12,7 @@ use crate::schema::Session;
 use crate::violation::Violation;
 
 use super::compile::{Compiled, compile};
-use super::terms::{Body, Col, Cvd, Term, fields_to_map};
+use super::terms::{Body, Col, Term, fields_to_map};
 
 /// Wynik oceny bieżących wartości sesji.
 #[derive(Debug, Clone, PartialEq)]
@@ -30,10 +30,6 @@ pub(crate) struct Needs {
     pub extreme: Option<ContrastMetric>,
     /// Metoda ΔE termów par (ta sama dla wszystkich: globalna).
     pub pair_method: Option<DeltaE>,
-    /// Czy są pary bez symulacji CVD.
-    pub pair_plain: bool,
-    /// Symulacje CVD używane przez pary.
-    pub cvds: Vec<Cvd>,
 }
 
 impl Needs {
@@ -42,14 +38,7 @@ impl Needs {
         for term in terms {
             match &term.body {
                 Body::Extreme { metric, .. } => needs.extreme = Some(*metric),
-                Body::Pair { method, cvd, .. } => {
-                    needs.pair_method = Some(*method);
-                    match cvd {
-                        None => needs.pair_plain = true,
-                        Some(c) if !needs.cvds.contains(c) => needs.cvds.push(*c),
-                        Some(_) => {}
-                    }
-                }
+                Body::Pair { method, .. } => needs.pair_method = Some(*method),
                 _ => {}
             }
         }
@@ -82,10 +71,8 @@ pub(crate) struct Frame {
     pub cols: Vec<Col<f64>>,
     /// Kontrast koloru z tłem w metryce zasad „skrajny kontrast” (akcenty).
     bg_contrast: Vec<f64>,
-    /// Współrzędne ΔE akcentów bez symulacji.
+    /// Współrzędne ΔE akcentów.
     prep: Vec<[f64; 3]>,
-    /// Współrzędne ΔE akcentów po każdej symulacji CVD.
-    prep_cvd: Vec<(Cvd, Vec<[f64; 3]>)>,
 }
 
 impl Frame {
@@ -100,24 +87,13 @@ impl Frame {
             }
         }
         let mut prep = Vec::new();
-        let mut prep_cvd = Vec::new();
         if let Some(method) = needs.pair_method {
-            if needs.pair_plain {
-                prep = vec![[f64::NAN; 3]; n];
-                for i in accents.clone() {
-                    prep[i] = color::prepare(cols[i].lab, method);
-                }
-            }
-            for cvd in &needs.cvds {
-                let mut sim = vec![[f64::NAN; 3]; n];
-                for i in accents.clone() {
-                    let lab = color::simulate_cvd(cols[i].lab, cvd.kind, cvd.method, cvd.severity);
-                    sim[i] = color::prepare(lab, method);
-                }
-                prep_cvd.push((*cvd, sim));
+            prep = vec![[f64::NAN; 3]; n];
+            for i in accents {
+                prep[i] = color::prepare(cols[i].lab, method);
             }
         }
-        Self { cols, bg_contrast, prep, prep_cvd }
+        Self { cols, bg_contrast, prep }
     }
 
     /// Kolory, od których term zależy przy tych wartościach. Dla „skrajnego kontrastu” to
@@ -159,17 +135,10 @@ impl Frame {
     /// Naruszenie termu przy marginesie `m`.
     pub fn violation(&self, term: &Term, active: &Active, m: f64) -> f64 {
         match &term.body {
-            Body::Pair { min, method, cvd } => {
-                let table = match cvd {
-                    None => &self.prep,
-                    Some(c) => {
-                        let found = self.prep_cvd.iter().find(|(k, _)| k == c);
-                        &found.expect("symulacja CVD przygotowana przy budowie ramki").1
-                    }
-                };
+            Body::Pair { min, method } => {
                 let d = color::delta_e_prepared(
-                    table[active.slots[0]],
-                    table[active.slots[1]],
+                    self.prep[active.slots[0]],
+                    self.prep[active.slots[1]],
                     *method,
                 );
                 (min + m - d).max(0.0)

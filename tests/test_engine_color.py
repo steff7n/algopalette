@@ -2,7 +2,7 @@
 
 Wyrocznią jest dotychczasowy kod Pythona: ``algopalette.color`` (coloraide) i
 ``algopalette.color.fast`` (numpy). Tolerancje ze speca: przekształcenia, największe C i kontrast
-≤ 1e-9; ΔE ``ok``/``hyab`` i symulacja CVD ≤ 1e-6; ΔE ``2000``/``itp``/``cam16`` ≤ 1e-4.
+≤ 1e-9; ΔE ``ok``/``hyab`` ≤ 1e-6; ΔE ``2000``/``itp``/``cam16`` ≤ 1e-4.
 """
 
 import math
@@ -24,9 +24,6 @@ pytestmark = pytest.mark.skipif(
 
 N = 2000
 SEED = 20261115
-CVD_KINDS = ("protan", "deutan", "tritan")
-CVD_METHODS = ("brettel", "vienot", "machado")
-SEVERITIES = (1.0, 0.6)
 
 Lch = list[float]
 
@@ -233,44 +230,6 @@ def test_delta_e_of_close_colors_matches_coloraide(method: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Symulacja CVD
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("kind", CVD_KINDS)
-@pytest.mark.parametrize("method", CVD_METHODS)
-@pytest.mark.parametrize("severity", SEVERITIES)
-def test_simulate_cvd_matches_fast_oracle(kind: str, method: str, severity: float) -> None:
-    colors = COLORS + EDGES
-    got = _lab([_engine.simulate_cvd(c, kind, method, severity) for c in colors])
-    want = _lab(fast.simulate_cvd(colors, kind, method, severity))
-    assert np.all(np.isfinite(got))
-    assert _max_abs(got, want) <= 1e-6
-
-
-@pytest.mark.parametrize("kind", CVD_KINDS)
-@pytest.mark.parametrize("method", CVD_METHODS)
-@pytest.mark.parametrize("severity", SEVERITIES)
-def test_simulate_cvd_matches_coloraide(kind: str, method: str, severity: float) -> None:
-    colors = COLORS[:150] + EDGES
-    got = _lab([_engine.simulate_cvd(c, kind, method, severity) for c in colors])
-    sim = [slow.simulate_cvd(_ok(c), kind, method, severity) for c in colors]  # ty: ignore[invalid-argument-type]
-    want = _lab([[s.l, s.c, s.h] for s in sim])
-    assert _max_abs(got, want) <= 1e-6
-
-
-def test_simulate_cvd_severity_is_clamped() -> None:
-    c = COLORS[0]
-    for kind in CVD_KINDS:
-        for method in CVD_METHODS:
-            assert _engine.simulate_cvd(c, kind, method, 7.0) == _engine.simulate_cvd(
-                c, kind, method, 1.0
-            )
-            zero = _engine.simulate_cvd(c, kind, method, -1.0)
-            assert _max_abs(_lab(zero), _lab(_engine.simulate_cvd(c, kind, method, 0.0))) == 0.0
-
-
-# ---------------------------------------------------------------------------
 # Błędne argumenty
 # ---------------------------------------------------------------------------
 
@@ -281,7 +240,3 @@ def test_unknown_names_raise_value_error() -> None:
         _engine.delta_e(c, c, "76")
     with pytest.raises(ValueError, match="metric"):
         _engine.contrast(c, c, "wcag3")
-    with pytest.raises(ValueError, match="kind"):
-        _engine.simulate_cvd(c, "achroma", "machado", 1.0)
-    with pytest.raises(ValueError, match="method"):
-        _engine.simulate_cvd(c, "protan", "nowa", 1.0)

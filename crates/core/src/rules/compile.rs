@@ -5,17 +5,17 @@
 //! odcieni, unikane kolory, gamut. Termy dotyczące wyłącznie kolorów pod kłódką są pomijane,
 //! tak samo zależności wyłączone i zerwane (cel nie istnieje).
 
-use crate::color::{self, ContrastMetric, CvdKind, DeltaE};
+use crate::color::{self, ContrastMetric, DeltaE};
 use crate::schema::{ChromaMode, ChromaOp, Extreme, RelKind, Relation, Rule, Session};
 use crate::violation::{
-    KEY_SPREAD, ViolationKind, key_avoid, key_exclude, key_pair_cvd, key_pair_distance, key_rel,
-    key_scheme, key_slot,
+    KEY_SPREAD, ViolationKind, key_avoid, key_exclude, key_pair_distance, key_rel, key_scheme,
+    key_slot,
 };
 
 use super::hues;
 use super::terms::{
-    Body, Chan, Cvd, Field, Fields, Floor, Quantity, SCALE_C_ABS, SCALE_C_REL, SCALE_H, SCALE_L,
-    Term, arc_width, scale_contrast, scale_de,
+    Body, Chan, Field, Fields, Floor, Quantity, SCALE_C_ABS, SCALE_C_REL, SCALE_H, SCALE_L, Term,
+    arc_width, scale_contrast, scale_de,
 };
 
 /// Sesja po kompilacji: kolory w kolejności dokumentu i termy.
@@ -204,12 +204,9 @@ impl Builder<'_> {
     }
 
     /// Para akcentów: próg = max z obu kolorów, twarda, gdy którakolwiek; waga = max.
-    fn pair(&mut self, i: usize, j: usize, cvd: Option<CvdKind>) {
+    fn pair(&mut self, i: usize, j: usize) {
         let session = self.session;
-        let pick = |k: usize| {
-            let rules = &session.slots[k].rules;
-            enabled(if cvd.is_some() { &rules.cvd_min_distance } else { &rules.min_distance })
-        };
+        let pick = |k: usize| enabled(&session.slots[k].rules.min_distance);
         let reqs: Vec<&Rule<f64>> = [pick(i), pick(j)].into_iter().flatten().collect();
         if reqs.is_empty() {
             return;
@@ -218,29 +215,15 @@ impl Builder<'_> {
         let hard = reqs.iter().any(|r| r.hard);
         let weight = reqs.iter().fold(f64::NEG_INFINITY, |m, r| m.max(r.weight));
         let method = session.globals.delta_e;
-        let g = &session.globals.cvd;
-        let (key, kind, meta) = match cvd {
-            None => (
-                key_pair_distance(self.id(i), self.id(j)),
-                ViolationKind::PairDistance,
-                obj(&[("method", field(method.as_str()))]),
-            ),
-            Some(kind) => (
-                key_pair_cvd(self.id(i), self.id(j), kind.as_str()),
-                ViolationKind::PairCvd,
-                obj(&[("method", field(method.as_str())), ("cvd", field(kind.as_str()))]),
-            ),
-        };
-        let cvd = cvd.map(|kind| Cvd { kind, method: g.method, severity: g.severity });
         self.add(
-            key,
-            kind,
+            key_pair_distance(self.id(i), self.id(j)),
+            ViolationKind::PairDistance,
             vec![i, j],
             vec![i, j],
             (hard, weight, scale_de(method)),
-            Body::Pair { min, method, cvd },
+            Body::Pair { min, method },
             obj(&[("min", field(min))]),
-            meta,
+            obj(&[("method", field(method.as_str()))]),
         );
     }
 
@@ -327,16 +310,10 @@ pub(crate) fn compile(session: &Session) -> Compiled {
         b.slot_rules(i, &floors, &accents);
     }
 
-    // Pary akcentów: minimalna odległość i odróżnialność przy daltonizmie.
-    let mut kinds = g.cvd.types.clone();
-    kinds.sort_by_key(|k| k.as_str());
-    kinds.dedup();
+    // Pary akcentów: minimalna odległość.
     for (pos, &i) in accents.iter().enumerate() {
         for &j in &accents[pos + 1..] {
-            b.pair(i, j, None);
-            for &kind in &kinds {
-                b.pair(i, j, Some(kind));
-            }
+            b.pair(i, j);
         }
     }
 

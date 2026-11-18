@@ -73,7 +73,7 @@ def quality_cases():
 
 
 def test_builtin_declarations():
-    assert len(CATEGORIES) == 11
+    assert len(CATEGORIES) == 10
     names = [p.name for p in BUILTIN]
     assert len(set(names)) == len(names)
     assert set(OLD_NINE) <= set(names)
@@ -173,11 +173,7 @@ def test_apply_keeps_everything_but_rules():
     assert out.globals.optimizer == g.optimizer
     assert out.globals.avoid_colors == g.avoid_colors
     assert out.globals.avoid_distance == g.avoid_distance
-    assert (out.globals.delta_e, out.globals.fit_method, out.globals.cvd) == (
-        "2000",
-        "raytrace",
-        g.cvd,
-    )
+    assert (out.globals.delta_e, out.globals.fit_method) == ("2000", "raytrace")
     assert out.view_model == "hsl"
     assert out.slots[2].rules != s.slots[2].rules
 
@@ -519,24 +515,6 @@ def test_limited_presets_pin_hues_with_a_hard_scheme():
     poles = set(applied(by_name("dwa bieguny"), "dark").globals.hue_scheme.custom)
     lo, hi = sorted(poles)
     assert hi - lo == 180.0
-
-
-@pytest.mark.parametrize(
-    ("name", "types"),
-    [
-        ("bezpieczny przy protanopii i deuteranopii", {"protan", "deutan"}),
-        ("bezpieczny przy tritanopii", {"tritan"}),
-    ],
-)
-def test_accessibility_presets_turn_on_cvd(name, types):
-    p = by_name(name)
-    assert p.category == "Dostępność"
-    for polarity in p.polarities:
-        s = applied(p, polarity)
-        assert s.globals.cvd.types == frozenset(types)
-        for slot in s.slots[2:]:
-            rule = slot.rules.cvd_min_distance
-            assert rule is not None and rule.enabled and rule.value >= 0.06 and rule.weight >= 2.0
 
 
 def test_apca_reading_sets_the_metric():

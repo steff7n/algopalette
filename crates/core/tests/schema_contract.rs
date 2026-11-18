@@ -92,8 +92,7 @@ fn null_rules_and_null_spread_are_accepted() {
     for slot in &s.slots {
         let r = &slot.rules;
         assert!(r.lightness.is_none() && r.chroma.is_none() && r.hue.is_none());
-        assert!(r.contrast_bg.is_none() && r.min_distance.is_none());
-        assert!(r.cvd_min_distance.is_none() && r.extreme.is_none());
+        assert!(r.contrast_bg.is_none() && r.min_distance.is_none() && r.extreme.is_none());
     }
 }
 
@@ -127,7 +126,6 @@ fn avoid_colors_and_custom_scheme_are_read() {
     assert_eq!(s.globals.avoid_distance, 0.05);
     assert_eq!(s.globals.hue_scheme.kind, HueSchemeKind::Custom);
     assert_eq!(s.globals.hue_scheme.custom, vec![15.0, 140.0, 280.0]);
-    assert_eq!(s.globals.cvd.types.len(), 3);
     assert!(s.globals.lightness_spread.is_some());
 }
 

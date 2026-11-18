@@ -27,18 +27,6 @@ def _col(row: np.ndarray) -> Color:
     return Color("oklch", [float(row[0]), float(row[1]), float(row[2])])
 
 
-def _cvd_ref(kind: str, method: str, severity: float) -> np.ndarray:
-    out = []
-    for row in A:
-        f = _col(row).filter(kind, severity, method=method, space="srgb-linear")
-        out.append(f.convert("oklab").coords(nans=False))
-    return np.array(out)
-
-
-def _cvd_fast(kind: str, method: str, severity: float) -> np.ndarray:
-    return fast.oklch_to_oklab(fast.simulate_cvd(A, kind, method, severity))
-
-
 def test_oklab_to_linear_srgb():
     got = fast.oklab_to_linear_srgb(fast.oklch_to_oklab(A))
     ref = np.array([_col(r).convert("srgb-linear").coords(nans=False) for r in A])
@@ -79,18 +67,9 @@ def test_delta_e_hyab():
     assert np.abs(got - ref).max() < TOL
 
 
-@pytest.mark.parametrize("kind", ["protan", "deutan", "tritan"])
-@pytest.mark.parametrize("method", ["vienot", "machado", "brettel"])
-@pytest.mark.parametrize("severity", [0.5, 1.0])
-def test_cvd_matches_coloraide(kind, method, severity):
-    assert np.abs(_cvd_fast(kind, method, severity) - _cvd_ref(kind, method, severity)).max() < TOL
-
-
 def test_unsupported_raises():
     with pytest.raises(NotImplementedError):
         fast.delta_e(A, B, "2000")
-    with pytest.raises(NotImplementedError):
-        fast.simulate_cvd(A, "deutan", "nieznana", 1.0)
 
 
 def test_max_chroma_matches_scalar():

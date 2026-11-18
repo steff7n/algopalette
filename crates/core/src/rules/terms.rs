@@ -7,7 +7,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::color::{self, ContrastMetric, CvdKind, CvdMethod, DeltaE};
+use crate::color::{self, ContrastMetric, DeltaE};
 use crate::scalar::{Dual, Scalar};
 use crate::schema::RelOp;
 use crate::violation::ViolationKind;
@@ -240,14 +240,6 @@ fn hue_weight<T: Scalar>(col: &Col<T>, floor: Floor) -> T {
     c.scale(1.0 / HUE_FADE_C).maxf(0.0).minf(1.0).square()
 }
 
-/// Ustawienia symulacji CVD dla termu pary.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct Cvd {
-    pub kind: CvdKind,
-    pub method: CvdMethod,
-    pub severity: f64,
-}
-
 /// Wielkość porównywana przez zależność liniową.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Quantity {
@@ -272,8 +264,8 @@ pub(crate) enum Body {
     Contrast { metric: ContrastMetric, lo: Option<f64>, hi: Option<f64> },
     /// Najsłabszy / najmocniejszy kontrast wśród akcentów. Kolory: [własny, aktywny inny, tło].
     Extreme { weakest: bool, metric: ContrastMetric, others: Vec<usize>, bg: usize },
-    /// Minimalna odległość pary (także po symulacji CVD). Kolory: [a, b].
-    Pair { min: f64, method: DeltaE, cvd: Option<Cvd> },
+    /// Minimalna odległość pary. Kolory: [a, b].
+    Pair { min: f64, method: DeltaE },
     /// Zależność odcienia. Kolory: [kolor, cel].
     RelHue { op: RelOp, value: f64, tol: f64, floors: [Floor; 2] },
     /// Zależność jasności albo nasycenia. Kolory: [kolor, cel].
@@ -296,13 +288,6 @@ pub(crate) enum Body {
 
 fn chroma_of<T: Scalar>(col: &Col<T>, rel: bool) -> T {
     if rel { col.relc } else { col.c }
-}
-
-fn simulated<T: Scalar>(lab: [T; 3], cvd: Option<Cvd>) -> [T; 3] {
-    match cvd {
-        Some(c) => color::simulate_cvd(lab, c.kind, c.method, c.severity),
-        None => lab,
-    }
 }
 
 fn mix_distance<T: Scalar>(cols: &[Col<T>], t: f64) -> T {
@@ -344,13 +329,8 @@ impl Body {
                 let other = color::contrast(cols[1].lab, cols[2].lab, *metric);
                 if *weakest { relu((own - other).offset(m)) } else { relu((other - own).offset(m)) }
             }
-            Self::Pair { min, method, cvd } => {
-                let d = color::delta_e(
-                    simulated(cols[0].lab, *cvd),
-                    simulated(cols[1].lab, *cvd),
-                    *method,
-                );
-                relu(T::c(min + m) - d)
+            Self::Pair { min, method } => {
+                relu(T::c(min + m) - color::delta_e(cols[0].lab, cols[1].lab, *method))
             }
             Self::RelHue { op, value, tol, floors } => {
                 let d = angle_diff(cols[1].h, cols[0].h);
@@ -400,9 +380,7 @@ impl Body {
                 color::contrast(cols[0].lab, cols[1].lab, *metric)
             }
             Self::Extreme { metric, .. } => color::contrast(cols[0].lab, cols[2].lab, *metric),
-            Self::Pair { method, cvd, .. } => {
-                color::delta_e(simulated(cols[0].lab, *cvd), simulated(cols[1].lab, *cvd), *method)
-            }
+            Self::Pair { method, .. } => color::delta_e(cols[0].lab, cols[1].lab, *method),
             Self::RelHue { .. } => angle_diff(cols[1].h, cols[0].h),
             Self::RelLinear { quantity, .. } => match *quantity {
                 Quantity::Lightness => cols[0].l - cols[1].l,

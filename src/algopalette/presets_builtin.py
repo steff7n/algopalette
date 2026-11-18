@@ -20,8 +20,6 @@ from algopalette.model import (
     ChromaBand,
     ContrastBound,
     ContrastMetric,
-    CvdSettings,
-    CvdType,
     HueArc,
     HueScheme,
     Interval,
@@ -43,7 +41,6 @@ CATEGORIES: tuple[str, ...] = (
     "Ograniczone",
     "Harmonie",
     "Pory dnia",
-    "Dostępność",
 )
 
 
@@ -69,7 +66,6 @@ class PresetRules:
     hue_scheme: HueScheme = EQUAL
     lightness_spread: Rule[Interval] | None = None
     use_scheme: bool = True  # czy akcenty bez nadpisania biorą cel z układu odcieni
-    cvd: CvdSettings | None = None  # None = preset nie rusza ustawień daltonizmu
     contrast_metric: ContrastMetric | None = None  # None = metryka sesji
 
 
@@ -1111,60 +1107,6 @@ def _storm(pol: Polarity, metric: ContrastMetric) -> PresetRules:
     )
 
 
-# Dostępność
-RG_SAFE = (
-    250.0,
-    90.0,
-    280.0,
-    70.0,
-    220.0,
-    110.0,
-    300.0,
-    50.0,
-    200.0,
-    100.0,
-    265.0,
-    80.0,
-    235.0,
-    60.0,
-)
-TRITAN_SAFE = (
-    25.0,
-    150.0,
-    350.0,
-    170.0,
-    10.0,
-    135.0,
-    40.0,
-    160.0,
-    330.0,
-    145.0,
-    20.0,
-    180.0,
-    0.0,
-    125.0,
-)
-
-
-def _cvd_safe(types: tuple[CvdType, ...], hues: tuple[float, ...]) -> Builder:
-    def build(pol: Polarity, metric: ContrastMetric) -> PresetRules:
-        return _rules(
-            pol,
-            metric,
-            accent={
-                "lightness": _pick(pol, (0.58, 0.90), (0.30, 0.60)),
-                "chroma": _abs(0.07, 0.18),
-                "min_distance": _soft(0.10, 2.0),
-                "cvd_min_distance": _soft(0.07, 4.0),
-            },
-            hue_scheme=_custom(hues, 15.0),
-            lightness_spread=_soft(Interval(0.20, None)),
-            cvd=CvdSettings(frozenset(types), "machado", 1.0),
-        )
-
-    return build
-
-
 def _apca_reading(pol: Polarity, _metric: ContrastMetric) -> PresetRules:
     """Progi w APCA niezależnie od metryki sesji — preset sam ustawia metrykę APCA."""
     return _rules(
@@ -1230,6 +1172,12 @@ _REGISTRY: dict[str, tuple[_Entry, ...]] = {
             "Duża wymagana odległość między akcentami, mocne nasycenie, wąska tolerancja "
             "odcieni i rozrzut jasności od 15 punktów.",
             _max_distinct,
+        ),
+        _p(
+            "APCA do długiego czytania",
+            "Ustawia metrykę APCA: tekst 82–98, akcenty 65–90, tło szare i nie skrajne, akcenty"
+            " o małym nasyceniu i wyrównanej jasności.",
+            _apca_reading,
         ),
     ),
     "Chłodne": (
@@ -1525,26 +1473,6 @@ _REGISTRY: dict[str, tuple[_Entry, ...]] = {
             "Ołowiane, mało nasycone błękity i fiolety, a pierwszy akcent to jaskrawa żółć "
             "błyskawicy.",
             _storm,
-        ),
-    ),
-    "Dostępność": (
-        _p(
-            "bezpieczny przy protanopii i deuteranopii",
-            "Włącza symulację protanopii i deuteranopii, odcienie tylko niebieskie i żółte, "
-            "akcenty rozsunięte jasnością, mocna zasada odróżnialności.",
-            _cvd_safe(("protan", "deutan"), RG_SAFE),
-        ),
-        _p(
-            "bezpieczny przy tritanopii",
-            "Włącza symulację tritanopii, odcienie tylko czerwone i zielone, akcenty rozsunięte"
-            " jasnością, mocna zasada odróżnialności.",
-            _cvd_safe(("tritan",), TRITAN_SAFE),
-        ),
-        _p(
-            "APCA do długiego czytania",
-            "Ustawia metrykę APCA: tekst 82–98, akcenty 65–90, tło szare i nie skrajne, akcenty"
-            " o małym nasyceniu i wyrównanej jasności.",
-            _apca_reading,
         ),
     ),
 }

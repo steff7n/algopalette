@@ -6,11 +6,6 @@
   "polarity": "dark",
   "contrast_metric": "wcag21",
   "delta_e": "cam16",
-  "cvd": {
-   "types": [],
-   "method": "machado",
-   "severity": 1.0
-  },
   "fit_method": "oklch-chroma",
   "hue_scheme": {
    "kind": "equal",
@@ -82,7 +77,6 @@
     },
     "contrast_bg": null,
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -157,7 +151,6 @@
      "weight": 2.0
     },
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -237,12 +230,6 @@
      "hard": false,
      "weight": 0.5
     },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
-    },
     "extreme": null
    },
    "relations": []
@@ -306,12 +293,6 @@
      "hard": false,
      "weight": 0.5
     },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
-    },
     "extreme": null
    },
    "relations": []
@@ -374,12 +355,6 @@
      "enabled": true,
      "hard": false,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
     },
     "extreme": null
    },
@@ -473,12 +448,6 @@
      "value": 12.831058768362038,
      "enabled": false,
      "hard": true,
-     "weight": 2.0
-    },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
      "weight": 2.0
     },
     "extreme": null
@@ -575,12 +544,6 @@
      "hard": false,
      "weight": 0.5
     },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
-    },
     "extreme": null
    },
    "relations": []
@@ -643,12 +606,6 @@
      "enabled": true,
      "hard": false,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
     },
     "extreme": null
    },
@@ -729,12 +686,6 @@
      "hard": false,
      "weight": 0.5
     },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
-    },
     "extreme": {
      "value": "weakest",
      "enabled": true,
@@ -803,12 +754,6 @@
      "hard": false,
      "weight": 0.5
     },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
-    },
     "extreme": null
    },
    "relations": []
@@ -872,12 +817,6 @@
      "hard": false,
      "weight": 0.5
     },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
-    },
     "extreme": null
    },
    "relations": []
@@ -940,12 +879,6 @@
      "enabled": true,
      "hard": false,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 5.295212355928316,
-     "enabled": true,
-     "hard": true,
-     "weight": 1.0
     },
     "extreme": {
      "value": "strongest",
@@ -1015,12 +948,6 @@
      "hard": true,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 7.716486010655741,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
-    },
     "extreme": null
    },
    "relations": []
@@ -1083,12 +1010,6 @@
      "enabled": true,
      "hard": false,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
     },
     "extreme": {
      "value": "weakest",
@@ -1174,12 +1095,6 @@
      "hard": false,
      "weight": 0.5
     },
-    "cvd_min_distance": {
-     "value": 3.4332956649864963,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
-    },
     "extreme": null
    },
    "relations": []
@@ -1242,12 +1157,6 @@
      "enabled": true,
      "hard": false,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 5.336467057488055,
-     "enabled": true,
-     "hard": false,
-     "weight": 2.0
     },
     "extreme": null
    },

@@ -171,7 +171,7 @@ def test_writes_are_one_step_and_keep_other_data():
         ((0, 2), "contrast_bg"),
         ((1, 2), "min_distance"),
         ((0,), "extreme"),
-        ((1,), "cvd_min_distance"),
+        ((1,), "min_distance"),
     ],
 )
 def test_field_not_applicable_raises(indices, field):
@@ -223,7 +223,6 @@ def test_form_labels_cover_rule_fields():
         "hue": "odcień",
         "contrast_bg": "kontrast z tłem",
         "min_distance": "odległość od innych akcentów",
-        "cvd_min_distance": "odróżnialność (daltonizm)",
         "extreme": "skrajny kontrast",
     }
     assert set(forms.DESCRIPTIONS) == set(RULE_FIELDS)
@@ -248,7 +247,6 @@ def test_default_for_in_current_units():
     assert forms.default_for("contrast_bg", apca) == ContrastBound(None, 60.0, None)
     de = change_delta_e(s, "2000")
     assert forms.default_for("min_distance", de) == pytest.approx(12.48)
-    assert forms.default_for("cvd_min_distance", de) == pytest.approx(6.24)
 
 
 def test_range_spec_for_new_fields():

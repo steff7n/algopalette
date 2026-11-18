@@ -6,11 +6,6 @@
   "polarity": "dark",
   "contrast_metric": "apca",
   "delta_e": "cam16",
-  "cvd": {
-   "types": [],
-   "method": "machado",
-   "severity": 1.0
-  },
   "fit_method": "oklch-chroma",
   "hue_scheme": {
    "kind": "tetrad",
@@ -82,7 +77,6 @@
     },
     "contrast_bg": null,
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": []
@@ -132,7 +126,6 @@
      "weight": 1.0
     },
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -211,12 +204,6 @@
      "enabled": true,
      "hard": true,
      "weight": 2.0
-    },
-    "cvd_min_distance": {
-     "value": 0.04,
-     "enabled": true,
-     "hard": false,
-     "weight": 1.0
     },
     "extreme": null
    },
@@ -312,12 +299,6 @@
      "hard": true,
      "weight": 2.0
     },
-    "cvd_min_distance": {
-     "value": 0.04,
-     "enabled": true,
-     "hard": false,
-     "weight": 1.0
-    },
     "extreme": null
    },
    "relations": [
@@ -411,12 +392,6 @@
      "enabled": true,
      "hard": true,
      "weight": 2.0
-    },
-    "cvd_min_distance": {
-     "value": 0.04,
-     "enabled": true,
-     "hard": false,
-     "weight": 1.0
     },
     "extreme": null
    },
@@ -512,12 +487,6 @@
      "hard": true,
      "weight": 2.0
     },
-    "cvd_min_distance": {
-     "value": 0.04,
-     "enabled": true,
-     "hard": false,
-     "weight": 1.0
-    },
     "extreme": null
    },
    "relations": []
@@ -577,12 +546,6 @@
     },
     "min_distance": {
      "value": 21.28605929509856,
-     "enabled": true,
-     "hard": true,
-     "weight": 2.0
-    },
-    "cvd_min_distance": {
-     "value": 12.5477863775963,
      "enabled": true,
      "hard": true,
      "weight": 2.0
@@ -681,12 +644,6 @@
      "hard": true,
      "weight": 2.0
     },
-    "cvd_min_distance": {
-     "value": 0.04,
-     "enabled": true,
-     "hard": false,
-     "weight": 1.0
-    },
     "extreme": null
    },
    "relations": [
@@ -762,12 +719,6 @@
     },
     "min_distance": {
      "value": 21.783428215450463,
-     "enabled": true,
-     "hard": false,
-     "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.04,
      "enabled": true,
      "hard": false,
      "weight": 1.0

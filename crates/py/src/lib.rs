@@ -3,7 +3,7 @@
 //! Wszystkie funkcje I3 są gotowe (`build_info()["implemented"]`): schemat, kolor, ocena zasad,
 //! generowanie. Rust zwraca liczby i nazwy techniczne; napisy dla człowieka składa Python.
 
-use algopalette_core::color::{self, ContrastMetric, CvdKind, CvdMethod, DeltaE};
+use algopalette_core::color::{self, ContrastMetric, DeltaE};
 use algopalette_core::optim;
 use algopalette_core::rules::{self, Problem};
 use algopalette_core::schema::{self, SchemaError, Session};
@@ -206,15 +206,6 @@ fn contrast(text: [f64; 3], bg: [f64; 3], metric: &str) -> PyResult<f64> {
     Ok(color::contrast(color::oklch_to_oklab(text), color::oklch_to_oklab(bg), metric))
 }
 
-/// Symulacja daltonizmu koloru OKLCH; zwraca OKLCH `[l, c, h]` bez przycinania do gamutu.
-#[pyfunction]
-fn simulate_cvd(c: [f64; 3], kind: &str, method: &str, severity: f64) -> PyResult<[f64; 3]> {
-    let kind: CvdKind = named("kind", kind)?;
-    let method: CvdMethod = named("method", method)?;
-    let lab = color::simulate_cvd(color::oklch_to_oklab(c), kind, method, severity);
-    Ok(color::oklab_to_oklch(lab))
-}
-
 // -- dodatki ponad I3 (testy zgodności z wyrocznią, narzędzia) --
 
 /// OKLCH `[l, c, h]` → liniowy sRGB `[r, g, b]` (bez obcinania).
@@ -241,6 +232,6 @@ mod engine_module {
     #[pymodule_export]
     use super::{
         Job, build_info, contrast, delta_e, evaluate, hue_targets, in_gamut, linear_srgb_to_oklch,
-        max_chroma, oklch_to_linear_srgb, simulate_cvd, start, validate,
+        max_chroma, oklch_to_linear_srgb, start, validate,
     };
 }

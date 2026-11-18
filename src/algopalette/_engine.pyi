@@ -39,9 +39,6 @@ def delta_e(a: Sequence[float], b: Sequence[float], method: str) -> float:
 def contrast(text: Sequence[float], bg: Sequence[float], metric: str) -> float:
     """Kontrast (tekst, tło) w OKLCH; ``metric``: wcag21, apca (|Lc|)."""
 
-def simulate_cvd(c: Sequence[float], kind: str, method: str, severity: float) -> list[float]:
-    """Symulacja daltonizmu koloru OKLCH; wynik OKLCH bez przycinania do gamutu."""
-
 # -- dodatki ponad I3 (testy zgodności z wyrocznią, narzędzia) --
 
 def oklch_to_linear_srgb(c: Sequence[float]) -> list[float]:

@@ -6,11 +6,6 @@
   "polarity": "dark",
   "contrast_metric": "wcag21",
   "delta_e": "ok",
-  "cvd": {
-   "types": [],
-   "method": "machado",
-   "severity": 1.0
-  },
   "fit_method": "oklch-chroma",
   "hue_scheme": {
    "kind": "complementary",
@@ -90,7 +85,6 @@
     },
     "contrast_bg": null,
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": []
@@ -149,7 +143,6 @@
      "weight": 1.0
     },
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -244,12 +237,6 @@
      "hard": true,
      "weight": 2.0
     },
-    "cvd_min_distance": {
-     "value": 0.054360786672057654,
-     "enabled": true,
-     "hard": true,
-     "weight": 2.0
-    },
     "extreme": null
    },
    "relations": [
@@ -331,12 +318,6 @@
     },
     "min_distance": {
      "value": 0.07118746021902034,
-     "enabled": true,
-     "hard": true,
-     "weight": 2.0
-    },
-    "cvd_min_distance": {
-     "value": 0.054360786672057654,
      "enabled": true,
      "hard": true,
      "weight": 2.0

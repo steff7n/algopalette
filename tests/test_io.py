@@ -25,7 +25,6 @@ from algopalette.model import (
     Band,
     ChromaBand,
     ContrastBound,
-    CvdSettings,
     HueArc,
     HueScheme,
     Interval,
@@ -48,7 +47,6 @@ def full_session():
         ),
         contrast_bg=Rule(ContrastBound("apca", 60.0, 90.0)),
         min_distance=Rule(0.1, hard=False, weight=0.5),
-        cvd_min_distance=Rule(0.05, enabled=False),
         extreme=Rule("weakest"),
     )
     a, b, c, d = s.slots[2:6]
@@ -74,7 +72,6 @@ def full_session():
         lightness_spread=Rule(Interval(0.1, None), hard=False),
         contrast_metric="apca",
         delta_e="cam16",
-        cvd=CvdSettings(frozenset({"protan", "tritan"}), "brettel", 0.6),
         fit_method="raytrace",
         avoid_colors=(OKLCH(0.5, 0.1, 30.0), OKLCH(0.7, 0.2, 200.0)),
         avoid_distance=0.07,
@@ -102,6 +99,25 @@ def test_roundtrip_default_and_dict():
     assert all("hex" in sl and sl["hex"].startswith("#") for sl in d["slots"])
 
 
+def test_old_file_with_colorblindness_fields_loads_without_them():
+    """Pliki zapisane przed usunięciem daltonizmu (``globals.cvd``, ``cvd_min_distance``)."""
+    s = full_session()
+    d = session_to_dict(s)
+    d["globals"]["cvd"] = {"types": ["protan"], "method": "machado", "severity": 1.0}
+    for slot in d["slots"]:
+        slot["rules"]["cvd_min_distance"] = None
+    d["slots"][2]["rules"]["cvd_min_distance"] = {
+        "value": 0.04,
+        "enabled": True,
+        "hard": False,
+        "weight": 1.0,
+    }
+    assert session_from_dict(d) == s
+    again = session_to_dict(session_from_dict(d))
+    assert "cvd" not in again["globals"]
+    assert all("cvd_min_distance" not in slot["rules"] for slot in again["slots"])
+
+
 def test_document_shape_matches_contract():
     """Kształt z I1 planu — ten sam dokument czyta silnik w Ruście."""
     d = json.loads(json.dumps(session_to_dict(full_session())))
@@ -110,7 +126,6 @@ def test_document_shape_matches_contract():
         "polarity",
         "contrast_metric",
         "delta_e",
-        "cvd",
         "fit_method",
         "hue_scheme",
         "lightness_spread",
@@ -281,8 +296,6 @@ DELETE = object()
         ),
         (["globals", "polarity"], "gray"),
         (["globals", "contrast_metric"], "wcag3"),
-        (["globals", "cvd", "types"], ["alpha"]),
-        (["globals", "cvd", "types"], "protan"),
         (["globals", "hue_scheme", "custom"], ["a"]),
         (["globals", "lightness_spread"], 3),
         (["globals", "optimizer", "seed"], 1.5),
@@ -331,7 +344,9 @@ def test_error_message_is_polish_and_names_field():
 def test_non_finite_numbers_rejected(tmp_path):
     p = tmp_path / "x.json"
     save_session(default_session(), p)
-    p.write_text(p.read_text("utf-8").replace('"severity": 1.0', '"severity": Infinity'), "utf-8")
+    text = p.read_text("utf-8")
+    assert '"time_cap_s": 30.0' in text
+    p.write_text(text.replace('"time_cap_s": 30.0', '"time_cap_s": Infinity'), "utf-8")
     with pytest.raises(SessionFormatError):
         load_session(p)
 

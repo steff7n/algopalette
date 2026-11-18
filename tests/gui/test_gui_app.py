@@ -409,13 +409,11 @@ def test_real_engine_generates_and_window_takes(win, qtbot):
 def test_analysis_all_views(win, qtbot):
     win.tabs.setCurrentWidget(win.analysis_tab)
     a = win.analysis_tab
-    for view in ("normal", "protan", "deutan", "tritan"):
-        a.view.setCurrentIndex(a.view.findData(view))
-        for kind in ("de", "contrast"):
-            a.matrix_kind.setCurrentIndex(a.matrix_kind.findData(kind))
-            for axis in ("rel", "abs"):
-                a.axis.setCurrentIndex(a.axis.findData(axis))
-                a.grab()  # rysuje koło i wykres
+    for kind in ("de", "contrast"):
+        a.matrix_kind.setCurrentIndex(a.matrix_kind.findData(kind))
+        for axis in ("rel", "abs"):
+            a.axis.setCurrentIndex(a.axis.findData(axis))
+            a.grab()  # rysuje koło i wykres
     assert a.matrix.rowCount() == 8
 
 

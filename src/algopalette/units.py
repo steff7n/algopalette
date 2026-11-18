@@ -66,7 +66,6 @@ def rescale_delta_e(session: Session, old: DeltaEMethod, new: DeltaEMethod) -> S
         rules = replace(
             s.rules,
             min_distance=_scaled(s.rules.min_distance, f),
-            cvd_min_distance=_scaled(s.rules.cvd_min_distance, f),
         )
         rels = tuple(
             replace(r, value=f(r.value), tol=f(r.tol))

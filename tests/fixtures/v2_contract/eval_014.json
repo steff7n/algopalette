@@ -6,11 +6,6 @@
   "polarity": "light",
   "contrast_metric": "apca",
   "delta_e": "ok",
-  "cvd": {
-   "types": [],
-   "method": "machado",
-   "severity": 1.0
-  },
   "fit_method": "oklch-chroma",
   "hue_scheme": {
    "kind": "complementary",
@@ -73,7 +68,6 @@
     "hue": null,
     "contrast_bg": null,
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -154,7 +148,6 @@
      "weight": 1.0
     },
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -249,12 +242,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.05240708193076361,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
-    },
     "extreme": {
      "value": "strongest",
      "enabled": true,
@@ -323,12 +310,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.06133794105935218,
-     "enabled": true,
-     "hard": true,
-     "weight": 1.0
-    },
     "extreme": {
      "value": "strongest",
      "enabled": true,
@@ -393,12 +374,6 @@
     },
     "min_distance": {
      "value": 0.11651301448343773,
-     "enabled": true,
-     "hard": true,
-     "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.06133794105935218,
      "enabled": true,
      "hard": true,
      "weight": 1.0
@@ -485,12 +460,6 @@
      "value": 0.08,
      "enabled": true,
      "hard": false,
-     "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.06133794105935218,
-     "enabled": true,
-     "hard": true,
      "weight": 1.0
     },
     "extreme": {
@@ -592,12 +561,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.06133794105935218,
-     "enabled": true,
-     "hard": true,
-     "weight": 1.0
-    },
     "extreme": {
      "value": "strongest",
      "enabled": true,
@@ -664,12 +627,6 @@
      "value": 0.08,
      "enabled": true,
      "hard": false,
-     "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.06133794105935218,
-     "enabled": true,
-     "hard": true,
      "weight": 1.0
     },
     "extreme": {
@@ -740,12 +697,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.06133794105935218,
-     "enabled": true,
-     "hard": true,
-     "weight": 1.0
-    },
     "extreme": {
      "value": "strongest",
      "enabled": true,
@@ -813,12 +764,6 @@
      "enabled": true,
      "hard": false,
      "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.07993516101354055,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
     },
     "extreme": {
      "value": "strongest",

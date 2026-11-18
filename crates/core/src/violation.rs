@@ -17,7 +17,6 @@ pub enum ViolationKind {
     Exclude,
     Extreme,
     PairDistance,
-    PairCvd,
     Rel,
     Spread,
     Scheme,
@@ -37,7 +36,6 @@ impl ViolationKind {
             Self::Exclude => "exclude",
             Self::Extreme => "extreme",
             Self::PairDistance => "pair_distance",
-            Self::PairCvd => "pair_cvd",
             Self::Rel => "rel",
             Self::Spread => "spread",
             Self::Scheme => "scheme",
@@ -63,7 +61,7 @@ pub struct Violation {
     pub achieved: f64,
     /// Wymaganie w postaci liczb, np. `{"lo": 4.5, "hi": null}`.
     pub req: Map<String, Value>,
-    /// Metadane: metryka, typ CVD, tryb nasycenia itd.
+    /// Metadane: metryka, tryb nasycenia itd.
     pub meta: Map<String, Value>,
 }
 
@@ -81,11 +79,6 @@ pub fn key_exclude(id: &str, channel: &str, k: usize) -> String {
 /// `pair:<a>:<b>:min_distance`.
 pub fn key_pair_distance(a: &str, b: &str) -> String {
     format!("pair:{a}:{b}:min_distance")
-}
-
-/// `pair:<a>:<b>:cvd:<typ>`.
-pub fn key_pair_cvd(a: &str, b: &str, cvd: &str) -> String {
-    format!("pair:{a}:{b}:cvd:{cvd}")
 }
 
 /// `slot:<id>:rel:<rodzaj>:<n>` — zależność nr `n` koloru.
@@ -114,7 +107,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    const ALL: [ViolationKind; 14] = [
+    const ALL: [ViolationKind; 13] = [
         ViolationKind::Lightness,
         ViolationKind::Chroma,
         ViolationKind::ContrastBg,
@@ -122,7 +115,6 @@ mod tests {
         ViolationKind::Exclude,
         ViolationKind::Extreme,
         ViolationKind::PairDistance,
-        ViolationKind::PairCvd,
         ViolationKind::Rel,
         ViolationKind::Spread,
         ViolationKind::Scheme,
@@ -144,7 +136,6 @@ mod tests {
                 "exclude",
                 "extreme",
                 "pair_distance",
-                "pair_cvd",
                 "rel",
                 "spread",
                 "scheme",
@@ -166,7 +157,6 @@ mod tests {
         assert_eq!(key_slot("a1", ViolationKind::Gamut), "slot:a1:gamut");
         assert_eq!(key_exclude("a1", "hue", 2), "slot:a1:hue:exclude:2");
         assert_eq!(key_pair_distance("a1", "b2"), "pair:a1:b2:min_distance");
-        assert_eq!(key_pair_cvd("a1", "b2", "protan"), "pair:a1:b2:cvd:protan");
         assert_eq!(key_rel("a1", "mix", 0), "slot:a1:rel:mix:0");
         assert_eq!(key_scheme("a1"), "global:scheme:a1");
         assert_eq!(key_avoid("a1", 3), "global:avoid:a1:3");

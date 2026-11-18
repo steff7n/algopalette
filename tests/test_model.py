@@ -97,7 +97,6 @@ def test_default_rules_numbers_match_v1_role_defaults():
         chroma=Rule(ChromaBand("abs", 0.06, 0.20)),
         contrast_bg=Rule(ContrastBound(None, 4.5, None)),
         min_distance=Rule(0.08, hard=False),
-        cvd_min_distance=Rule(0.04, hard=False),
     )
     light = default_rules("accent", "light", "apca")
     assert light.lightness == Rule(Band(0.35, 0.60))
@@ -113,7 +112,6 @@ def test_rule_fields():
         "hue",
         "contrast_bg",
         "min_distance",
-        "cvd_min_distance",
         "extreme",
     )
     assert tuple(SlotRules.__dataclass_fields__) == RULE_FIELDS

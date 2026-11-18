@@ -28,7 +28,6 @@ V2_FIELDS = (
     "hue",
     "contrast_bg",
     "min_distance",
-    "cvd_min_distance",
     "extreme",
 )
 
@@ -137,7 +136,7 @@ def test_null_field_takes_role_condition():
         chroma=cond({"mode": "rel", "lo": 0.3, "hi": None}),
         contrast_bg=cond({"metric": None, "lo": 4.5, "hi": None}),
         min_distance=cond(0.08, hard=False),
-        cvd_min_distance=cond(0.04, enabled=False),
+        cvd_min_distance=cond(0.04, enabled=False),  # daltonizm usunięty — pole przepada
         extreme=cond("weakest"),
     )
     s, notes = migrated(data)
@@ -147,7 +146,6 @@ def test_null_field_takes_role_condition():
         assert slot.rules.chroma == Rule(ChromaBand("rel", 0.3, None))
         assert slot.rules.contrast_bg == Rule(ContrastBound(None, 4.5, None))
         assert slot.rules.min_distance == Rule(0.08, hard=False)
-        assert slot.rules.cvd_min_distance == Rule(0.04, enabled=False)
         assert slot.rules.extreme == Rule("weakest")
     assert s.slots[0].rules.lightness is None
     assert s.slots[1].rules.lightness is None

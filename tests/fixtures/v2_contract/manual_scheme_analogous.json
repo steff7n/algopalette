@@ -6,11 +6,6 @@
     "polarity": "dark",
     "contrast_metric": "wcag21",
     "delta_e": "hyab",
-    "cvd": {
-      "types": [],
-      "method": "machado",
-      "severity": 1.0
-    },
     "fit_method": "clip",
     "hue_scheme": {
       "kind": "analogous",
@@ -62,7 +57,6 @@
         "hue": null,
         "contrast_bg": null,
         "min_distance": null,
-        "cvd_min_distance": null,
         "extreme": null
       },
       "relations": []
@@ -84,7 +78,6 @@
         "hue": null,
         "contrast_bg": null,
         "min_distance": null,
-        "cvd_min_distance": null,
         "extreme": null
       },
       "relations": []
@@ -162,7 +155,6 @@
           "hard": false,
           "weight": 1.0
         },
-        "cvd_min_distance": null,
         "extreme": null
       },
       "relations": []

@@ -19,7 +19,6 @@ REQUIRED = {
     "concept.delta_e",
     "concept.contrast",
     "concept.gamut",
-    "concept.cvd",
     "concept.exclusion",
     "concept.hue_arc",
 }
@@ -88,11 +87,6 @@ def test_example_numbers_of_other_concepts_match_the_program():
     contrast = parts(TOPICS["concept.contrast"].body)["Przykład"]
     assert f"{color.contrast(fg, bg, 'wcag21'):.2f}" in contrast
     assert f"{color.contrast(fg, bg, 'apca'):.1f}" in contrast
-    red, green = OKLCH(0.70, 0.12, 30.0), OKLCH(0.70, 0.12, 140.0)
-    cvd = parts(TOPICS["concept.cvd"].body)["Przykład"]
-    assert f"{color.delta_e(red, green, 'ok'):.3f}" in cvd
-    sim = [color.simulate_cvd(c, "deutan", "machado", 1.0) for c in (red, green)]
-    assert f"{color.delta_e(sim[0], sim[1], 'ok'):.3f}" in cvd
     gamut = parts(TOPICS["concept.gamut"].body)["Przykład"]
     assert f"{color.max_chroma(0.75, 150.0):.3f}" in gamut
     for method in ("oklch-chroma", "lch-chroma", "minde-chroma", "raytrace", "scale", "clip"):

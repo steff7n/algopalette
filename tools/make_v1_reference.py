@@ -233,7 +233,7 @@ def random_session(rng: random.Random) -> Any:
     from algopalette.model import (
         OKLCH,
         Cond,  # ty: ignore[unresolved-import]
-        CvdSettings,
+        CvdSettings,  # ty: ignore[unresolved-import]
         HueScheme,
         Interval,
         add_accent,

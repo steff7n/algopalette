@@ -3,7 +3,7 @@
 //! - [`schema`] — dokument `algopalette.v2` (plik sesji = wejście silnika).
 //! - [`rng`] — zamrożony generator liczb losowych.
 //! - [`scalar`] — typ skalarny: `f64` albo liczba dualna (wartość + pochodne).
-//! - [`color`] — przekształcenia, gamut, kontrast, ΔE, symulacja CVD.
+//! - [`color`] — przekształcenia, gamut, kontrast, ΔE.
 //! - [`objective`] — kontrakt funkcji celu dla optymalizatora.
 //! - [`optim`] — minimalizacja w pudełku, sterownik równoległy, zadanie w tle.
 //! - [`rules`] — zasady palety jako funkcja celu: kompilacja sesji, ocena, problem.

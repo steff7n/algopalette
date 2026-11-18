@@ -3,7 +3,7 @@
 Od góry: preset (wyszukiwarka, kategoria, lista, polaryzacja tła), liczba kolorów, pasek kolorów
 z wielokrotnym zaznaczeniem, a pod nim edytor zaznaczenia — albo zasady zaznaczonych kolorów
 (wiersz na zasadę, edycja zbiorcza, zależności przy jednym kolorze), albo „cała paleta” (metryki,
-układ odcieni, rozrzut jasności, daltonizm, unikane kolory, generowanie).
+układ odcieni, rozrzut jasności, unikane kolory, generowanie).
 
 Zapis idzie przez ``rules_edit`` i ``MainWindow.set_session``. Zmiana wartości aktualizuje widżety
 w miejscu; przebudowa edytora następuje tylko przy zmianie zaznaczenia albo struktury (dodanie
@@ -36,8 +36,6 @@ from algopalette import color as col
 from algopalette import engine, presets, rules_edit
 from algopalette.forms import (
     CONTRAST_GLOBAL,
-    CVD,
-    CVD_METHODS,
     DELTA_E,
     FITS,
     SCHEMES,
@@ -66,8 +64,6 @@ from algopalette.model import (
     MIN_ACCENTS,
     OKLCH,
     ContrastMetric,
-    CvdSettings,
-    CvdType,
     DeltaEMethod,
     GlobalSettings,
     Interval,
@@ -566,8 +562,7 @@ class RulesTab(QWidget):
         self._editor_lay.addWidget(row)
         self.hue_box = self._hues_box(g)
         self._editor_lay.addWidget(self.hue_box)
-        row = hbox(self._spread_box(g), self._cvd_box(g), stretch=False, spacing=10)
-        self._editor_lay.addWidget(row)
+        self._editor_lay.addWidget(self._spread_box(g))
         self._editor_lay.addWidget(self._avoid_box(g))
 
     def _metrics_box(self, g: GlobalSettings) -> QGroupBox:
@@ -663,36 +658,6 @@ class RulesTab(QWidget):
         lay.addWidget(keyed(rs, "rules.spread", children=True))
         lay.addStretch(1)
         self.palette_widgets.update({"spread.range": rs, "spread.remove": rm, "spread.hard": hard})
-        return box
-
-    def _cvd_box(self, g: GlobalSettings) -> QGroupBox:
-        c = g.cvd
-        box, lay = group("Daltonizm — symulacja dla zasady odróżnialności", "rules.cvd")
-        checks = []
-        for label, kind in CVD:
-            cb = QCheckBox(label)
-            cb.setChecked(kind in c.types)
-            cb.clicked.connect(lambda on, kind=kind: self._cvd_type(kind, on))
-            checks.append(cb)
-            self.palette_widgets[f"cvd.{kind}"] = cb
-        lay.addWidget(keyed(hbox(*checks), "rules.cvd", children=True))
-        w, fl = form()
-        method = combo(CVD_METHODS, c.method)
-        method.activated.connect(
-            lambda _i: self._set(cvd=replace(self.g.cvd, method=method.currentData()))
-        )
-        fl.addRow("metoda", keyed(method, "rules.cvd"))
-        sev = ValueSlider(c.severity, minimum=0, maximum=1, step=0.05, fmt=".2f")
-        sev.changed.connect(
-            lambda v: (
-                v is not None
-                and self._set(cvd=replace(self.g.cvd, severity=float(v)), coalesce="g:cvd-sev")
-            )
-        )
-        fl.addRow("nasilenie", keyed(sev, "rules.cvd", children=True))
-        help.attach_form_labels(fl)
-        lay.addWidget(w)
-        self.palette_widgets.update({"cvd.method": method, "cvd.severity": sev})
         return box
 
     def _avoid_box(self, g: GlobalSettings) -> QGroupBox:
@@ -793,13 +758,6 @@ class RulesTab(QWidget):
         sp = self.g.lightness_spread
         if sp is not None and getattr(sp, name) != value:
             self._set(lightness_spread=replace(sp, **{name: value}))
-
-    def _cvd_type(self, kind: str, on: bool) -> None:
-        c = self.g.cvd
-        types = set(c.types)
-        (types.add if on else types.discard)(cast(CvdType, kind))
-        if frozenset(types) != c.types:
-            self._set(cvd=CvdSettings(frozenset(types), c.method, c.severity))
 
     def _opt(self, name: str, v: float | None, integer: bool) -> None:
         if v is None:

@@ -6,15 +6,6 @@
   "polarity": "dark",
   "contrast_metric": "apca",
   "delta_e": "ok",
-  "cvd": {
-   "types": [
-    "deutan",
-    "protan",
-    "tritan"
-   ],
-   "method": "vienot",
-   "severity": 0.6
-  },
   "fit_method": "oklch-chroma",
   "hue_scheme": {
    "kind": "triad",
@@ -77,7 +68,6 @@
     "hue": null,
     "contrast_bg": null,
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -143,7 +133,6 @@
      "weight": 1.0
     },
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": []
@@ -197,12 +186,6 @@
      "enabled": false,
      "hard": false,
      "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
     },
     "extreme": {
      "value": "weakest",
@@ -279,12 +262,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
-    },
     "extreme": {
      "value": "weakest",
      "enabled": true,
@@ -343,12 +320,6 @@
      "enabled": false,
      "hard": false,
      "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
     },
     "extreme": {
      "value": "strongest",
@@ -409,12 +380,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
-    },
     "extreme": {
      "value": "weakest",
      "enabled": true,
@@ -473,12 +438,6 @@
      "enabled": false,
      "hard": false,
      "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
     },
     "extreme": {
      "value": "weakest",
@@ -570,12 +529,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
-    },
     "extreme": {
      "value": "weakest",
      "enabled": true,
@@ -634,12 +587,6 @@
      "enabled": false,
      "hard": false,
      "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
     },
     "extreme": {
      "value": "weakest",
@@ -731,12 +678,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
-    },
     "extreme": {
      "value": "weakest",
      "enabled": true,
@@ -795,12 +736,6 @@
      "enabled": false,
      "hard": false,
      "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.09517003028972962,
-     "enabled": true,
-     "hard": true,
-     "weight": 2.0
     },
     "extreme": {
      "value": "weakest",
@@ -901,12 +836,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
-    },
     "extreme": {
      "value": "weakest",
      "enabled": false,
@@ -975,12 +904,6 @@
      "hard": false,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
-    },
     "extreme": {
      "value": "weakest",
      "enabled": true,
@@ -1048,12 +971,6 @@
      "enabled": true,
      "hard": false,
      "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
     },
     "extreme": {
      "value": "weakest",
@@ -1129,12 +1046,6 @@
      "enabled": true,
      "hard": true,
      "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 0.030188821422983993,
-     "enabled": true,
-     "hard": false,
-     "weight": 0.5
     },
     "extreme": {
      "value": "weakest",

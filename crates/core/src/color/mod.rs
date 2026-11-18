@@ -1,24 +1,22 @@
-//! Matematyka koloru silnika: przekształcenia, gamut, kontrast, ΔE, symulacja CVD (plan I5).
+//! Matematyka koloru silnika: przekształcenia, gamut, kontrast, ΔE (plan I5).
 //!
 //! Wszystkie funkcje publiczne są generyczne po [`Scalar`](crate::scalar::Scalar): z `f64` liczą
-//! wartość, z [`Dual`](crate::scalar::Dual) — wartość i dokładne pochodne. Funkcje kontrastu, ΔE
-//! i CVD przyjmują OKLab (konwersja z OKLCH raz na kolor, [`oklch_to_oklab`]).
+//! wartość, z [`Dual`](crate::scalar::Dual) — wartość i dokładne pochodne. Funkcje kontrastu i ΔE
+//! przyjmują OKLab (konwersja z OKLCH raz na kolor, [`oklch_to_oklab`]).
 //!
 //! Wyrocznią zgodności jest kod Pythona (`algopalette.color` = coloraide, `algopalette.color.fast`
 //! = numpy); stałe są przepisane stamtąd z pełną precyzją. Test: `tests/test_engine_color.py`.
 
 pub mod contrast;
 pub mod convert;
-pub mod cvd;
 pub mod delta_e;
 pub mod gamut;
 
-pub use crate::schema::{ContrastMetric, CvdKind, CvdMethod, DeltaE};
+pub use crate::schema::{ContrastMetric, DeltaE};
 pub use contrast::{apca_signed, contrast, wcag21};
 pub use convert::{
     linear_srgb_to_oklab, oklab_to_linear_srgb, oklab_to_oklch, oklab_to_xyz, oklch_to_oklab,
 };
-pub use cvd::simulate_cvd;
 pub use delta_e::{delta_e, delta_e_prepared, prepare};
 pub use gamut::{Boundary, GAMUT_EPS, boundary, in_gamut, max_chroma};
 

@@ -12,8 +12,6 @@ from typing import Literal
 Role = Literal["bg", "fg", "accent"]
 ContrastMetric = Literal["wcag21", "apca"]
 DeltaEMethod = Literal["ok", "2000", "hyab", "itp", "cam16"]
-CvdType = Literal["protan", "deutan", "tritan"]
-CvdMethod = Literal["brettel", "vienot", "machado"]
 FitMethod = Literal["clip", "minde-chroma", "lch-chroma", "oklch-chroma", "raytrace", "scale"]
 ViewModel = Literal["oklch", "hsl"]
 ChromaMode = Literal["abs", "rel"]  # rel = część największego C w sRGB przy (L, H), 0–1
@@ -42,10 +40,9 @@ RULE_FIELDS: tuple[str, ...] = (
     "hue",
     "contrast_bg",
     "min_distance",
-    "cvd_min_distance",
     "extreme",
 )
-ACCENT_ONLY_FIELDS = frozenset({"min_distance", "cvd_min_distance", "extreme"})
+ACCENT_ONLY_FIELDS = frozenset({"min_distance", "extreme"})
 
 
 class FrozenMap[K, V](Mapping[K, V]):
@@ -159,7 +156,6 @@ class SlotRules:
     hue: Rule[HueArc] | None = None
     contrast_bg: Rule[ContrastBound] | None = None
     min_distance: Rule[float] | None = None  # ΔE do każdego innego akcentu
-    cvd_min_distance: Rule[float] | None = None
     extreme: Rule[Literal["weakest", "strongest"]] | None = None
 
 
@@ -212,13 +208,6 @@ class HueScheme:
 
 
 @dataclass(frozen=True)
-class CvdSettings:
-    types: frozenset[CvdType] = frozenset()
-    method: CvdMethod = "machado"
-    severity: float = 1.0
-
-
-@dataclass(frozen=True)
 class OptimizerSettings:
     n_proposals: int = 6
     seed: int = 0
@@ -237,7 +226,6 @@ class GlobalSettings:
     lightness_spread: Rule[Interval] | None  # max L − min L akcentów
     contrast_metric: ContrastMetric
     delta_e: DeltaEMethod
-    cvd: CvdSettings
     fit_method: FitMethod
     avoid_colors: tuple[OKLCH, ...] = ()
     avoid_distance: float = 0.0
@@ -305,7 +293,6 @@ def default_rules(
         chroma=Rule(ChromaBand("abs", 0.06, 0.20)),
         contrast_bg=Rule(ContrastBound(None, 4.5 if wcag else 60.0, None)),
         min_distance=Rule(0.08, hard=False),  # ΔE „ok” (skala 0–1)
-        cvd_min_distance=Rule(0.04, hard=False),
     )
 
 
@@ -322,7 +309,6 @@ def default_session() -> Session:
         lightness_spread=None,
         contrast_metric="wcag21",
         delta_e="ok",
-        cvd=CvdSettings(),
         fit_method="oklch-chroma",
     )
     accent = default_rules("accent", "dark", "wcag21")

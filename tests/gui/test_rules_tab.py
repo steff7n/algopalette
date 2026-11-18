@@ -400,9 +400,6 @@ def test_whole_palette_page(win, qtbot):
         "hues.tol",
         "hues.jitter",
         "spread.add",
-        "cvd.protan",
-        "cvd.method",
-        "cvd.severity",
         "avoid.distance",
         "gen.n_proposals",
         "gen.seed",
@@ -417,8 +414,6 @@ def test_whole_palette_page(win, qtbot):
     commit(w["gen.threads"], "4")
     commit(w["gen.budget"], "500")
     assert (win.session.globals.optimizer.threads, win.session.globals.optimizer.budget) == (4, 500)
-    w["cvd.protan"].click()
-    assert win.session.globals.cvd.types == frozenset({"protan"})
     w["spread.add"].click()
     settle(win)
     assert win.session.globals.lightness_spread is not None

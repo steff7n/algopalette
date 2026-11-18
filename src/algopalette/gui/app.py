@@ -43,7 +43,7 @@ COALESCE_S = 1.5
 AUTOSAVE_DELAY_MS = 500
 
 
-PAIR_KINDS = ("pair_distance", "pair_cvd")
+PAIR_KINDS = ("pair_distance",)
 PALETTE_KINDS = ("spread", "diversity")
 
 

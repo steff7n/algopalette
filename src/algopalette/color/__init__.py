@@ -1,4 +1,4 @@
-"""Warstwa koloru AlgoPalette: OKLCH, gamut, kontrast WCAG/APCA, ΔE, daltonizm.
+"""Warstwa koloru AlgoPalette: OKLCH, gamut, kontrast WCAG/APCA, ΔE.
 
 Wolna, dokładna ścieżka opiera się na coloraide (klasa ``Color`` = ``ColorAll`` + metoda ``apca``);
 szybka ścieżka numpy jest w ``algopalette.color.fast``.
@@ -13,8 +13,6 @@ from algopalette.color.apca import APCAContrast, apca_signed_color
 from algopalette.model import (
     OKLCH,
     ContrastMetric,
-    CvdMethod,
-    CvdType,
     DeltaEMethod,
     FitMethod,
 )
@@ -34,7 +32,6 @@ __all__ = [
     "hue_diff",
     "in_gamut",
     "max_chroma",
-    "simulate_cvd",
     "to_color",
     "to_hex",
     "to_hsl",
@@ -142,12 +139,6 @@ def delta_e(a: OKLCH, b: OKLCH, method: DeltaEMethod) -> float:
     """ΔE; ``ok`` w skali OKLab (0–~1), ``hyab`` liczone w OKLab, reszta wg coloraide."""
     kwargs = {"space": "oklab"} if method == "hyab" else {}
     return float(to_color(a).delta_e(to_color(b), method=method, **kwargs))
-
-
-def simulate_cvd(c: OKLCH, kind: CvdType, method: CvdMethod, severity: float) -> OKLCH:
-    """Symulacja daltonizmu; wynik może leżeć poza sRGB (nie jest obcinany)."""
-    col = to_color(c).filter(kind, severity, method=method, space="srgb-linear")
-    return _from_color(col)
 
 
 def hue_diff(a: float, b: float) -> float:

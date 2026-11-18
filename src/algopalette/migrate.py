@@ -53,7 +53,6 @@ _RULE_NAMES = {
     "chroma": "nasycenie C",
     "contrast_bg": "kontrast z tłem",
     "min_distance": "odległość od innych akcentów",
-    "cvd_min_distance": "odróżnialność (daltonizm)",
     "extreme": "skrajny kontrast",
 }
 
@@ -289,7 +288,6 @@ def migrate_v1(data: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
         "polarity": keep("polarity"),
         "contrast_metric": keep("contrast_metric"),
         "delta_e": keep("delta_e"),
-        "cvd": keep("cvd"),
         "fit_method": keep("fit_method"),
         "hue_scheme": keep("hue_scheme"),
         "lightness_spread": keep("lightness_spread"),

@@ -5,7 +5,9 @@ Kodowanie JSON jest jawne (nazwy pól, brak pickle); ten sam dokument czyta siln
 lub brakujący element kończy się ``SessionFormatError`` z polskim komunikatem (nigdy surowym
 ``KeyError``/``TypeError``). ``hex`` przy kolorach jest informacją dla człowieka i jest pomijany
 przy wczytaniu (źródłem prawdy jest OKLCH). Pliki ``algopalette.v1`` są migrowane przy wczytaniu
-(``migrate.migrate_v1``); zapis jest zawsze w v2.
+(``migrate.migrate_v1``); zapis jest zawsze w v2. Nieznane pola są pomijane — dzięki temu
+starsze pliki v2 z usuniętą obsługą daltonizmu (``globals.cvd``, zasada ``cvd_min_distance``)
+wczytują się bez błędu, a przy zapisie tych pól już nie ma.
 """
 
 import json
@@ -27,9 +29,6 @@ from algopalette.model import (
     ChromaMode,
     ContrastBound,
     ContrastMetric,
-    CvdMethod,
-    CvdSettings,
-    CvdType,
     DeltaEMethod,
     Exclusions,
     FitMethod,
@@ -190,8 +189,6 @@ def _opt_lit(d: dict[str, Any], key: str, path: str, allowed: tuple[Any, ...]) -
 
 _METRICS = get_args(ContrastMetric)
 _DELTA_E = get_args(DeltaEMethod)
-_CVD_TYPES = get_args(CvdType)
-_CVD_METHODS = get_args(CvdMethod)
 _FIT = get_args(FitMethod)
 _CHROMA_MODES = get_args(ChromaMode)
 _REL_KINDS = get_args(RelKind)
@@ -277,7 +274,7 @@ _VALUE_CODECS: dict[str, tuple[Any, Any]] = {
         lambda d, p: Interval(_opt_num(d, "lo", p), _opt_num(d, "hi", p)),
     ),
 }
-_SCALAR_FIELDS = ("min_distance", "cvd_min_distance")
+_SCALAR_FIELDS = ("min_distance",)
 
 
 def _enc_rule(name: str, rule: Rule[Any] | None) -> dict[str, Any] | None:
@@ -417,23 +414,6 @@ def _dec_hue_scheme(v: Any, path: str) -> HueScheme:
     )
 
 
-def _enc_cvd(c: CvdSettings) -> dict[str, Any]:
-    return {"types": sorted(c.types), "method": c.method, "severity": c.severity}
-
-
-def _dec_cvd(v: Any, path: str) -> CvdSettings:
-    d = _dict(v, path)
-    tp = _join(path, "types")
-    types: list[Any] = []
-    for i, t in enumerate(_list(_get(d, "types", path), tp)):
-        if not isinstance(t, str) or t not in _CVD_TYPES:
-            raise _err(_join(tp, i), f"musi mieć jedną z wartości: {', '.join(_CVD_TYPES)}")
-        types.append(t)
-    return CvdSettings(
-        frozenset(types), _lit(d, "method", path, _CVD_METHODS), _nonneg(d, "severity", path)
-    )
-
-
 def _enc_optimizer(o: OptimizerSettings) -> dict[str, Any]:
     return {f.name: getattr(o, f.name) for f in fields(OptimizerSettings)}
 
@@ -456,7 +436,6 @@ def _enc_globals(g: GlobalSettings) -> dict[str, Any]:
         "polarity": g.polarity,
         "contrast_metric": g.contrast_metric,
         "delta_e": g.delta_e,
-        "cvd": _enc_cvd(g.cvd),
         "fit_method": g.fit_method,
         "hue_scheme": _enc_hue_scheme(g.hue_scheme),
         "lightness_spread": _enc_rule("lightness_spread", g.lightness_spread),
@@ -480,7 +459,6 @@ def _dec_globals(v: Any, path: str) -> GlobalSettings:
         ),
         contrast_metric=_lit(d, "contrast_metric", path, _METRICS),
         delta_e=_lit(d, "delta_e", path, _DELTA_E),
-        cvd=_dec_cvd(_get(d, "cvd", path), _join(path, "cvd")),
         fit_method=_lit(d, "fit_method", path, _FIT),
         avoid_colors=avoid,
         avoid_distance=_nonneg(d, "avoid_distance", path),

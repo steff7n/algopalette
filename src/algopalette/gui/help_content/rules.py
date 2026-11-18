@@ -53,7 +53,7 @@ Zmiany działają od razu, panel naruszeń na dole przelicza się na bieżąco, 
         "Gotowy zestaw zasad całej palety. Nałożenie zastępuje zasady wszystkich kolorów, układ "
         "odcieni i rozrzut jasności.",
         f"""Preset to nazwany zestaw zasad: tła, tekstu i akcentów (czasem z wyjątkami dla konkretnych
-akcentów), układu odcieni i rozrzutu jasności; niektóre ustawiają też daltonizm albo metrykę kontrastu.
+akcentów), układu odcieni i rozrzutu jasności; niektóre ustawiają też metrykę kontrastu.
 [Zastosuj](help:rules.preset.apply) zastępuje nimi bieżące zasady. Preset **nie rusza** wartości
 kolorów, kłódek, nazw, zależności, listy unikanych kolorów ani ustawień generowania.
 
@@ -77,7 +77,7 @@ pokazuje wszystkie.""",
     ),
     "rules.preset.category": Topic(
         "Kategoria presetów",
-        "Zawęża listę do jednej kategorii, np. Chłodne albo Dostępność. „Własne” to presety "
+        "Zawęża listę do jednej kategorii, np. Chłodne albo Pory dnia. „Własne” to presety "
         "zapisane przez ciebie.",
         """Presety wbudowane są podzielone na kategorie (ich spis jest w temacie
 [Preset](help:rules.preset)). Kategoria i [wyszukiwarka](help:rules.preset.search) działają razem.""",
@@ -379,15 +379,6 @@ Skala progu zależy od metody [ΔE](help:concept.delta_e): 0.08 w `ok` to wyraź
 metody przelicza próg. Odległości par zobaczysz w macierzy ΔE na zakładce Analiza.""",
         K,
     ),
-    "rules.cvd_min_distance": Topic(
-        "Odróżnialność (daltonizm)",
-        "Najmniejsza ΔE między akcentami po symulacji typów daltonizmu wybranych w ustawieniach "
-        "całej palety.",
-        """Działa jak [odległość od innych akcentów](help:rules.min_distance), ale mierzy kolory **po**
-symulacji — osobno dla każdego typu zaznaczonego w sekcji [Daltonizm](help:rules.cvd). Gdy żaden typ
-nie jest zaznaczony, zasada nic nie robi. Więcej i przykład: [daltonizm](help:concept.cvd).""",
-        K,
-    ),
     "rules.extreme": Topic(
         "Skrajny kontrast",
         "Ten akcent ma mieć najsłabszy albo najmocniejszy kontrast z tłem spośród wszystkich "
@@ -645,13 +636,12 @@ usunięty, zależność jest [zerwana](help:rel.broken).""",
     "rules.palette": Topic(
         "Cała paleta",
         "Ustawienia wspólne dla wszystkich kolorów: metryki, układ odcieni, rozrzut jasności, "
-        "daltonizm, unikane kolory i generowanie.",
+        "unikane kolory i generowanie.",
         """Tu są rzeczy, które nie należą do żadnego pojedynczego koloru:
 
 - [metryki](help:rules.metrics) — czym mierzyć kontrast i odległość, jak dopasować do ekranu;
 - [układ odcieni](help:rules.hues) — cele odcieni dla akcentów;
 - [rozrzut jasności akcentów](help:rules.spread);
-- [daltonizm](help:rules.cvd) — typy i metoda symulacji;
 - [unikane kolory](help:rules.avoid);
 - [generowanie](help:rules.generation) — liczba propozycji, ziarno, budżet, wątki.
 
@@ -839,23 +829,6 @@ właśnie jasnością. Zasada może być twarda albo miękka z wagą; przy jedny
         Z,
         term=True,
     ),
-    "rules.cvd": Topic(
-        "Daltonizm",
-        "Typy zaburzeń widzenia barw, metoda symulacji i nasilenie używane przez zasadę "
-        "odróżnialności.",
-        """**Typy:** protanopia (czerwień), deuteranopia (zieleń), tritanopia (błękit). Zasada
-[odróżnialność (daltonizm)](help:rules.cvd_min_distance) działa osobno dla każdego zaznaczonego typu;
-bez zaznaczonych typów nie robi nic.
-
-**Metoda:** Machado — dobra na co dzień, najlepsza przy częściowych zaburzeniach; Viénot — szybka,
-dla protanopii i deuteranopii; Brettel — najdokładniejsza przy pełnym zaburzeniu.
-
-**Nasilenie:** 1.0 to pełne zaburzenie, mniejsze wartości — częściowe.
-
-Tych samych ustawień używa widok daltonizmu na zakładce Analiza. Każdy zaznaczony typ wydłuża
-generowanie. Więcej i przykład z liczbami: [daltonizm](help:concept.cvd).""",
-        Z,
-    ),
     "rules.avoid": Topic(
         "Unikane kolory",
         "Lista kolorów, od których każdy akcent ma być odległy o co najmniej podaną ΔE ok. Zasada "
@@ -927,7 +900,7 @@ przestaje się poprawiać, przebieg kończy się wcześniej.
 
 **Przykład.** Domyślny budżet to {_OPT.budget}. Przy łatwych zasadach (preset „neutralny”) przebieg
 kończy po kilkudziesięciu–kilkuset ocenach i większy budżet niczego nie zmienia. Przy ciasnych
-(wąskie zakresy, daltonizm, wiele zależności) budżet 300 może uciąć szukanie, zanim silnik znajdzie
+(wąskie zakresy, wiele zależności) budżet 300 może uciąć szukanie, zanim silnik znajdzie
 paletę bez twardych naruszeń, a 10 000 da mu czas.
 
 **Kiedy użyć.** Zwiększ, gdy propozycje mają twarde naruszenia, a zasady wyglądają na spełnialne.

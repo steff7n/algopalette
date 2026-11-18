@@ -16,7 +16,6 @@ from algopalette.color import (
     hue_diff,
     in_gamut,
     max_chroma,
-    simulate_cvd,
     to_hex,
 )
 from algopalette.model import OKLCH
@@ -98,14 +97,11 @@ def test_from_css_out_of_gamut_oklch_is_kept():
     assert not in_gamut(c)
 
 
-def test_delta_e_and_cvd_smoke():
+def test_delta_e_smoke():
     a, b = from_css("#ff0000"), from_css("#00ff00")
     for method in ("ok", "2000", "hyab", "itp", "cam16"):
         assert delta_e(a, b, method) > 0.0
         assert delta_e(a, a, method) == approx(0.0, abs=1e-9)
-    sim = simulate_cvd(a, "deutan", "machado", 1.0)
-    assert sim != a
-    assert simulate_cvd(a, "deutan", "machado", 0.0).l == approx(a.l, abs=1e-6)
 
 
 def test_hsl_roundtrip():

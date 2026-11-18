@@ -9,7 +9,6 @@ wyniki zgadzały się z wolną ścieżką do 1e-6. ΔE 2000/itp/cam16 nie mają 
 from typing import Literal
 
 import numpy as np
-from coloraide.filters import cvd as _cvd
 from coloraide.spaces.oklab import LMS3_TO_OKLAB, LMS_TO_XYZD65, OKLAB_TO_LMS3, XYZD65_TO_LMS
 from coloraide.spaces.srgb_linear import RGB_TO_XYZ, XYZ_TO_RGB
 from numpy.typing import ArrayLike, NDArray
@@ -136,42 +135,3 @@ def delta_e(a: ArrayLike, b: ArrayLike, method: str) -> Array:
     if method == "hyab":
         return np.abs(d[..., 0]) + np.hypot(d[..., 1], d[..., 2])
     raise NotImplementedError(f"Brak ścieżki numpy dla ΔE '{method}'")
-
-
-_VIENOT = {"protan": _cvd.VIENOT_PROTAN, "deutan": _cvd.VIENOT_DEUTAN, "tritan": _cvd.VIENOT_TRITAN}
-_BRETTEL = {
-    "protan": _cvd.BRETTEL_PROTAN,
-    "deutan": _cvd.BRETTEL_DEUTAN,
-    "tritan": _cvd.BRETTEL_TRITAN,
-}
-_MACHADO = {
-    "protan": _cvd.MACHADO_PROTAN,
-    "deutan": _cvd.MACHADO_DEUTAN,
-    "tritan": _cvd.MACHADO_TRITAN,
-}
-
-
-def simulate_cvd(lch: ArrayLike, kind: str, method: str, severity: float) -> Array:
-    """Symulacja daltonizmu (brettel, vienot, machado) w liniowym sRGB; zwraca OKLCH."""
-    lin = oklch_to_linear_srgb(lch)
-    severity = min(max(float(severity), 0.0), 1.0)
-    if method == "vienot":
-        full = lin @ np.array(_VIENOT[kind]).T
-        out = full if severity >= 1 else lin + (full - lin) * severity
-    elif method == "machado":
-        matrices = _MACHADO[kind]
-        s = severity * 10
-        i = int(s)
-        out = lin @ np.array(matrices[i]).T
-        if i != s and i < 10:
-            out2 = lin @ np.array(matrices[i + 1]).T
-            out = out + (out2 - out) * (s - i)
-    elif method == "brettel":
-        w1, w2, sep = (np.array(m) for m in _BRETTEL[kind])
-        lms = lin @ np.array(_cvd.LRGB_TO_LMS).T
-        side = (lms @ sep) > 0
-        full = np.where(side[..., None], lms @ w2.T, lms @ w1.T)
-        out = full if severity >= 1 else lin + (full - lin) * severity
-    else:
-        raise NotImplementedError(f"Brak ścieżki numpy dla metody CVD '{method}'")
-    return oklab_to_oklch(linear_srgb_to_oklab(out))

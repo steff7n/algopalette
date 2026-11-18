@@ -39,7 +39,6 @@ def test_general_and_concept_topics_present():
         "concept.oklch",
         "concept.delta_e",
         "concept.contrast",
-        "concept.cvd",
         "concept.gamut",
         "concept.hard_soft",
         "concept.chroma_modes",
@@ -106,10 +105,10 @@ def test_uncovered_requires_header_columns(qtbot):
 
 
 def test_key_at_tab_and_header(win, qtbot):
-    gh.attach_tab(win.tabs, 1, "concept.cvd")
+    gh.attach_tab(win.tabs, 1, "concept.gamut")
     bar = win.tabs.tabBar()
     qtbot.waitExposed(win)
-    assert gh.key_at(bar.mapToGlobal(bar.tabRect(1).center())) == "concept.cvd"
+    assert gh.key_at(bar.mapToGlobal(bar.tabRect(1).center())) == "concept.gamut"
     table = win.violations_panel.table
     gh.attach_header(table, ["concept.hard_soft", "concept.oklch", None, None])
     h = table.horizontalHeader()
@@ -166,7 +165,7 @@ def test_search_diacritics():
 
 def test_panel_search_filters_tree(win):
     p = win.help.panel
-    p.query.setText("daltonizm")
+    p.query.setText("gamut")
     visible = []
     for i in range(p.tree.topLevelItemCount()):
         g = p.tree.topLevelItem(i)
@@ -174,7 +173,7 @@ def test_panel_search_filters_tree(win):
             ch = g.child(j)
             if not ch.isHidden() and not g.isHidden():
                 visible.append(ch.data(0, gh.HELP_ROLE))
-    assert "concept.cvd" in visible and "general.shortcuts" not in visible
+    assert "concept.gamut" in visible and "general.shortcuts" not in visible
     p.query.clear()
 
 

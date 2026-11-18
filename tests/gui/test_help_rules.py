@@ -8,7 +8,7 @@ import pytest
 from PySide6.QtCore import QCoreApplication, QEvent
 
 from algopalette import engine
-from algopalette.forms import CVD, CVD_METHODS, DELTA_E, DISPLAY_ORDER, FITS, SCHEMES, default_for
+from algopalette.forms import DELTA_E, DISPLAY_ORDER, FITS, SCHEMES, default_for
 from algopalette.gui import help as gh
 from algopalette.gui.help_content import GROUPS, TOPICS
 from algopalette.gui.relations import RelationRow
@@ -171,7 +171,6 @@ def test_option_lists_and_presets_described_in_body():
     has("rules.hues.kind", [label.split(" (")[0] for label, _ in SCHEMES])
     has("rules.delta_e", [f"`{v}`" for _, v in DELTA_E])
     has("rules.fit", [f"`{v}`" for _, v in FITS])
-    has("rules.cvd", [label for label, _ in CVD] + [label for label, _ in CVD_METHODS])
 
 
 def test_defaults_quoted_in_help_come_from_the_program():

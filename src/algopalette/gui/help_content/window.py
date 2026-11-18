@@ -32,7 +32,7 @@ Zasad kolorów nie ustawia się tutaj — mają jedno miejsce, zakładkę Zasady
     "window.tab.analysis": Topic(
         "Zakładka Analiza (F5)",
         "Podgląd bieżącej palety: koło odcieni, przekrój jasność–nasycenie, macierze ΔE i kontrastu, "
-        "próbki tekstu — także przy daltonizmie.",
+        "próbki tekstu.",
         """Analiza niczego nie zmienia — pokazuje, jak wypada bieżąca paleta. Pomaga zrozumieć, dlaczego
 zasada jest złamana (np. dwa akcenty zbyt blisko na kole odcieni) i jak zmienić zasady, żeby
 silnik znalazł lepsze kolory.""",

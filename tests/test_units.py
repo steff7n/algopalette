@@ -36,7 +36,6 @@ def session():
         hue=Rule(HueArc(0.0, 270.0, exclude=((60.0, 85.0),))),
         contrast_bg=Rule(ContrastBound(None, 4.5, 7.0), hard=False, weight=2.0),
         min_distance=Rule(0.08, hard=False),
-        cvd_min_distance=Rule(0.04, enabled=False),
         extreme=Rule("weakest"),
     )
     rels = (
@@ -77,7 +76,7 @@ def test_rescale_contrast_metric_touches_rules_and_relations():
     assert r1 == s.slots[2].relations[1]
     assert a.relations[2:] == s.slots[2].relations[2:]
     # zasady L/C/H, zakazy i progi odległości bez zmian
-    for name in ("lightness", "chroma", "hue", "min_distance", "cvd_min_distance", "extreme"):
+    for name in ("lightness", "chroma", "hue", "min_distance", "extreme"):
         assert getattr(a.rules, name) == getattr(s.slots[2].rules, name)
     assert out.globals == s.globals
     assert rescale_contrast_metric(s, "apca", "apca") is s
@@ -89,7 +88,6 @@ def test_rescale_delta_e_touches_rules_and_relations():
     assert out.globals.delta_e == "2000"
     a = out.slots[2]
     assert a.rules.min_distance == Rule(pytest.approx(12.48), hard=False)
-    assert a.rules.cvd_min_distance == Rule(pytest.approx(6.24), enabled=False)
     assert out.slots[5].rules.min_distance == Rule(pytest.approx(12.48), hard=False)
     assert a.relations[2].value == pytest.approx(12.48)
     assert a.relations[2].tol == pytest.approx(1.56)

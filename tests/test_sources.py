@@ -222,7 +222,6 @@ def test_transfer_writes_rules_per_accent():
         assert r.lightness is not None
         assert r.lightness.enabled is False
         assert r.min_distance == defaults.min_distance
-        assert r.cvd_min_distance == defaults.cvd_min_distance
     bg = s.slots[0].rules
     assert bg.lightness == default_rules("bg", "light", "wcag21").lightness
     assert bg.hue == Rule(HueArc(230.0, 270.0), hard=False)

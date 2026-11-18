@@ -50,7 +50,7 @@ mod tests {
             "value": {"l": l, "c": c, "h": h}, "hex": "", "use_scheme": false,
             "rules": {
                 "lightness": null, "chroma": null, "hue": null, "contrast_bg": null,
-                "min_distance": null, "cvd_min_distance": null, "extreme": null
+                "min_distance": null, "extreme": null
             },
             "relations": []
         })
@@ -75,7 +75,6 @@ mod tests {
             "format": "algopalette.v2", "preset": null, "view_model": "oklch",
             "globals": {
                 "polarity": "dark", "contrast_metric": "wcag21", "delta_e": "ok",
-                "cvd": {"types": [], "method": "machado", "severity": 1.0},
                 "fit_method": "oklch-chroma",
                 "hue_scheme": {"kind": "none", "rotation": 0.0, "center": 0.0, "spread": 90.0,
                     "custom": [], "tol": 15.0, "jitter": 0.0, "hard": false, "weight": 1.0},
@@ -101,13 +100,11 @@ mod tests {
     }
 
     /// Sesja z każdym rodzajem termu: zakresy z zakazami, kontrast, skrajny kontrast, pary
-    /// (także CVD), wszystkie rodzaje zależności, rozrzut, układ, unikany kolor.
+    /// akcentów, wszystkie rodzaje zależności, rozrzut, układ, unikany kolor.
     fn everything(delta_e: &str, metric: &str) -> Value {
         let mut doc = bare(5);
         doc["globals"]["delta_e"] = json!(delta_e);
         doc["globals"]["contrast_metric"] = json!(metric);
-        doc["globals"]["cvd"] =
-            json!({"types": ["tritan", "protan"], "method": "machado", "severity": 0.8});
         doc["globals"]["hue_scheme"]["kind"] = json!("triad");
         doc["globals"]["lightness_spread"] = rule(json!({"lo": 0.05, "hi": 0.12}), false);
         doc["globals"]["avoid_colors"] = json!([{"l": 0.7, "c": 0.1, "h": 30.0}]);
@@ -131,7 +128,6 @@ mod tests {
             rule(json!({"lo": 300.0, "hi": 90.0, "exclude": [[350.0, 10.0]]}), true);
         a1["rules"]["contrast_bg"] = rule(json!({"metric": "apca", "lo": 45.0, "hi": 80.0}), false);
         a1["rules"]["min_distance"] = rule(json!(far), false);
-        a1["rules"]["cvd_min_distance"] = rule(json!(near), true);
         a1["rules"]["extreme"] = rule(json!("weakest"), true);
 
         let a2 = &mut doc["slots"][3];
@@ -529,7 +525,6 @@ mod tests {
             "contrast_bg",
             "extreme",
             "pair_distance",
-            "pair_cvd",
             "rel:hue",
             "rel:lightness",
             "rel:chroma",

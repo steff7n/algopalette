@@ -73,7 +73,7 @@ def row_signature(session: Session, ids: tuple[str, ...], field: str) -> tuple[A
         return ("same", v.mode)
     if field == "contrast_bg":
         return ("same", v.metric, g.contrast_metric)
-    if field in ("min_distance", "cvd_min_distance"):
+    if field == "min_distance":
         return ("same", g.delta_e)
     return ("same",)
 
@@ -238,7 +238,7 @@ class RuleRow(QFrame):
             self.slider = RangeSlider(v.lo, v.hi, **spec)
             self.slider.changed.connect(self._contrast)
             box.addWidget(self.slider, 1)
-        elif f in ("min_distance", "cvd_min_distance"):
+        elif f == "min_distance":
             self.slider = ValueSlider(float(v), **spec)
             self.slider.changed.connect(self._number)
             box.addWidget(self.slider, 1)

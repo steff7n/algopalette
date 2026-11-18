@@ -187,7 +187,6 @@ def _narrow_session() -> Session:
             lightness=Rule(Band(v.l - 0.002, v.l + 0.002)),
             contrast_bg=None,
             min_distance=None,
-            cvd_min_distance=None,
         )
         slots.append(replace(slot, rules=rules, use_scheme=False))
     locked_bg = replace(slots[0], locked=True)
@@ -356,9 +355,8 @@ def test_bench_sessions_match_their_description() -> None:
     assert len(w2.slots) == 10 and w2.globals.optimizer.n_proposals == 128
     assert w2.preset == "chłodny mglisty"
     assert len(w3.slots) == 16 and w3.globals.optimizer.n_proposals == 128
-    assert w3.globals.cvd.types == frozenset({"protan", "deutan"})
     assert w3.globals.delta_e == "2000"
-    assert all(slot.rules.cvd_min_distance is not None for slot in w3.slots[2:])
+    assert all(slot.rules.min_distance is not None for slot in w3.slots[2:])
 
 
 @pytest.mark.slow

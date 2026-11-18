@@ -99,7 +99,7 @@ a tekstem kolor najbardziej z nim kontrastujący (w metryce kontrastu bieżącej
         """**Odznaczone** — import działa jak tryb [Charakter](help:source.mode): polaryzacja wynika
 z jasności tła motywu, [układ odcieni](help:rules.hues) staje się „własny” z odcieni motywu,
 a tło, tekst i akcenty dostają zasady wyliczone z motywu (jasność, nasycenie, kontrast). Metryka
-kontrastu, ΔE, daltonizm, dopasowanie do gamutu, kolory do unikania i optymalizator zostają.
+kontrastu, ΔE, dopasowanie do gamutu, kolory do unikania i optymalizator zostają.
 
 **Zaznaczone** — zmieniają się tylko kolory i ich liczba; ustawienia palety i zasady wszystkich
 kolorów zostają. Jeśli motyw ma inną polaryzację niż paleta, [panel naruszeń](help:window.violations)

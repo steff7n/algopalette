@@ -6,11 +6,6 @@
   "polarity": "light",
   "contrast_metric": "wcag21",
   "delta_e": "ok",
-  "cvd": {
-   "types": [],
-   "method": "machado",
-   "severity": 1.0
-  },
   "fit_method": "oklch-chroma",
   "hue_scheme": {
    "kind": "custom",
@@ -80,7 +75,6 @@
     "hue": null,
     "contrast_bg": null,
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": []
@@ -130,7 +124,6 @@
      "weight": 0.5
     },
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -216,12 +209,6 @@
      "hard": true,
      "weight": 1.0
     },
-    "cvd_min_distance": {
-     "value": 0.06830443129297217,
-     "enabled": true,
-     "hard": true,
-     "weight": 2.0
-    },
     "extreme": null
    },
    "relations": []
@@ -275,12 +262,6 @@
      "enabled": true,
      "hard": false,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 0.06830443129297217,
-     "enabled": true,
-     "hard": true,
-     "weight": 2.0
     },
     "extreme": null
    },
@@ -361,12 +342,6 @@
      "hard": false,
      "weight": 0.5
     },
-    "cvd_min_distance": {
-     "value": 0.06830443129297217,
-     "enabled": true,
-     "hard": true,
-     "weight": 2.0
-    },
     "extreme": null
    },
    "relations": []
@@ -420,12 +395,6 @@
      "enabled": true,
      "hard": false,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 0.06830443129297217,
-     "enabled": true,
-     "hard": true,
-     "weight": 2.0
     },
     "extreme": null
    },
@@ -496,12 +465,6 @@
      "enabled": true,
      "hard": false,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 0.06830443129297217,
-     "enabled": true,
-     "hard": true,
-     "weight": 2.0
     },
     "extreme": null
    },
@@ -587,12 +550,6 @@
      "enabled": true,
      "hard": true,
      "weight": 0.5
-    },
-    "cvd_min_distance": {
-     "value": 0.08448889073492467,
-     "enabled": true,
-     "hard": true,
-     "weight": 1.0
     },
     "extreme": {
      "value": "strongest",

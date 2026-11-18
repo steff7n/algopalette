@@ -19,10 +19,16 @@ Termy porównuje się w tolerancji względnej 1e-6 (1e-4 bezwzględnie dla ΔE `
    stosuje granicę błędu wyprowadzoną z kroku bisekcji (``_floor_slack``).
 3. **Próg wykrywania.** Term o wielkości przy progu 1e-9 bywa naruszeniem tylko po jednej stronie;
    brak klucza jest błędem dopiero, gdy wielkość przekracza tolerancję termu.
-4. **Nieciągłość CIEDE2000.** Wzór ma skok, gdy odcienie CIELAB pary różnią się o 180°. Kolory po
-   symulacji dichromazji leżą na płaszczyźnie przez oś szarości, więc dla ciemnych par (liniowa
-   gałąź CIELAB) różnica wynosi 180° co do zaokrągleń i o gałęzi decyduje szum 1e-13. Taki term
-   (``_on_ciede_discontinuity``) nie jest porównywany, a jego wkład jest odejmowany od funkcji celu.
+4. **Nieciągłość CIEDE2000.** Wzór ma skok, gdy odcienie CIELAB pary różnią się o 180°; dla
+   ciemnych par (liniowa gałąź CIELAB) różnica bywa 180° co do zaokrągleń i o gałęzi decyduje szum
+   1e-13. Taki term (``_on_ciede_discontinuity``) nie jest porównywany, a funkcja celu przypadku
+   jest pomijana.
+
+Wzorzec liczono jeszcze z zasadą odróżnialności przy daltonizmie (klucze
+``pair:<a>:<b>:cvd:<typ>``). Program jej już nie ma (usunięta 2026-11-18): te naruszenia są
+wyjmowane ze wzorca, a ich wkład ``(hard_weight, gdy twarda) · waga · (wielkość / skala)²``
+odejmowany od wzorcowej funkcji celu (waga = większa z wag zasady obu kolorów — własnej albo
+z ``role_defaults`` v1).
 """
 
 import json
@@ -76,8 +82,27 @@ class Case:
         }
         self.maxc = dict(zip(self.ids, (float(m) for m in new), strict=True))
         self.hard_weight = self.session.globals.optimizer.hard_weight
-        self.want = {_new_key(v["key"]): v for v in raw["violations"]}
+        self.cvd = [v for v in raw["violations"] if _is_cvd(v["key"])]
+        self.want = {_new_key(v["key"]): v for v in raw["violations"] if not _is_cvd(v["key"])}
         self.got = {v.key: v for v in engine.current_violations(self.session)}
+
+    def cvd_objective(self) -> float:
+        """Wkład usuniętych termów daltonizmu we wzorcową funkcję celu."""
+        v1 = self.raw["session"]
+        roles = v1["globals"]["role_defaults"]
+        scale = 0.01 if v1["globals"]["delta_e"] in ("ok", "hyab") else 1.0
+        weights = {}
+        for i, slot in enumerate(v1["slots"]):
+            cond = slot["conditions"].get("cvd_min_distance")
+            if cond is None:
+                cond = roles["bg" if i == 0 else "fg" if i == 1 else "accent"]["cvd_min_distance"]
+            weights[slot["id"]] = cond["weight"] if cond and cond["enabled"] else 0.0
+        total = 0.0
+        for v in self.cvd:
+            _, a, b, _, _ = v["key"].split(":")
+            factor = self.hard_weight if v["hard"] else 1.0
+            total += factor * max(weights[a], weights[b]) * (v["amount"] / scale) ** 2
+        return total
 
     def slot(self, sid: str) -> Any:
         return self.session.slots[self.ids.index(sid)]
@@ -106,6 +131,11 @@ def _new_key(key: str) -> str:
         if key.endswith(old):
             return key[: -len(old)] + ":hue"
     return key
+
+
+def _is_cvd(key: str) -> bool:
+    parts = key.split(":")
+    return parts[0] == "pair" and parts[3] == "cvd"
 
 
 def _is_gamut(key: str) -> bool:
@@ -183,18 +213,11 @@ def _on_ciede_discontinuity(case: Case, key: str) -> bool:
     if _slow_de(case, key) != "2000":
         return False
     parts = key.split(":")
-    g = case.session.globals
-    if parts[0] == "pair":
-        a, b = parts[1], parts[2]
-        cvd = parts[4] if parts[3] == "cvd" else None
-    else:
-        a, b, cvd = parts[1], case.relation(key).target, None
+    a, b = (parts[1], parts[2]) if parts[0] == "pair" else (parts[1], case.relation(key).target)
     labs = []
     for sid in (a, b):
         v = case.values[sid]
         color = OKLCH(v["l"], v["c"], v["h"])
-        if cvd is not None:
-            color = slow.simulate_cvd(color, cvd, g.cvd.method, g.cvd.severity)  # ty: ignore[invalid-argument-type]
         labs.append(slow.to_color(color).convert("lab-d65").coords(nans=False))
     hues = [math.degrees(math.atan2(lab[2], lab[1])) for lab in labs]
     diff = abs((hues[0] - hues[1] + 180.0) % 360.0 - 180.0)
@@ -203,7 +226,7 @@ def _on_ciede_discontinuity(case: Case, key: str) -> bool:
 
 def _scale(v: engine.Violation) -> float:
     """Skala termu (jak w silniku) — potrzebna do przeniesienia luzu wielkości na funkcję celu."""
-    if v.kind in ("pair_distance", "pair_cvd"):
+    if v.kind == "pair_distance":
         return 0.01 if v.meta["method"] in ("ok", "hyab") else 1.0
     if v.kind == "chroma":
         return 0.02 if v.meta.get("mode") == "rel" else 0.01
@@ -220,7 +243,7 @@ def _compare(raw: dict[str, Any]) -> list[str]:
     case = Case(raw)
     got, want = case.got, case.want
     problems: list[str] = []
-    if len(want) != len(raw["violations"]):
+    if len(want) + len(case.cvd) != len(raw["violations"]):
         problems.append("powtórzone klucze naruszeń we wzorcu po odwzorowaniu")
 
     def coefficient(v: engine.Violation) -> float:
@@ -267,6 +290,7 @@ def _compare(raw: dict[str, Any]) -> list[str]:
         return obj - sum(case.hard_weight * (a / 0.01) ** 2 for a in amounts)
 
     want_obj = without(raw["objective"], [v["amount"] for k, v in want.items() if _is_gamut(k)])
+    want_obj -= case.cvd_objective()
     got_obj = without(
         engine.objective(case.session), [v.amount for k, v in got.items() if _is_gamut(k)]
     )
@@ -297,7 +321,6 @@ def test_reference_has_300_cases_covering_every_term_kind() -> None:
         "contrast_bg",
         "extreme",
         "min_distance",
-        "cvd",
         "rel",
         "lightness_spread",
         "scheme",
@@ -325,15 +348,16 @@ def test_evaluation_matches_the_old_engine(index: int) -> None:
 
 
 def test_ciede_discontinuity_is_rare() -> None:
-    """Term pominięty z powodu skoku CIEDE2000 to wyjątek, nie furtka: najwyżej kilka w całych
-    danych (zmierzone: 4 termy, z czego 1 po innej stronie skoku niż wzorzec)."""
+    """Term pominięty z powodu skoku CIEDE2000 to wyjątek, nie furtka. Przed usunięciem daltonizmu
+    trafiały się 4 takie termy — wszystkie w parach po symulacji dichromazji (kolory na płaszczyźnie
+    przez oś szarości). Bez nich nie ma żadnego; zabezpieczenie zostaje na wypadek nowych danych."""
     hits = 0
     for raw in CASES:
         if raw["session"]["globals"]["delta_e"] != "2000":
             continue
         case = Case(raw)
         hits += sum(_on_ciede_discontinuity(case, k) for k in set(case.got) | set(case.want))
-    assert 0 < hits <= 6
+    assert hits == 0
 
 
 def test_migration_of_reference_sessions_is_silent() -> None:

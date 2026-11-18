@@ -2,6 +2,55 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
+## 0g. USUNIĘTY DALTONIZM (2026-11-18) — zrobione na gałęzi `feat/bez-daltonizmu` (od `main` @ `9971497`), NIE scalone
+
+- **Prośba (WIĄŻĄCA, nie otwieraj ponownie):** „wywal calkowicie z aplikacji funkcjonalnosci odnoszace sie do
+  daltonizmu”. Bez speca i planu (prosta, mechaniczna zmiana). Nie przywracaj symulacji CVD, zasady
+  odróżnialności ani presetów „bezpieczny przy …” — także w nowych funkcjach i tekstach pomocy.
+- **Co usunięte (całość, każda warstwa):**
+  - Rust: `crates/core/src/color/cvd.rs` (Brettel/Viénot/Machado), `schema::{CvdKind, CvdMethod, CvdSettings}`,
+    `globals.cvd`, `SlotRules.cvd_min_distance`, `ViolationKind::PairCvd`, `key_pair_cvd`, `terms::Cvd`,
+    `Body::Pair { min, method }` (bez `cvd`), `Needs`/`Frame` w `rules/eval.rs` bez tablic symulacji,
+    `compile.rs` `pair(i, j)` tylko `min_distance`; PyO3 `_engine.simulate_cvd`.
+  - Python: `model.{CvdType, CvdMethod, CvdSettings}`, `GlobalSettings.cvd`, `SlotRules.cvd_min_distance`
+    (`RULE_FIELDS` ma 6 pól), `color.simulate_cvd`, `fast.simulate_cvd`, `forms.{CVD, CVD_METHODS}` i tekst
+    `pair_cvd`, `io` (koder/dekoder `cvd`), `migrate` (v1 `cvd`/`cvd_min_distance` przepadają po cichu — bez
+    komunikatu, świadomie: funkcji już nie ma), `presets` (`_Resolved.cvd`), `units`, `presets_builtin`
+    (`_cvd_safe`, `RG_SAFE`, `TRITAN_SAFE`, 2 presety „bezpieczny przy protanopii i deuteranopii” /
+    „… tritanopii”).
+  - GUI: sekcja „Daltonizm” w „cała paleta” (`rules_tab._cvd_box`, `_cvd_type`), przełącznik „widok:” w Analizie
+    (`VIEWS`, `view_value`, parametr `view` we wszystkich `set_state`/macierzach, `pair_requirement(s, i, j)`),
+    `app.PAIR_KINDS = ("pair_distance",)`. Pomoc: tematy `concept.cvd`, `rules.cvd`, `rules.cvd_min_distance`,
+    `analysis.view` i wzmianki w ~8 innych tematach.
+- **Skutek uboczny (decyzja agenta):** kategoria presetów „Dostępność” została z 1 presetem (test wymaga ≥ 3 na
+  kategorię) → preset „APCA do długiego czytania” przeniesiony na koniec „Podstawowe”, kategoria usunięta.
+  Teraz **56 presetów w 10 kategoriach** (README, `test_builtin_declarations`).
+- **Zgodność plików:** dekoder `io` pomija nieznane pola, więc stare pliki v2 z `globals.cvd`/`cvd_min_distance`
+  wczytują się, a zapis już ich nie ma (test `test_old_file_with_colorblindness_fields_loads_without_them`).
+  Silnik Rust ma `deny_unknown_fields` — dostaje tylko dokument zakodowany przez Pythona, więc to bez znaczenia.
+  Presety użytkownika (`presets.json`) i nastroje v1 też przechodzą (migracja ignoruje pola).
+- **Fixture'y:** `tests/fixtures/bench/w{1,2,3}.json` i `v2_contract/manual_*.json` oczyszczone skryptem (format
+  zachowany: wcięcie 1 / 2); `v2_contract/eval_*.json` usunięte i odtworzone przez
+  `test_contract_files_are_what_python_encodes` (tworzy brakujące). `v1_reference/*` **NIETKNIĘTE** (zapis starego
+  silnika, nie wolno go odtwarzać) — `test_engine_parity` wyjmuje ze wzorca klucze `pair:<a>:<b>:cvd:<typ>`
+  (86 z 300 przypadków je ma) i odejmuje ich wkład od wzorcowej funkcji celu (`Case.cvd_objective`: waga =
+  max wag zasady obu kolorów z v1, własnej albo `role_defaults`). `tools/make_v1_reference.py` zostaje jak był
+  (działa tylko na checkoucie `4b71aeb`); import `CvdSettings` dostał `ty: ignore[unresolved-import]`.
+- **Pułapka, która mogłaby kosztować czas:** wszystkie 4 termy „na skoku CIEDE2000” we wzorcu pochodziły z par po
+  symulacji dichromazji → `test_ciede_discontinuity_is_rare` ma teraz `hits == 0` (mechanizm pomijania zostaje
+  jako zabezpieczenie). `test_non_finite_numbers_rejected` podmieniał `"severity": 1.0` → teraz `time_cap_s`.
+- **W3 (benchmark):** nie ma już dwóch typów daltonizmu — opis w README zmieniony, pomiar 0,15–0,16 s (było
+  0,51–0,55 s z CVD).
+- **Weryfikacja policzona (2026-11-18):** `pytest -m "not slow"` **1205 passed, 2 skipped, 438 deselected**;
+  `pytest -m slow` **438 passed**; `cargo test --workspace` **125 passed** (102 + 23); `cargo clippy --all-targets`
+  0 ostrzeżeń; `cargo fmt --check`, `ruff check`, `ruff format --check` czyste; `ty check` 0 błędów. Zrzuty
+  offscreen „cała paleta” i Analizy obejrzane — czytelne („Rozrzut jasności” stoi sam w wierszu).
+  Launcher `~/.local/bin/algopalette` (editable) startuje i ładuje przebudowane `src/algopalette/_engine.abi3.so`
+  — UWAGA: launcher uruchamia to, co jest w drzewie roboczym, czyli teraz gałąź `feat/bez-daltonizmu`.
+- **Czego NIE zrobiono:** przeglądu reviewerem (zmiana mechaniczna; do decyzji użytkownika), ręcznego klikania
+  przez człowieka, scalenia do `main` i pusha (nie zlecone). Historyczne `docs/superpowers/**` i starsze sekcje
+  tego pliku nadal opisują daltonizm — to zapis historii, nie stan; NIE traktuj ich jako aktualnych.
+
 ## 0f. MOTYWY Z SIECI (2026-11-16) — ZROBIONE: Taski 1–8, przegląd (0 C / 2 I / 9 M), fala napraw, SCALONE do `main` (bez re-review — decyzja użytkownika)
 
 - **STAN NA TERAZ:** gałąź `feat/motywy-z-sieci` (worktree `/home/qrikk/algopalette/.worktrees/motywy-z-sieci`),
@@ -1305,6 +1354,8 @@ Budowania na innym systemie niż ta maszyna.
 
 ## 1. O co najłatwiej się potknąć
 
+- **Daltonizm (CVD) usunięty z programu 2026-11-18 (§0g).** Wszystko niżej o `cvd`, `simulate_cvd`,
+  `cvd_min_distance`, `CvdType/CvdMethod` i presetach „bezpieczny przy …” jest nieaktualne.
 - **Nie dodawaj podglądu kodu ani niczego „IDE-owego”.** Użytkownik wprost: „podglad kodu jest calkowicie
   niepotrzebny. to ma byc program do palet, a nie drugi IDE-owy palettebuilder”.
 - **Dwa niezależne programy, PB tylko jako cel eksportu, NIGDY jako źródło.** Agent proponował podpisy ról tokenów PB,
@@ -1469,3 +1520,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 19 ☑: 58 presetów nastrojonych na silniku, test jakości 452/452; poprawiony niespełnialny wariant „nocny wysoki kontrast” (ciemne + APCA); paski próbek obejrzane.
 - 2026-11-16 — Task 20 ☑: pełny zestaw 1537 passed / 2 skipped, cargo 106 + 23, wszystkie lintery czyste, instalacja z czystego klonu w scratchpadzie działa, README z benchmarkiem; PRZEGLĄD 1 (silnik) zlecony.
 - 2026-11-16 — kłódka zasad (§0e): dwa tryby („rules”, „hue” z zamrożeniem celu odcienia), preset i „(zmieniony)” pomijają zablokowane, kombi w zakładce Zasady, temat pomocy `rules.lock`; 1101 passed (bez `slow`), lintery czyste.
+- 2026-11-18 — §0g: daltonizm usunięty w całości (Rust, Python, GUI, pomoc, presety, fixture'y), „Dostępność” scalona z „Podstawowe”; 1205 + 438 slow passed, cargo 125, lintery czyste; gałąź `feat/bez-daltonizmu`, bez scalenia.

@@ -7,7 +7,7 @@ przy imporcie tego modułu, nie wpisane z pamięci — test porównuje je z ``al
 
 from algopalette import color
 from algopalette.gui.help_content.topic import Topic
-from algopalette.model import OKLCH, CvdType, DeltaEMethod, FitMethod
+from algopalette.model import OKLCH, DeltaEMethod, FitMethod
 
 G = "Pojęcia"
 
@@ -82,15 +82,6 @@ def _fit_table() -> str:
     return "\n".join(rows)
 
 
-_RED, _GREEN = OKLCH(0.70, 0.12, 30.0), OKLCH(0.70, 0.12, 140.0)
-
-
-def _cvd(kind: CvdType, severity: float = 1.0) -> float:
-    a = color.simulate_cvd(_RED, kind, "machado", severity)
-    b = color.simulate_cvd(_GREEN, kind, "machado", severity)
-    return color.delta_e(a, b, "ok")
-
-
 TOPICS: dict[str, Topic] = {
     "concept.oklch": Topic(
         "OKLCH — jasność, nasycenie, odcień",
@@ -142,8 +133,8 @@ paleta (85–100%) albo pastelowa (22–42%); wtedy żaden zakres nie wyjdzie po
         "Liczba mówiąca, jak bardzo dwa kolory różnią się na oko. Zasady odległości porównują ją "
         "z progiem; skala zależy od wybranej metody.",
         f"""**Co to jest.** ΔE to odległość między dwoma kolorami: 0 oznacza identyczne, im więcej, tym łatwiej je
-odróżnić. Zasady „odległość od innych akcentów” i „odróżnialność (daltonizm)” wymagają, żeby ΔE nie
-spadło poniżej progu. Program liczy ΔE jedną z pięciu metod, a każda ma własną skalę.
+odróżnić. Zasada „odległość od innych akcentów” wymaga, żeby ΔE nie spadło poniżej progu. Program
+liczy ΔE jedną z pięciu metod, a każda ma własną skalę.
 
 **Przykład.** Dwa kolory o tej samej jasności i nasyceniu (L 0.70, C 0.12), odcienie 30° i 60°:
 
@@ -178,28 +169,6 @@ zmianie metryki program przelicza progi według tych par (4.5 ↔ 60, 7 ↔ 75).
 faktyczna czytelność, zwłaszcza w ciemnych motywach, które WCAG ocenia zbyt łagodnie (ciemny tekst
 na ciemnym tle potrafi „zaliczyć” 4.5 i być ledwo widoczny). Pojedyncza zasada albo zależność może
 mieć własną metrykę, niezależną od metryki palety.""",
-        G,
-        term=True,
-    ),
-    "concept.cvd": Topic(
-        "Daltonizm (CVD)",
-        "Symulacja zaburzeń widzenia barw: program sprawdza, czy akcenty dalej się różnią dla osób "
-        "z protanopią, deuteranopią albo tritanopią.",
-        f"""**Co to jest.** Przy zaburzeniach widzenia barw (CVD) część par kolorów zlewa się w jeden. W zasadach
-całej palety wybierasz typy (protanopia — czerwień, deuteranopia — zieleń, tritanopia — błękit),
-metodę symulacji i nasilenie. Zasada „odróżnialność (daltonizm)” wymaga wtedy minimalnej ΔE między
-akcentami także po symulacji każdego wybranego typu.
-
-**Przykład.** Akcent czerwonawy (H 30°) i zielonkawy (H 140°), oba L 0.70 i C 0.12, dzieli ΔE
-{color.delta_e(_RED, _GREEN, "ok"):.3f} — różnią się wyraźnie. Po symulacji deuteranopii (Machado, nasilenie 1.0)
-zostaje {_cvd("deutan"):.3f}: nie do odróżnienia. Przy nasileniu 0.6 zostaje {_cvd("deutan", 0.6):.3f}, przy protanopii
-{_cvd("protan"):.3f}, a tritanopia tej parze nie szkodzi ({_cvd("tritan"):.3f}).
-
-**Kiedy użyć.** Protanopię i deuteranopię włącz, gdy kolory niosą znaczenie (dotyczą ok. 8%
-mężczyzn); tritanopia jest rzadka. Metody: Machado — dobra na co dzień i najlepsza przy częściowych
-zaburzeniach; Viénot — szybka, dla protanopii i deuteranopii; Brettel — najdokładniejsza przy pełnym
-zaburzeniu, zwłaszcza tritanopii. Nasilenie 1.0 to pełne zaburzenie, mniejsze — częściowe, czyli
-łagodniejszy wymóg. W Analizie obejrzysz paletę i macierze tak, jak widzi je osoba z danym typem.""",
         G,
         term=True,
     ),

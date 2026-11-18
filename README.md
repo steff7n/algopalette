@@ -42,7 +42,7 @@ Menu Pomoc: Pierwsze kroki, Skróty klawiszowe, Spis treści.
 | F2 | **Zasady** | wszystko, co wpływa na generowanie: preset i tło, liczba kolorów, pasek kolorów (wybór, czyje zasady edytujesz), zasady zaznaczonych kolorów i zależności, ustawienia całej palety, „Generuj propozycje” |
 | F3 | **Propozycje** | postęp generowania, przegląd propozycji, przejmowanie całej palety albo pojedynczego koloru |
 | F4 | **Paleta** | lista kolorów (tło, tekst, akcenty) i edytor zaznaczonego koloru: nazwa, kłódka, wartość L/C/H (suwaki z gradientem koloru) |
-| F5 | **Analiza** | koło odcieni z zasadą odcienia i celem układu, przekrój gamutu jasność–nasycenie, macierz odległości ΔE i kontrastu (także przy daltonizmie), próbki „Aa” |
+| F5 | **Analiza** | koło odcieni z zasadą odcienia i celem układu, przekrój gamutu jasność–nasycenie, macierz odległości ΔE i kontrastu, próbki „Aa” |
 | F6 | **Źródło** | paleta wyjściowa (wklejona lub z pliku) i trzy tryby startu |
 
 Na dole zawsze widać **panel naruszeń bieżącej palety** (✗ twarde, ~ miękkie; granicę z zakładkami można
@@ -83,7 +83,7 @@ wartość każdego koloru i daje wybór: „ustaw dla zaznaczonych” albo „us
 - **odcień** — jeden łuk na kole, zapisywany jako „od–do” albo „środek ± połowa szerokości” (także przez 0°,
   np. 330–20), z zakazanymi przedziałami: „dowolny odcień od 0 do 270, ale nie 60–85 i nie 140–155”;
 - **kontrast z tłem** (WCAG 2.1 albo APCA; dolna i opcjonalnie górna granica);
-- tylko akcenty: **odległość od innych akcentów**, **odróżnialność przy daltonizmie**, **skrajny kontrast**
+- tylko akcenty: **odległość od innych akcentów**, **skrajny kontrast**
   (najsłabszy albo najmocniejszy spośród akcentów, np. pod komentarze) oraz przełącznik **„układ odcieni:
   stosuj”** — czy akcent dostaje cel odcienia z układu całej palety (cel może działać razem z własnym łukiem).
 
@@ -101,12 +101,11 @@ Zakazane przedziały są zawsze twarde.
 ocenia ciemne motywy), metoda ΔE (`ok` i `hyab` w skali 0–1, `2000`/`itp`/`cam16` w skalach ~0–100; zmiana
 przelicza progi), sposób sprowadzania koloru spoza sRGB, układ odcieni (równo po kole, analogiczny,
 dopełniający, rozszczepiony, triada, tetrada, własna lista wybierana na kole; tolerancja, rozrzut losowy),
-rozrzut jasności akcentów, daltonizm (protanopia / deuteranopia / tritanopia; Machado, Viénot, Brettel;
-nasilenie), unikane kolory (lista z wybierakiem), generowanie (liczba propozycji, ziarno, budżet, limit czasu,
+rozrzut jasności akcentów, unikane kolory (lista z wybierakiem), generowanie (liczba propozycji, ziarno, budżet, limit czasu,
 różnorodność, waga twardych, wątki).
 
-**Presety** to gotowe zestawy zasad — 58 wbudowanych w 11 kategoriach (Podstawowe, Chłodne, Ciepłe, Natura,
-Pastelowe, Świecące, Retro i druk, Ograniczone, Harmonie, Pory dnia, Dostępność), z wyszukiwarką. „Zastosuj”
+**Presety** to gotowe zestawy zasad — 56 wbudowanych w 10 kategoriach (Podstawowe, Chłodne, Ciepłe, Natura,
+Pastelowe, Świecące, Retro i druk, Ograniczone, Harmonie, Pory dnia), z wyszukiwarką. „Zastosuj”
 zastępuje zasady wszystkich kolorów, układ odcieni i rozrzut jasności; nie rusza wartości kolorów, kłódek, nazw,
 zależności, unikanych kolorów ani ustawień generowania. Wszystko, co preset ustawił, widać i można zmienić —
 przy nazwie pojawia się wtedy „(zmieniony)”. Bieżące zasady zapiszesz jako własny preset. Zmiana tła (ciemne /
@@ -213,7 +212,7 @@ Cele wydajności ze speca i pomiar na i9-9880H (8 rdzeni / 16 wątków), mediany
 |---|---|---|
 | W1: sesja startowa, 6 propozycji | ≤ 0,15 s | 0,005 s |
 | W2: „chłodny mglisty”, 128 propozycji (`bench/w2.json`) | ≤ 2 s, ≥ 120 bez twardych naruszeń | 0,89–0,98 s, 128/128 |
-| W3: 16 kolorów, dwa typy daltonizmu, ΔE 2000, 128 propozycji (`bench/w3.json`) | ≤ 6 s | 0,51–0,55 s |
+| W3: 16 kolorów, ΔE 2000, 128 propozycji (`bench/w3.json`) | ≤ 6 s | 0,15–0,16 s |
 | W4: ocena naruszeń bieżącej palety, 16 kolorów | ≤ 1 ms | 0,66 ms |
 
 Dla porównania: silnik w Pythonie liczył „chłodny mglisty” 1,84 s na propozycję. Czasy rosną, gdy maszyna

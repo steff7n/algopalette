@@ -1,15 +1,14 @@
-"""Zakładka „Analiza”: koło odcieni, przekrój jasność–nasycenie, macierz ΔE / kontrastu (także przy
-daltonizmie), próbki „Aa” na tle.
+"""Zakładka „Analiza”: koło odcieni, przekrój jasność–nasycenie, macierz ΔE / kontrastu, próbki
+„Aa” na tle.
 
 Koło odcieni: 0° po prawej, kąty rosną przeciwnie do ruchu wskazówek zegara (90° u góry); odległość
-od środka = nasycenie względne (C / maxC w sRGB). Tło koła i wykresu to prawdziwe kolory OKLCH (przy
-widoku daltonizmu — po symulacji).
+od środka = nasycenie względne (C / maxC w sRGB). Tło koła i wykresu to prawdziwe kolory OKLCH.
 """
 
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt
@@ -31,19 +30,11 @@ from algopalette.color import fast
 from algopalette.engine import slot_label
 from algopalette.gui import help, theme
 from algopalette.gui.widgets import combo, hbox, hint, section, vbox
-from algopalette.model import OKLCH, CvdType, HueArc, Session, arc_width, role_of, slot_index
+from algopalette.model import OKLCH, HueArc, Session, arc_width, role_of, slot_index
 
 if TYPE_CHECKING:
     from algopalette.gui.app import MainWindow
 
-View = Literal["normal", "protan", "deutan", "tritan"]
-
-VIEWS = [
-    ("normalny", "normal"),
-    ("protanopia", "protan"),
-    ("deuteranopia", "deutan"),
-    ("tritanopia", "tritan"),
-]
 MATRICES = [("ΔE akcentów", "de"), ("kontrast par akcentów", "contrast")]
 AXES = [("C względne", "rel"), ("C bezwzględne", "abs")]
 BG_OPACITY = 0.45
@@ -95,13 +86,6 @@ def draw_point(p: QPainter, pt: QPointF, hex_: str, label: str, selected: bool) 
     p.drawText(box, label)
 
 
-def view_value(session: Session, c: OKLCH, view: str) -> OKLCH:
-    if view == "normal":
-        return c
-    cvd = session.globals.cvd
-    return col.simulate_cvd(c, cast(CvdType, view), cvd.method, cvd.severity)
-
-
 def _window_color() -> QColor:
     """Kolor okna z palety aplikacji (widżet dostaje nową paletę z opóźnieniem)."""
     return QApplication.palette().window().color()
@@ -116,15 +100,10 @@ def rel_chroma(c: OKLCH) -> float:
     return min(c.c / m, 1.0) if m > 1e-9 else 0.0
 
 
-def _to_image(
-    lch: np.ndarray, mask: np.ndarray, session: Session, view: str, empty: QColor
-) -> QImage:
+def _to_image(lch: np.ndarray, mask: np.ndarray, empty: QColor) -> QImage:
     """Tablica OKLCH (H, W, 3) → QImage; ``mask`` False = piksel pusty."""
     h, w, _ = lch.shape
     flat = lch.reshape(-1, 3)
-    if view != "normal":
-        cvd = session.globals.cvd
-        flat = fast.simulate_cvd(flat, view, cvd.method, cvd.severity)
     lin = np.clip(fast.oklch_to_linear_srgb(flat), 0.0, 1.0)
     srgb = np.where(lin <= 0.0031308, 12.92 * lin, 1.055 * np.power(lin, 1 / 2.4) - 0.055)
     rgb = np.clip(np.round(srgb * 255), 0, 255).astype(np.uint8).reshape(h, w, 3)
@@ -139,7 +118,6 @@ class HueWheel(QWidget):
         super().__init__()
         self.session: Session | None = None
         self.selected: str | None = None
-        self.view: str = "normal"
         self.targets: dict[str, float] = {}
         self._bg: QImage | None = None
         self._bg_key: tuple | None = None
@@ -150,10 +128,9 @@ class HueWheel(QWidget):
         self,
         session: Session,
         selected: str | None,
-        view: str,
         targets: dict[str, float] | None = None,
     ) -> None:
-        self.session, self.selected, self.view = session, selected, view
+        self.session, self.selected = session, selected
         self.targets = dict(targets or {})
         self.update()
 
@@ -169,8 +146,7 @@ class HueWheel(QWidget):
 
     def _background(self, size: int) -> QImage:
         assert self.session is not None
-        g = self.session.globals.cvd
-        key = (size, self.view, g.method, g.severity, _window_color().rgb())
+        key = (size, _window_color().rgb())
         if self._bg is not None and self._bg_key == key:
             return self._bg
         ys, xs = np.mgrid[0:size, 0:size]
@@ -182,7 +158,7 @@ class HueWheel(QWidget):
         maxc = fast.max_chroma(np.full(360, L), np.arange(360.0))
         c = np.minimum(r, 1.0) * maxc[np.round(h).astype(int) % 360]
         lch = np.stack([np.full_like(r, L), c, h], axis=-1)
-        img = _to_image(lch, r <= 1.0, self.session, self.view, _window_color())
+        img = _to_image(lch, r <= 1.0, _window_color())
         self._bg, self._bg_key = img, key
         return img
 
@@ -243,7 +219,7 @@ class HueWheel(QWidget):
         for i, sl in enumerate(s.slots):
             if i < 2 and sl.value.c < 0.02:
                 continue
-            v = view_value(s, sl.value, self.view)
+            v = sl.value
             pt = self._point(v.h, rel_chroma(v))
             draw_point(p, pt, _hex(s, v), str(i), sl.id == self.selected)
         p.end()
@@ -260,13 +236,12 @@ class LCPlot(QWidget):
         super().__init__()
         self.session: Session | None = None
         self.selected: str | None = None
-        self.view = "normal"
         self.mode = "rel"
         self.setMinimumSize(QSize(320, 320))
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-    def set_state(self, session: Session, selected: str | None, view: str, mode: str) -> None:
-        self.session, self.selected, self.view, self.mode = session, selected, view, mode
+    def set_state(self, session: Session, selected: str | None, mode: str) -> None:
+        self.session, self.selected, self.mode = session, selected, mode
         self.update()
 
     def _rect(self) -> QRectF:
@@ -296,7 +271,7 @@ class LCPlot(QWidget):
             c = t * 0.37
             mask = fast.in_gamut(np.stack([L, c, np.full_like(L, hue)], axis=-1))
         lch = np.stack([L, c, np.full_like(L, hue)], axis=-1)
-        return _to_image(lch, mask, self.session, self.view, _window_color())
+        return _to_image(lch, mask, _window_color())
 
     def paintEvent(self, _e) -> None:
         if self.session is None:
@@ -329,7 +304,7 @@ class LCPlot(QWidget):
         f.setBold(True)
         p.setFont(f)
         for i, sl in enumerate(s.slots):
-            v = view_value(s, sl.value, self.view)
+            v = sl.value
             x = rel_chroma(v) if self.mode == "rel" else min(v.c / 0.37, 1.0)
             pt = QPointF(
                 r.left() + x * r.width(), r.bottom() - min(max(v.l, 0.0), 1.0) * r.height()
@@ -344,11 +319,10 @@ class Samples(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self.session: Session | None = None
-        self.view = "normal"
         self.setMinimumHeight(120)
 
-    def set_state(self, session: Session, view: str) -> None:
-        self.session, self.view = session, view
+    def set_state(self, session: Session) -> None:
+        self.session = session
         cols = 4
         rows = math.ceil((len(session.slots) - 1) / cols)
         self.setMinimumHeight(24 + rows * 34)
@@ -359,7 +333,7 @@ class Samples(QWidget):
             return
         s = self.session
         p = QPainter(self)
-        bg = _hex(s, view_value(s, s.slots[0].value, self.view))
+        bg = _hex(s, s.slots[0].value)
         p.fillRect(self.rect(), QColor(bg))
         f = QFont(self.font())
         f.setPointSizeF(f.pointSizeF() * 1.2)
@@ -367,7 +341,7 @@ class Samples(QWidget):
         cw = (self.width() - 20) / cols
         for k, sl in enumerate(s.slots[1:], start=1):
             r, c = divmod(k - 1, cols)
-            hx = _hex(s, view_value(s, sl.value, self.view))
+            hx = _hex(s, sl.value)
             x, y = 12 + c * cw, 12 + r * 34
             p.fillRect(QRectF(x, y + 4, 18, 18), QColor(hx))
             f.setBold(True)
@@ -381,13 +355,10 @@ class Samples(QWidget):
         p.end()
 
 
-def pair_requirement(session: Session, i: int, j: int, view: str) -> float | None:
-    if view != "normal" and view not in session.globals.cvd.types:
-        return None  # ten typ daltonizmu nie jest włączony — zasada nie działa
-    field = "min_distance" if view == "normal" else "cvd_min_distance"
+def pair_requirement(session: Session, i: int, j: int) -> float | None:
     reqs = []
     for k in (i, j):
-        c = getattr(session.slots[k].rules, field)
+        c = session.slots[k].rules.min_distance
         if c is not None and c.enabled:
             reqs.append(float(c.value))
     return max(reqs) if reqs else None
@@ -409,14 +380,12 @@ class AnalysisTab(QScrollArea):
         self.setWidget(body)
         help.attach(self, "window.tab.analysis")
         lay = vbox(body, margins=8, spacing=6)
-        self.view = combo(VIEWS, "normal")
         self.matrix_kind = combo(MATRICES, "de")
         self.axis = combo(AXES, "rel")
-        for c in (self.view, self.matrix_kind, self.axis):
+        for c in (self.matrix_kind, self.axis):
             c.currentIndexChanged.connect(lambda _: self.redraw())
         controls = []
         for text, w, key in (
-            ("widok:", self.view, "analysis.view"),
             ("macierz:", self.matrix_kind, "analysis.matrix_kind"),
             ("oś C:", self.axis, "analysis.axis"),
         ):
@@ -465,24 +434,23 @@ class AnalysisTab(QScrollArea):
     def redraw(self) -> None:
         s = self.win.session
         sel = self.win.selected_slot_id()
-        view = self.view.currentData()
         try:
             targets = engine.hue_targets(s)
         except ValueError:  # silnik nie przyjął sesji — naruszenia pokażą dlaczego
             targets = {}
-        self.wheel.set_state(s, sel, view, targets)
-        self.lc.set_state(s, sel, view, self.axis.currentData())
+        self.wheel.set_state(s, sel, targets)
+        self.lc.set_state(s, sel, self.axis.currentData())
         if self.matrix_kind.currentData() == "contrast":
-            self._contrast_matrix(s, view)
+            self._contrast_matrix(s)
             key = "analysis.matrix.contrast"
         else:
-            self._de_matrix(s, view)
+            self._de_matrix(s)
             key = "analysis.matrix.de"
         for w in (self.matrix, self.matrix_title):
             help.attach(w, key)
         help.attach_header(self.matrix, key)
         help.attach_header(self.matrix, key, vertical=True)
-        self.samples.set_state(s, view)
+        self.samples.set_state(s)
         m = self.matrix
         m.resizeRowsToContents()
         height = m.horizontalHeader().height() + sum(m.rowHeight(r) for r in range(m.rowCount()))
@@ -497,11 +465,11 @@ class AnalysisTab(QScrollArea):
             v = QTableWidgetItem(_icon(hx), f"{i}: {slot_label(s, i)}")
             m.setVerticalHeaderItem(k, v)
 
-    def _de_matrix(self, s: Session, view: str) -> None:
+    def _de_matrix(self, s: Session) -> None:
         g = s.globals
         acc = list(range(2, len(s.slots)))
-        vals = {i: view_value(s, s.slots[i].value, view) for i in acc}
-        bg = view_value(s, s.slots[0].value, view)
+        vals = {i: s.slots[i].value for i in acc}
+        bg = s.slots[0].value
         self.matrix_title.setText(
             f"ΔE akcentów ({g.delta_e}) — czerwone = poniżej wymaganej odległości; "
             f"ostatnia kolumna: kontrast z tłem ({g.contrast_metric})"
@@ -520,7 +488,7 @@ class AnalysisTab(QScrollArea):
                 else:
                     d = col.delta_e(vals[i], vals[j], g.delta_e)
                     it = QTableWidgetItem(format(d, fmt))
-                    req = pair_requirement(s, i, j, view)
+                    req = pair_requirement(s, i, j)
                     if req is not None and d < req:
                         it.setBackground(QColor(theme.colors().bad_cell_bg))
                         it.setForeground(QColor(theme.colors().bad_cell_fg))
@@ -531,10 +499,10 @@ class AnalysisTab(QScrollArea):
             it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             m.setItem(r, len(acc), it)
 
-    def _contrast_matrix(self, s: Session, view: str) -> None:
+    def _contrast_matrix(self, s: Session) -> None:
         g = s.globals
         acc = list(range(2, len(s.slots)))
-        vals = {i: view_value(s, s.slots[i].value, view) for i in acc}
+        vals = {i: s.slots[i].value for i in acc}
         self.matrix_title.setText(
             f"Kontrast par akcentów ({g.contrast_metric}) — wiersz = tekst, kolumna = tło"
         )

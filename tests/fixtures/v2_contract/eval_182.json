@@ -6,11 +6,6 @@
   "polarity": "dark",
   "contrast_metric": "apca",
   "delta_e": "cam16",
-  "cvd": {
-   "types": [],
-   "method": "machado",
-   "severity": 1.0
-  },
   "fit_method": "oklch-chroma",
   "hue_scheme": {
    "kind": "custom",
@@ -85,7 +80,6 @@
     },
     "contrast_bg": null,
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": [
@@ -151,7 +145,6 @@
      "weight": 1.0
     },
     "min_distance": null,
-    "cvd_min_distance": null,
     "extreme": null
    },
    "relations": []
@@ -204,12 +197,6 @@
      "value": 0.08,
      "enabled": true,
      "hard": false,
-     "weight": 1.0
-    },
-    "cvd_min_distance": {
-     "value": 6.852211675577039,
-     "enabled": true,
-     "hard": true,
      "weight": 1.0
     },
     "extreme": {

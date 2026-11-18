@@ -71,22 +71,6 @@ pub enum DeltaE {
     Cam16,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum CvdKind {
-    Protan,
-    Deutan,
-    Tritan,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum CvdMethod {
-    Brettel,
-    Vienot,
-    Machado,
-}
-
 /// Metoda sprowadzania do gamutu — używa jej tylko Python (silnik dostaje kolory po dopasowaniu).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FitMethod {
@@ -217,7 +201,6 @@ macro_rules! names {
 names! {
     ContrastMetric { Wcag21 => "wcag21", Apca => "apca" }
     DeltaE { Ok => "ok", Ciede2000 => "2000", Hyab => "hyab", Itp => "itp", Cam16 => "cam16" }
-    CvdKind { Protan => "protan", Deutan => "deutan", Tritan => "tritan" }
     ChromaMode { Abs => "abs", Rel => "rel" }
     ChromaOp { Add => "add", Mul => "mul" }
     Extreme { Weakest => "weakest", Strongest => "strongest" }
@@ -357,8 +340,6 @@ pub struct SlotRules {
     #[serde(deserialize_with = "required")]
     pub min_distance: Option<Rule<f64>>,
     #[serde(deserialize_with = "required")]
-    pub cvd_min_distance: Option<Rule<f64>>,
-    #[serde(deserialize_with = "required")]
     pub extreme: Option<Rule<Extreme>>,
 }
 
@@ -416,14 +397,6 @@ pub struct HueScheme {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct CvdSettings {
-    pub types: Vec<CvdKind>,
-    pub method: CvdMethod,
-    pub severity: f64,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct OptimizerSettings {
     pub n_proposals: usize,
     pub seed: u64,
@@ -442,7 +415,6 @@ pub struct GlobalSettings {
     pub polarity: Polarity,
     pub contrast_metric: ContrastMetric,
     pub delta_e: DeltaE,
-    pub cvd: CvdSettings,
     pub fit_method: FitMethod,
     pub hue_scheme: HueScheme,
     #[serde(deserialize_with = "required")]
@@ -533,7 +505,6 @@ fn check_rules(rules: &SlotRules, path: &str) -> Result<(), SchemaError> {
     check_rule_weight(&rules.hue, &format!("{path}.hue"))?;
     check_rule_weight(&rules.contrast_bg, &format!("{path}.contrast_bg"))?;
     check_rule_weight(&rules.min_distance, &format!("{path}.min_distance"))?;
-    check_rule_weight(&rules.cvd_min_distance, &format!("{path}.cvd_min_distance"))?;
     check_rule_weight(&rules.extreme, &format!("{path}.extreme"))?;
     if let Some(r) = &rules.lightness {
         check_linear_exclusions(&r.value.exclude, &format!("{path}.lightness.value"))?;
@@ -570,7 +541,6 @@ fn check_relation(rel: &Relation, path: &str) -> Result<(), SchemaError> {
 }
 
 fn check_globals(g: &GlobalSettings) -> Result<(), SchemaError> {
-    non_negative(g.cvd.severity, || "globals.cvd.severity".to_owned())?;
     non_negative(g.hue_scheme.tol, || "globals.hue_scheme.tol".to_owned())?;
     non_negative(g.hue_scheme.jitter, || "globals.hue_scheme.jitter".to_owned())?;
     non_negative(g.hue_scheme.weight, || "globals.hue_scheme.weight".to_owned())?;
@@ -633,7 +603,6 @@ mod tests {
             &[DeltaE::Ok, DeltaE::Ciede2000, DeltaE::Hyab, DeltaE::Itp, DeltaE::Cam16],
             DeltaE::as_str,
         );
-        check(&[CvdKind::Protan, CvdKind::Deutan, CvdKind::Tritan], CvdKind::as_str);
         check(&[ChromaMode::Abs, ChromaMode::Rel], ChromaMode::as_str);
         check(&[ChromaOp::Add, ChromaOp::Mul], ChromaOp::as_str);
         check(&[Extreme::Weakest, Extreme::Strongest], Extreme::as_str);
@@ -656,11 +625,9 @@ mod tests {
         assert_eq!(enum_from_name::<DeltaE>("2000"), Some(DeltaE::Ciede2000));
         assert_eq!(enum_from_name::<DeltaE>("ok"), Some(DeltaE::Ok));
         assert_eq!(enum_from_name::<ContrastMetric>("apca"), Some(ContrastMetric::Apca));
-        assert_eq!(enum_from_name::<CvdKind>("tritan"), Some(CvdKind::Tritan));
-        assert_eq!(enum_from_name::<CvdMethod>("vienot"), Some(CvdMethod::Vienot));
         assert_eq!(enum_from_name::<FitMethod>("oklch-chroma"), Some(FitMethod::OklchChroma));
         assert_eq!(enum_from_name::<DeltaE>("76"), None);
         assert_eq!(enum_from_name::<DeltaE>("Ok"), None);
-        assert_eq!(enum_from_name::<CvdKind>(""), None);
+        assert_eq!(enum_from_name::<FitMethod>(""), None);
     }
 }

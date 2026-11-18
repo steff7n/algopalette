@@ -26,8 +26,7 @@ paleta, a silnik szuka kolorów, które spełniają je wszystkie naraz.
 4. **Paleta (F4) i panel naruszeń.** Paleta pokazuje gotowe kolory: możesz je poprawić ręcznie,
    nazwać i zablokować kłódką. Panel naruszeń na dole okna stale pokazuje, które zasady bieżąca
    paleta łamie i o ile; klik w naruszenie prowadzi do zasady. **Analiza (F5)** pokazuje paletę na
-   kole odcieni, w przekroju jasność–nasycenie i w macierzach odległości oraz kontrastu, także przy
-   symulacji daltonizmu.
+   kole odcieni, w przekroju jasność–nasycenie i w macierzach odległości oraz kontrastu.
 5. **Eksport.** Ctrl+E kopiuje paletę do schowka w formacie okna „Wczytaj…” PaletteBuildera,
    Ctrl+Shift+E zapisuje ją do pliku.
 
