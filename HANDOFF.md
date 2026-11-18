@@ -48,7 +48,7 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `ruff check`, `ruff format --check`, `ty check` czyste. Re-review NIE było (decyzja użytkownika). Ręcznie
   w oknie nie klikano.
 
-## 0g. USUNIĘTY DALTONIZM (2026-11-18) — zrobione na gałęzi `feat/bez-daltonizmu` (od `main` @ `9971497`), NIE scalone
+## 0g. USUNIĘTY DALTONIZM (2026-11-18) — zrobione na gałęzi `feat/bez-daltonizmu` (od `main` @ `9971497`), scalone do `main` razem z §0h (ff, bez push)
 
 - **Prośba (WIĄŻĄCA, nie otwieraj ponownie):** „wywal calkowicie z aplikacji funkcjonalnosci odnoszace sie do
   daltonizmu”. Bez speca i planu (prosta, mechaniczna zmiana). Nie przywracaj symulacji CVD, zasady
