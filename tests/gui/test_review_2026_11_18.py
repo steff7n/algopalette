@@ -117,3 +117,104 @@ def test_generation_fields_have_upper_bounds(win, tmp_path):
     p = tmp_path / "s.json"
     aio.save_session(win.session, p)
     assert aio.load_session(p).globals.optimizer.seed == 2**64 - 1
+
+
+def _apply_preset(win, name):
+    from PySide6.QtCore import QCoreApplication, QEvent
+
+    tab = win.rules_tab
+    tab.category.setCurrentIndex(0)
+    tab.preset_combo.setCurrentIndex(tab.preset_combo.findData(name))
+    tab.apply_btn.click()
+    tab.flush()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+# I2
+def test_whole_palette_page_follows_preset(win):
+    tab = win.rules_tab
+    win.tabs.setCurrentWidget(tab)
+    tab.strip.select_palette()
+    tab.flush()
+    _apply_preset(win, "stonowany")
+    h = win.session.globals.hue_scheme
+    assert tab.palette_widgets["hues.rotation"].value() == h.rotation
+    _apply_preset(win, "zorza")
+    _apply_preset(win, "ziemisty")
+    assert tab.custom_picker is not None
+    assert tab.custom_picker.items() == win.session.globals.hue_scheme.custom
+
+
+# I3
+def test_relation_row_writes_over_current_relation(win):
+    from algopalette.model import Relation
+
+    s = win.session
+    a, b = s.slots[2], s.slots[3]
+    rel = Relation("contrast", b.id, "ge", 4.5)
+    win.replace_session(with_slot(s, replace(a, relations=(rel,), rules_lock="rules")))
+    tab = win.rules_tab
+    win.tabs.setCurrentWidget(tab)
+    win.show_rules([a.id])
+    tab.flush()
+    _apply_preset(win, "APCA do długiego czytania")
+    after = win.session.slots[2].relations[0]
+    assert after.value == 60.0  # change_metric przeliczył 4.5 WCAG → 60 Lc
+    from algopalette.gui.relations import RelationRow
+
+    rows = tab.relations.findChildren(RelationRow)
+    rows[0]._update(hard=False)
+    got = win.session.slots[2].relations[0]
+    assert got.value == 60.0 and got.hard is False
+
+
+# M11
+def test_relation_metric_change_converts_value(win):
+    from algopalette.gui.relations import RelationRow
+    from algopalette.model import Relation
+
+    s = win.session
+    a, b = s.slots[2], s.slots[3]
+    win.replace_session(
+        with_slot(s, replace(a, relations=(Relation("contrast", b.id, "ge", 4.5),)))
+    )
+    tab = win.rules_tab
+    win.tabs.setCurrentWidget(tab)
+    win.show_rules([a.id])
+    tab.flush()
+    tab.relations.findChildren(RelationRow)[0]._metric("apca")
+    got = win.session.slots[2].relations[0]
+    assert got.metric == "apca" and got.value == 60.0
+
+
+# M12
+def test_corrupt_user_presets_do_not_break_polarity_switch(win, monkeypatch, tmp_path):
+    cfg = tmp_path / "cfg"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(cfg))
+    (cfg / "algopalette").mkdir(parents=True)
+    (cfg / "algopalette" / "presets.json").write_text("{zepsuty", "utf-8")
+    monkeypatch.setattr(win, "notify", lambda *a, **k: None)
+    tab = win.rules_tab
+    tab._polarity("light")
+    assert win.session.globals.polarity == "dark"
+    assert tab.pol_dark.isChecked()
+
+
+# I4
+def test_ctrl_z_with_focus_in_number_field_undoes_session(win, qtbot):
+    from PySide6.QtCore import Qt
+
+    tab = win.rules_tab
+    win.tabs.setCurrentWidget(tab)
+    tab.strip.select_palette()
+    tab.flush()
+    qtbot.waitExposed(win)
+    e = tab.palette_widgets["gen.budget"]
+    before = win.session.globals.optimizer.budget
+    e.setFocus()
+    e.selectAll()
+    qtbot.keyClicks(e, "500")
+    qtbot.keyClick(e, Qt.Key.Key_Return)
+    assert win.session.globals.optimizer.budget == 500
+    qtbot.keyClick(e, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
+    assert win.session.globals.optimizer.budget == before

@@ -77,7 +77,8 @@ def save(
     fd, tmp = tempfile.mkstemp(dir=target.parent, prefix=target.stem + ".", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False)
+            # ensure_ascii: samotny surogat z danych źródła nie wywróci zapisu (przegląd M19)
+            json.dump(payload, f, ensure_ascii=True)
         os.replace(tmp, target)
     except BaseException:
         with contextlib.suppress(OSError):

@@ -200,9 +200,12 @@ class RulesTab(QWidget):
                 self._targets = (s, {})
         return self._targets[1]
 
-    def write(self, new: Session, *, coalesce: str | None = None) -> None:
-        """Jedyna droga zapisu z tej zakładki (jeden krok cofania; ``coalesce`` skleja serię)."""
-        self.win.set_session(new, coalesce=coalesce)
+    def write(self, new: Session, *, coalesce: str | None = None, structural: bool = False) -> None:
+        """Jedyna droga zapisu z tej zakładki (jeden krok cofania; ``coalesce`` skleja serię).
+        ``structural``: zmiana z nagłówka (preset, tło) — edytor buduje się od nowa, bo jego
+        widżety (suwaki całej palety, zależności) pokazywałyby wartości sprzed zmiany
+        (przegląd 2026-11-18 I2/I3)."""
+        self.win.set_session(new, coalesce=coalesce, structural=structural)
 
     # --- odświeżanie ---------------------------------------------------------------------------
 
@@ -484,7 +487,7 @@ class RulesTab(QWidget):
         except ValueError as e:
             self.win.notify(str(e), error=True)
             return
-        self.write(new)
+        self.write(new, structural=True)
         kept = [self.label(i) for i, sl in enumerate(new.slots) if sl.rules_lock != "off"]
         what = f"kolorów bez kłódki (zostały: {', '.join(kept)})" if kept else "wszystkich kolorów"
         self.win.notify(f"Preset „{name}” zastąpił zasady {what} (Ctrl+Z cofa).")
@@ -533,17 +536,22 @@ class RulesTab(QWidget):
         s = self.win.session
         if s.globals.polarity == polarity:
             return
-        fresh = (
-            s.preset is not None
-            and presets.supports(s.preset, polarity)
-            and not presets.is_modified(s)
-        )
-        choice = "replace" if fresh else self.ask_polarity(polarity)
-        if choice == "cancel":
-            self._refresh_header()  # przycisk wraca do polaryzacji sesji
+        try:
+            fresh = (
+                s.preset is not None
+                and presets.supports(s.preset, polarity)
+                and not presets.is_modified(s)
+            )
+            choice = "replace" if fresh else self.ask_polarity(polarity)
+            if choice == "cancel":
+                self._refresh_header()  # przycisk wraca do polaryzacji sesji
+                return
+            new = presets.change_polarity(s, polarity, reapply=choice == "replace")
+        except ValueError as e:  # np. uszkodzony presets.json (przegląd 2026-11-18 M12)
+            self._refresh_header()
+            self.win.notify(str(e), error=True)
             return
-        new = presets.change_polarity(s, polarity, reapply=choice == "replace")
-        self.write(new)
+        self.write(new, structural=True)
         if choice == "replace":
             self.win.notify(f"Preset „{new.preset}” nałożony ponownie dla nowego tła.")
         else:

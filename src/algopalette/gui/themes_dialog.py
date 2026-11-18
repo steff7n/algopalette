@@ -64,7 +64,7 @@ Job = Callable[[Callable[[], bool], Callable[[int, int | None], None]], catalog.
 class _Signals(QObject):
     progress = Signal(int, object)
     done = Signal(object)
-    failed = Signal(str)
+    failed = Signal(str, bool)  # (komunikat, czy to błąd połączenia)
 
 
 class _Worker(QRunnable):
@@ -82,10 +82,12 @@ class _Worker(QRunnable):
             res = self.job(
                 self.cancel.is_set, lambda n, total: self.signals.progress.emit(n, total)
             )
-        except (net.FetchError, ThemeError) as e:
-            self.signals.failed.emit(str(e))
+        except net.FetchError as e:
+            self.signals.failed.emit(str(e), e.kind in ("offline", "http"))
+        except ThemeError as e:
+            self.signals.failed.emit(str(e), False)
         except Exception as e:  # nic nie może wywrócić wątku puli
-            self.signals.failed.emit(f"Nieoczekiwany błąd: {e}")
+            self.signals.failed.emit(f"Nieoczekiwany błąd: {e}", False)
         else:
             self.signals.done.emit(res)
 
@@ -113,6 +115,8 @@ class ThemesDialog(QDialog):
         self._loading: dict[str, _Worker] = {}  # źródło albo "lospec" → trwające pobranie
         self._catalogs: dict[SourceId, catalog.CatalogResult] = {}
         self._errors: dict[str, str] = {}
+        self._net_errors: set[str] = set()  # klucze z błędem połączenia/HTTP (podpowiedź)
+        self._selected: tuple[str, str] | None = None  # (źródło, id) zaznaczonego motywu
         self._lospec: list[Theme] = []
         self._lospec_total: int | None = None
         self._lospec_page = -1
@@ -356,10 +360,11 @@ class ThemesDialog(QDialog):
                 done(cast(catalog.CatalogResult, res))
             finish()
 
-        def fail(msg: str) -> None:
+        def fail(msg: str, network: bool) -> None:
             settle()
             if not w.cancel.is_set():
                 self._errors[key] = msg
+                (self._net_errors.add if network else self._net_errors.discard)(key)
                 self._rebuild(keep_shown=True)
             finish()
 
@@ -478,7 +483,9 @@ class ThemesDialog(QDialog):
 
     def _rebuild(self, *, keep_shown: bool = False) -> None:
         """Lista od nowa. ``keep_shown``: nie zwijaj dołożonych porcji i zostaw zaznaczony motyw."""
-        current = self.current_theme()
+        # zaznaczenie z pamięci, nie z widoku: wiersz źródła w toku jest wyłączony i widok gubi
+        # bieżący indeks (przegląd 2026-11-18 M20 — „Odśwież” przeskakiwał na inny motyw)
+        current = self._selected
         self._filtered = self._themes()
         n = len(self._filtered)
         if self._is_lospec():
@@ -486,7 +493,7 @@ class ThemesDialog(QDialog):
         elif keep_shown:
             shown = max(self._shown, PAGE_SIZE)
             if current is not None:
-                key = (current.source, current.id)
+                key = current
                 for i, t in enumerate(self._filtered):
                     if (t.source, t.id) == key:
                         shown = max(shown, i + 1)
@@ -528,19 +535,21 @@ class ThemesDialog(QDialog):
         self._update_more()
         self._update_status()
 
-    def _fill(self, keep: Theme | None) -> None:
+    def _fill(self, keep: tuple[str, str] | None) -> None:
+        selected = self._selected
         self.model.clear()
         row_keep = -1
         for i, t in enumerate(self._filtered[: self._shown]):
             self.model.appendRow(self._item(t))
-            if keep is not None and (t.source, t.id) == (keep.source, keep.id):
+            if keep is not None and (t.source, t.id) == keep:
                 row_keep = i
         if row_keep >= 0:
             self.view.setCurrentIndex(self.model.index(row_keep, 0))
         elif self.model.rowCount():
             self.view.setCurrentIndex(self.model.index(0, 0))
-        else:
-            self._update_preview()
+        if row_keep < 0 and self.current_theme() is None:
+            self._selected = selected  # nic nie zaznaczono (wiersze wyłączone) — pamiętaj stare
+        self._update_preview()  # podgląd i „Wczytaj” zawsze zgodne z widokiem
         self._update_more()
 
     def _more(self) -> None:
@@ -573,6 +582,9 @@ class ThemesDialog(QDialog):
 
     # --- podgląd i import ----------------------------------------------------------------------
     def _current_changed(self, _cur: QModelIndex, _prev: QModelIndex) -> None:
+        t = self.current_theme()
+        if t is not None:
+            self._selected = (t.source, t.id)
         self._update_preview()
 
     def _light(self) -> bool:
@@ -610,6 +622,14 @@ class ThemesDialog(QDialog):
             return
         self.win.import_theme(t, p, keep_settings=self.keep_settings.isChecked())
 
+    def _error_text(self, key: str) -> str:
+        """„Źródło: komunikat” bez podwójnego prefiksu (parsery same zaczynają od nazwy źródła)."""
+        label = self._label(key)
+        msg = self._errors[key].rstrip(".")
+        if msg.startswith(f"{label}: "):
+            msg = msg[len(label) + 2 :]
+        return f"{label}: {msg}"
+
     # --- pasek stanu okna ------------------------------------------------------------------------
     def _update_status(self) -> None:
         busy = bool(self._loading)
@@ -619,9 +639,8 @@ class ThemesDialog(QDialog):
             self.progress.setRange(0, 0)
         keys: tuple[str, ...] = ("lospec",) if self._is_lospec() else self._file_sources()
         notes: list[str] = []
-        errors = [
-            f"{self._label(k)}: {self._errors[k].rstrip('.')}" for k in keys if k in self._errors
-        ]
+        errors = [self._error_text(k) for k in keys if k in self._errors]
+        network = any(k in self._net_errors for k in keys if k in self._errors)
         for k in keys:
             res = self._lospec_res if k == "lospec" else self._catalogs.get(cast(SourceId, k))
             if res is None:
@@ -639,11 +658,15 @@ class ThemesDialog(QDialog):
         if loading:
             text = "Pobieranie katalogu: " + ", ".join(loading) + "…"
         elif errors and not self._filtered:
-            text = (
-                "Nie udało się pobrać katalogu "
-                + "; ".join(errors)
-                + ". Sprawdź połączenie i kliknij „Odśwież katalogi”."
+            only_cancelled = all(self._errors[k] == CANCELLED for k in keys if k in self._errors)
+            hint = (
+                ""
+                if only_cancelled  # komunikat przerwania sam mówi, co kliknąć
+                else " Sprawdź połączenie i kliknij „Odśwież katalogi”."
+                if network
+                else " Kliknij „Odśwież katalogi”."
             )
+            text = "Nie udało się pobrać katalogu — " + "; ".join(errors) + "." + hint
         else:
             shown = f"{min(self._shown, len(self._filtered))} z {len(self._filtered)}"
             if self._is_lospec() and self._lospec_total is not None:

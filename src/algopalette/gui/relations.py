@@ -21,6 +21,7 @@ from algopalette.forms import (
 from algopalette.gui import help, theme
 from algopalette.gui.widgets import NumEdit, clear_layout, combo, hbox, hint, vbox
 from algopalette.model import Relation, broken_relations, slot_index, with_slot
+from algopalette.units import convert_contrast
 
 if TYPE_CHECKING:
     from algopalette.gui.app import MainWindow
@@ -205,22 +206,33 @@ class RelationRow(QFrame):
             help.attach(w, key)
         self._lay.addWidget(hbox(enabled, hard, weight_label, weight))
 
+    def _current(self) -> Relation:
+        """Relacja z bieżącej sesji (preset, cofnij albo edycja zbiorcza mogły ją zmienić od
+        zbudowania wiersza — przegląd 2026-11-18 I3); kopia wiersza tylko jako zapas."""
+        if self.editor.alive():
+            rels = self.editor.relations()
+            if 0 <= self.index < len(rels):
+                self.rel = rels[self.index]
+        return self.rel
+
     def _update(self, rebuild: bool = False, **changes: Any) -> None:
-        new = replace(self.rel, **changes)
-        if new == self.rel:
+        cur = self._current()
+        new = replace(cur, **changes)
+        if new == cur:
             return
         self.rel = new
         self.editor.set_relation(self.index, new, rebuild=rebuild)
 
     def _kind(self, kind: str) -> None:
-        if kind == self.rel.kind:
+        cur = self._current()
+        if kind == cur.kind:
             return
         self._update(
             rebuild=True,
             kind=kind,
             value=relation_default_value(kind, self.editor.win.session),
             metric=None,
-            other=self.rel.other if kind == "mix" else None,
+            other=cur.other if kind == "mix" else None,
         )
 
     def _pick(self, field: str, value: Any) -> None:
@@ -229,7 +241,17 @@ class RelationRow(QFrame):
         self._update(rebuild=field in ("target", "other") and self.broken, **{field: value})
 
     def _metric(self, value: str) -> None:
-        self._update(metric=None if value == "global" else value)
+        metric = None if value == "global" else value
+        r = self._current()
+        if r.kind != "contrast":
+            self._update(metric=metric)
+            return
+        # próg w nowej metryce (przegląd 2026-11-18 M11: Lc 4.5 po WCAG → APCA = zawsze spełnione)
+        g = self.editor.win.session.globals.contrast_metric
+        old, new = r.metric or g, metric or g
+        value_new = convert_contrast(r.value, old, new)
+        tol = abs(convert_contrast(r.value + r.tol, old, new) - value_new) if r.tol else 0.0
+        self._update(rebuild=old != new, metric=metric, value=value_new, tol=tol)
 
     def _num(self, key: str, v: float | None) -> None:
         if v is None:

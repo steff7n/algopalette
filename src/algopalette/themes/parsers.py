@@ -22,6 +22,11 @@ from algopalette.themes.model import SOURCES, SourceId, Theme, ThemeError
 _HEX_RE = re.compile(r"#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})")
 # Plik motywu base16/base24 ma kilka KB; większy to śmieć albo próba nadużycia parsera YAML.
 _MAX_YAML_BYTES = 256 * 1024
+# Granice archiwum i katalogów (przegląd 2026-11-18 M18): prawdziwe dane mają ~1,3 tys. członków,
+# ~3 MB po dekompresji i ≤ 1,3 tys. motywów na źródło.
+_MAX_TAR_MEMBERS = 20_000
+_MAX_TAR_BYTES = 32 * 1024 * 1024
+_MAX_THEMES = 10_000
 _LOSPEC_MIN, _LOSPEC_MAX = 3, 16
 
 _BASE16_ACCENTS = tuple(f"base{c}" for c in ("08", "09", "0A", "0B", "0C", "0D", "0E", "0F"))
@@ -129,8 +134,17 @@ def _text(v: object) -> str:
 # --- base16 / base24 (tinted-theming) ------------------------------------------------------------
 
 
+def _has_alias(raw: bytes) -> bool:
+    """Czy dokument używa aliasów (``*kotwica``). Motywy ich nie potrzebują, a kaskada kluczy
+    scalania ``<<: [*a, *a, …]`` mnoży węzły wykładniczo — 564 B dawało 12 s i 338 MB
+    (przegląd 2026-11-18 I7). Zdarzenia parsera nie rozwijają aliasów, więc to tanie."""
+    return any(isinstance(ev, yaml.AliasEvent) for ev in yaml.parse(raw, Loader=yaml.SafeLoader))
+
+
 def _tinted_entry(system: str, stem: str, raw: bytes) -> Theme | None:
     try:
+        if _has_alias(raw):
+            return None
         doc = yaml.safe_load(raw)
     except (yaml.YAMLError, ValueError, RecursionError):
         return None
@@ -157,9 +171,15 @@ def parse_tinted(data: bytes) -> Parsed:
     name = SOURCES["base16"]
     themes: list[Theme] = []
     skipped = 0
+    members = 0
+    read = 0
     try:
-        with tarfile.open(fileobj=BytesIO(data), mode="r:gz") as tar:
+        # strumieniowo: członkowie czytani po kolei, bez indeksu całego archiwum w pamięci
+        with tarfile.open(fileobj=BytesIO(data), mode="r|gz") as tar:
             for member in tar:
+                members += 1
+                if members > _MAX_TAR_MEMBERS:
+                    raise ThemeError(f"{name}: archiwum ma za dużo plików — pominięte.")
                 if not member.isfile():
                     continue
                 parts = member.name.split("/")
@@ -172,13 +192,19 @@ def parse_tinted(data: bytes) -> Parsed:
                 if f is None or member.size > _MAX_YAML_BYTES:
                     skipped += 1
                     continue
+                read += member.size
+                if read > _MAX_TAR_BYTES or len(themes) >= _MAX_THEMES:
+                    raise ThemeError(f"{name}: archiwum jest za duże — pominięte.")
                 theme = _tinted_entry(system, file[: -len(".yaml")], f.read())
                 if theme is None:
                     skipped += 1
                 else:
                     themes.append(theme)
+    except ThemeError:
+        raise
     except (tarfile.TarError, OSError, EOFError, ValueError) as e:
-        raise ThemeError(f"{name}: nieczytelne archiwum motywów ({e}).") from e
+        # bez treści wyjątku: tarfile/zlib mówią po angielsku (przegląd 2026-11-18 M21)
+        raise ThemeError(f"{name}: nieczytelne archiwum motywów.") from e
     return Parsed(tuple(themes), skipped)
 
 
@@ -237,8 +263,8 @@ def _wt_entry(e: dict[str, Any]) -> Theme | None:
 
 def _parse_entries(entries: list[Any], build: Callable[[dict[str, Any]], Theme | None]) -> Parsed:
     themes: list[Theme] = []
-    skipped = 0
-    for e in entries:
+    skipped = max(len(entries) - _MAX_THEMES, 0)  # nadmiar ponad granicę liczy się jak pominięty
+    for e in entries[:_MAX_THEMES]:
         t = build(e) if isinstance(e, dict) else None
         if t is None:
             skipped += 1

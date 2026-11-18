@@ -100,8 +100,9 @@ def _get(
     error = None
     try:
         cache.save(key, parsed.themes, total=total, now=t)
-    except OSError as e:
-        error = f"Nie udało się zapisać katalogu w pamięci podręcznej: {e.strerror or e}"
+    except (OSError, ValueError) as e:
+        why = e.strerror if isinstance(e, OSError) and e.strerror else e
+        error = f"Nie udało się zapisać katalogu w pamięci podręcznej: {why}"
     return CatalogResult(parsed.themes, t, False, parsed.skipped, total, error)
 
 

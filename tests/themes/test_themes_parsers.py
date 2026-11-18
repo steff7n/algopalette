@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from algopalette.themes import ThemeError
+from algopalette.themes import ThemeError, parsers
 from algopalette.themes.parsers import (
     ANSI_ACCENT_NAMES,
     normalize_hex,
@@ -342,3 +342,45 @@ def test_error_names_the_source():
 
 def test_empty_list_is_valid_not_error():
     assert parse_gogh(b"[]").themes == () and parse_wt(b"[]").skipped == 0
+
+
+# --- przegląd 2026-11-18 ------------------------------------------------------------------------
+
+
+def _tar(files: dict[str, bytes]) -> bytes:
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for name, data in files.items():
+            ti = tarfile.TarInfo(name)
+            ti.size = len(data)
+            tar.addfile(ti, io.BytesIO(data))
+    return buf.getvalue()
+
+
+def test_yaml_merge_key_bomb_is_skipped_fast():
+    """I7: kaskada ``<<: [*a ×10]`` — 7 poziomów to 12 s i 338 MB przy zwykłym safe_load."""
+    import time
+
+    lines = ["l0: &l0 {a: 1}"]
+    for n in range(1, 8):
+        lines.append(f"l{n}: &l{n} {{<<: [{', '.join([f'*l{n - 1}'] * 10)}]}}")
+    bomb = ("\n".join(lines) + "\nname: x\n").encode()
+    t = time.monotonic()
+    res = parsers.parse_tinted(_tar({"r/base16/bomb.yaml": bomb}))
+    assert res.themes == () and res.skipped == 1
+    assert time.monotonic() - t < 1.0
+
+
+def test_archive_with_too_many_members_is_rejected(monkeypatch):
+    """M18: limit członków archiwum (prawdziwe ma ~1,3 tys.)."""
+    monkeypatch.setattr(parsers, "_MAX_TAR_MEMBERS", 5)
+    data = _tar({f"r/other/{i}.txt": b"x" for i in range(10)})
+    with pytest.raises(ThemeError, match="za dużo plików"):
+        parsers.parse_tinted(data)
+
+
+def test_broken_archive_message_is_polish_only():
+    """M21: bez angielskich wtrętów z tarfile/zlib."""
+    with pytest.raises(ThemeError) as e:
+        parsers.parse_tinted(b"\x1f\x8b to nie gzip")
+    assert "(" not in str(e.value)

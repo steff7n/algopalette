@@ -396,3 +396,43 @@ def test_rows_of_loading_source_are_greyed(win, qtbot):
     gate.set()
     qtbot.waitUntil(lambda: not d._loading, timeout=3000)
     assert all(d.model.item(i).isEnabled() for i in range(d.model.rowCount()))
+
+
+# --- przegląd 2026-11-18 ------------------------------------------------------------------------
+
+
+def test_refresh_keeps_selected_theme(win, qtbot):
+    """M20: zaznaczony motyw Gogh nie przeskakuje po „Odśwież katalogi” na base16 o tej nazwie."""
+    srv = Server()
+    d = open_dialog(win, qtbot, srv)
+    rows = themes(d)
+    gi = next(i for i, t in enumerate(rows) if t.source == "gogh" and i > 0)
+    d.view.setCurrentIndex(d.model.index(gi, 0))
+    picked = d.current_theme()
+    ev = threading.Event()
+    srv.hold["Gogh"] = ev
+    d.refresh_catalogs()
+    qtbot.waitUntil(lambda: set(d._loading) == {"gogh"}, timeout=5000)
+    assert not d.load.isEnabled() or d.current_theme() == picked
+    ev.set()
+    qtbot.waitUntil(lambda: not d._loading, timeout=5000)
+    assert d.current_theme() == picked
+
+
+def test_cancel_status_has_single_hint(win, qtbot):
+    """M21: po „Anuluj” bez „Sprawdź połączenie” i bez powtórzonej podpowiedzi."""
+    srv = Server()
+    ev = threading.Event()
+    srv.hold["Gogh"] = ev
+    win.themes_client_factory = srv.factory()
+    win.open_themes()
+    d = win.themes_dialog
+    d.source.setCurrentIndex(d.source.findData("gogh"))
+    qtbot.waitUntil(lambda: "gogh" in d._loading, timeout=3000)
+    d.cancel_loading()
+    ev.set()
+    d._pool.waitForDone(5000)
+    qtbot.wait(50)
+    text = d.status.text()
+    assert "Sprawdź połączenie" not in text
+    assert text.count("Odśwież katalogi") == 1

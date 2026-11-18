@@ -10,13 +10,14 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QActionGroup, QColor, QGuiApplication, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QHeaderView,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMenu,
     QMessageBox,
@@ -34,7 +35,7 @@ from algopalette.engine import Violation, current_violations
 from algopalette.forms import violation_text
 from algopalette.gui import help, theme
 from algopalette.gui.themes_dialog import ThemesDialog
-from algopalette.gui.widgets import vbox
+from algopalette.gui.widgets import NumEdit, vbox
 from algopalette.model import History, Session, ViewModel
 from algopalette.pb_export import default_pb_dir, pb_json, write_pb_file
 from algopalette.themes import SOURCES, Palette, Theme, net
@@ -373,6 +374,35 @@ class MainWindow(QMainWindow):
         except (OSError, ValueError) as e:
             self.notify(f"Autozapis nie powiódł się: {e}")
 
+    def eventFilter(self, obj, event) -> bool:
+        """Cofnij/Ponów okna także z fokusem w polu tekstowym (przegląd 2026-11-18 I4).
+
+        ``QLineEdit`` przejmuje skróty cofania na własną historię tekstu. Pole liczbowe bez
+        niezatwierdzonej zmiany (i zwykłe pole bez historii tekstu) oddaje je oknu."""
+        if event.type() == QEvent.Type.ShortcutOverride and isinstance(obj, QLineEdit):
+            which = self._undo_redo_of(event)
+            if which is not None and obj.window() is self and not self._field_owns(obj, which):
+                event.ignore()
+                return True
+        return super().eventFilter(obj, event)
+
+    def _undo_redo_of(self, event) -> str | None:
+        seq = QKeySequence(event.keyCombination())
+        for name, act in (("undo", self.act_undo), ("redo", self.act_redo)):
+            if any(
+                seq.matches(s) == QKeySequence.SequenceMatch.ExactMatch for s in act.shortcuts()
+            ):
+                return name
+        return None
+
+    @staticmethod
+    def _field_owns(field: QLineEdit, which: str) -> bool:
+        if isinstance(field, NumEdit):
+            v = field.value()
+            pending = field.text() != ("" if v is None else format(v, field.fmt))
+            return pending and field.isUndoAvailable() if which == "undo" else False
+        return field.isUndoAvailable() if which == "undo" else field.isRedoAvailable()
+
     def closeEvent(self, event) -> None:
         """Wyjście przerywa trwające generowanie i zapisuje zaległą zmianę (autozapis ma
         opóźnienie)."""
@@ -448,6 +478,9 @@ class MainWindow(QMainWindow):
         self.act_theme_dark = self.act_theme["dark"]
         for a in (self.act_undo, self.act_redo):
             a.setShortcutContext(Qt.ShortcutContext.WindowShortcut)
+        app = QApplication.instance()
+        if app is not None:
+            app.installEventFilter(self)  # Ctrl+Z z fokusem w polu tekstowym (przegląd I4)
 
         mb = self.menuBar()
         self.menus: dict[str, QMenu] = {}
