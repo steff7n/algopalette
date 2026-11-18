@@ -1,11 +1,11 @@
-"""Regresje z przeglądu całości 2026-11-18 (raport: `.superpowers/sdd/2026-11-18-przeglad-calosci/`)."""
+"""Regresje z przeglądu całości 2026-11-18 (raport: `.superpowers/sdd/2026-11-18-*`)."""
 
 from dataclasses import replace
 
 from algopalette import io as aio
+from algopalette.color import to_hsl
 from algopalette.engine import Violation
 from algopalette.gui.app import rule_owners
-from algopalette.color import to_hsl
 from algopalette.model import OKLCH, with_slot
 
 
