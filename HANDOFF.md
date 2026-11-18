@@ -9,7 +9,7 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `.superpowers/sdd/2026-11-18-przeglad-calosci/report.md` — tam numeracja C1…M22, pliki:linie, scenariusze.
 - **Decyzje użytkownika (WIĄŻĄCE):** „nie, nie zlecaj później przeglądu samych poprawek. naprawiasz i scalasz.”
   + „tylko naprawiasz je sam, bez subagentów” → naprawiam WSZYSTKIE 32 znaleziska sam (bez subagentów), bez
-  re-review, potem scalenie `feat/bez-daltonizmu` → `main` (push NIE zlecony).
+  re-review, potem scalenie `feat/bez-daltonizmu` → `main`; push zlecony osobno („pushnij”) i zrobiony (`origin/main` = `main`).
 - **Postęp (dopisuj):** C1 ☑ (`units.rules_in_method`; `presets._resolve(delta_e=)`, preset użytkownika zapisuje
   `delta_e`, stare wpisy = ok; `is_modified` porównuje próg do 9 cyfr; `sources` Charakter/Przeniesienie),
   C2 ☑ (`History` ma etykiety stanów = ścieżka pliku; `MainWindow.file_path` to właściwość na `history.tag`,
@@ -48,7 +48,7 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `ruff check`, `ruff format --check`, `ty check` czyste. Re-review NIE było (decyzja użytkownika). Ręcznie
   w oknie nie klikano.
 
-## 0g. USUNIĘTY DALTONIZM (2026-11-18) — zrobione na gałęzi `feat/bez-daltonizmu` (od `main` @ `9971497`), scalone do `main` razem z §0h (ff, bez push)
+## 0g. USUNIĘTY DALTONIZM (2026-11-18) — zrobione na gałęzi `feat/bez-daltonizmu` (od `main` @ `9971497`), scalone do `main` razem z §0h (ff) i wypchnięte 2026-11-18
 
 - **Prośba (WIĄŻĄCA, nie otwieraj ponownie):** „wywal calkowicie z aplikacji funkcjonalnosci odnoszace sie do
   daltonizmu”. Bez speca i planu (prosta, mechaniczna zmiana). Nie przywracaj symulacji CVD, zasady
