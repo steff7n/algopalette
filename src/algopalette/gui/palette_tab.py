@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from algopalette import color as col
+from algopalette import engine
 from algopalette.engine import slot_label
 from algopalette.gui import help, theme
 from algopalette.gui.widgets import (
@@ -75,16 +76,20 @@ def _value_cells(v: OKLCH, session: Session) -> tuple[str, str, str]:
 def slot_rows(session: Session) -> list[tuple[str, str, list[str], float]]:
     """Wiersze tabeli: (id, hex, teksty komórek od kolumny 1, Δ fit)."""
     g = session.globals
-    bg = session.slots[0].value
+    # jak silnik i panel naruszeń: na kolorach po dopasowaniu do gamutu (przegląd M4),
+    # dopasowanie raz na kolor
+    fitted = [engine.measured(s.value, g.fit_method) for s in session.slots]
+    bg = fitted[0]
     accents = list(range(2, len(session.slots)))
     rows = []
     for i, s in enumerate(session.slots):
         v = s.value
         hx = col.to_hex(v, g.fit_method)
-        contrast = "—" if i == 0 else f"{col.contrast(v, bg, g.contrast_metric):.2f}"
+        contrast = "—" if i == 0 else f"{engine.pair_contrast(fitted[i], bg, session):.2f}"
         de = "—"
         if i >= 2 and len(accents) > 1:
-            dmin = min(col.delta_e(v, session.slots[j].value, g.delta_e) for j in accents if j != i)
+            others = (fitted[j] for j in accents if j != i)
+            dmin = min(engine.pair_delta_e(fitted[i], o, session) for o in others)
             de = f"{dmin:.3f}" if g.delta_e in ("ok", "hyab") else f"{dmin:.1f}"
         fit = col.fit_delta(v, g.fit_method)
         hex_cell = hx + (f"  ⚠ {fit:.3f}" if fit > 0 else "")

@@ -218,3 +218,44 @@ def test_ctrl_z_with_focus_in_number_field_undoes_session(win, qtbot):
     assert win.session.globals.optimizer.budget == 500
     qtbot.keyClick(e, Qt.Key.Key_Z, Qt.KeyboardModifier.ControlModifier)
     assert win.session.globals.optimizer.budget == before
+
+
+# M7
+def test_generate_one_for_locked_color_does_nothing(win, monkeypatch):
+    s = win.session
+    win.replace_session(with_slot(s, replace(s.slots[2], locked=True)))
+    win.palette_tab.table.setCurrentCell(2, 1)
+    said = []
+    monkeypatch.setattr(win, "notify", lambda msg, **k: said.append(msg))
+    win.proposals_tab._gen_one()
+    assert not win.proposals_tab.running and said and "kłódkę" in said[0]
+
+
+# M8
+def test_failed_start_keeps_old_base(win, monkeypatch):
+    from algopalette import engine
+
+    tab = win.proposals_tab
+    old = tab.base
+
+    def boom(*_a, **_k):
+        raise ValueError("silnik odrzucił")
+
+    monkeypatch.setattr(engine, "start", boom)
+    _edited(win)
+    tab.start()
+    assert tab.base is old and not tab.running
+
+
+# M10
+def test_enter_without_change_does_not_round_value():
+    from algopalette.gui.widgets import NumEdit
+
+    e = NumEdit(0.6123456, fmt=".3f")
+    seen = []
+    e.committed.connect(seen.append)
+    e.editingFinished.emit()
+    assert seen == [] and e.value() == 0.6123456
+    e.setText("0.7")
+    e.editingFinished.emit()
+    assert seen == [0.7]

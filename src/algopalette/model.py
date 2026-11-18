@@ -5,7 +5,7 @@ Nie ma dziedziczenia ani wartości wspólnych dla roli — domyślne zasady ról
 """
 
 import uuid
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from typing import Any, Literal
 
@@ -49,34 +49,6 @@ RULE_FIELDS: tuple[str, ...] = (
     "extreme",
 )
 ACCENT_ONLY_FIELDS = frozenset({"min_distance", "extreme"})
-
-
-class FrozenMap[K, V](Mapping[K, V]):
-    """Niezmienne, hashowalne odwzorowanie (równość i hash jak dla zbioru par).
-
-    Równa się każdemu ``Mapping`` o tych samych parach, więc ``FrozenMap(d) == d``. Wartości muszą
-    być hashowalne, jeśli ktoś woła ``hash``.
-    """
-
-    __slots__ = ("_d",)
-
-    def __init__(self, data: Mapping[K, V] | Iterable[tuple[K, V]] = ()) -> None:
-        self._d: dict[K, V] = dict(data)
-
-    def __getitem__(self, key: K) -> V:
-        return self._d[key]
-
-    def __iter__(self) -> Iterator[K]:
-        return iter(self._d)
-
-    def __len__(self) -> int:
-        return len(self._d)
-
-    def __hash__(self) -> int:
-        return hash(frozenset(self._d.items()))
-
-    def __repr__(self) -> str:
-        return f"FrozenMap({self._d!r})"
 
 
 # Zakazane przedziały: pary (od, do). Dla odcienia para może zawijać się przez 0° (od > do).
@@ -266,7 +238,7 @@ def new_slot_id() -> str:
 
 
 def rule_fields_for(role: Role) -> tuple[str, ...]:
-    """Zasady dotyczące roli: tło nie ma kontrastu z tłem; trzy ostatnie tylko dla akcentów."""
+    """Zasady dotyczące roli: tło nie ma kontrastu z tłem; ``ACCENT_ONLY_FIELDS`` tylko akcenty."""
     if role == "accent":
         return RULE_FIELDS
     out = tuple(f for f in RULE_FIELDS if f not in ACCENT_ONLY_FIELDS)

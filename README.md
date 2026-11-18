@@ -106,7 +106,8 @@ różnorodność, waga twardych, wątki).
 
 **Presety** to gotowe zestawy zasad — 56 wbudowanych w 10 kategoriach (Podstawowe, Chłodne, Ciepłe, Natura,
 Pastelowe, Świecące, Retro i druk, Ograniczone, Harmonie, Pory dnia), z wyszukiwarką. „Zastosuj”
-zastępuje zasady wszystkich kolorów, układ odcieni i rozrzut jasności; nie rusza wartości kolorów, kłódek, nazw,
+zastępuje zasady kolorów (poza tymi z **kłódką zasad**, które zostają), układ odcieni i rozrzut jasności; progi
+odległości przelicza na metodę ΔE palety; nie rusza wartości kolorów, kłódek, nazw,
 zależności, unikanych kolorów ani ustawień generowania. Wszystko, co preset ustawił, widać i można zmienić —
 przy nazwie pojawia się wtedy „(zmieniony)”. Bieżące zasady zapiszesz jako własny preset. Zmiana tła (ciemne /
 jasne) nakłada bieżący preset w wersji dla nowego tła, a gdy zasady są już zmienione — pyta, co zrobić.
@@ -174,8 +175,8 @@ przyjmuje w oknie „Wczytaj…” (wklej tam). `Ctrl+Shift+E` zapisuje to samo 
 - Progi odległości zależą od metody ΔE (0.08 w `ok` ≈ 12.5 w `2000`). Zmiana metody w ustawieniach całej palety
   przelicza progi przybliżonym przelicznikiem — sprawdź je potem, jeśli zależy Ci na dokładnych wartościach.
 - Nie traktuj propozycji oznaczonej „✗ łamie twarde” ani „⏱ niepowtarzalna” jak gotowego wyniku.
-- „Zastosuj” preset zastępuje zasady wszystkich kolorów, także te ustawione ręcznie (`Ctrl+Z` je przywraca).
-  Jeśli chcesz zachować własne zasady, zapisz je najpierw jako własny preset.
+- „Zastosuj” preset zastępuje zasady wszystkich kolorów bez kłódki zasad, także te ustawione ręcznie (`Ctrl+Z`
+  je przywraca). Jeśli chcesz zachować własne zasady, zablokuj je kłódką zasad albo zapisz jako własny preset.
 
 ## Rozwój
 

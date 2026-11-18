@@ -230,6 +230,24 @@ def generate(
     return gen.result()
 
 
+def measured(c: OKLCH, fit: FitMethod) -> OKLCH:
+    """Kolor tak, jak go mierzy silnik: po dopasowaniu do gamutu (jak w ``to_engine_json``)."""
+    return col.fitted(c, fit)
+
+
+def pair_delta_e(a: OKLCH, b: OKLCH, session: Session) -> float:
+    """ΔE pary w metodzie palety, liczone silnikiem — te same liczby co w panelu naruszeń
+    (przegląd 2026-11-18 M4). Kolory muszą być już po ``measured`` (dopasowanie raz na kolor,
+    nie na parę — coloraide jest wolne)."""
+    return _engine.delta_e([a.l, a.c, a.h], [b.l, b.c, b.h], session.globals.delta_e)
+
+
+def pair_contrast(text: OKLCH, bg: OKLCH, session: Session) -> float:
+    """Kontrast (tekst, tło) w metryce palety, jak w panelu naruszeń; kolory po ``measured``."""
+    m = session.globals.contrast_metric
+    return _engine.contrast([text.l, text.c, text.h], [bg.l, bg.c, bg.h], m)
+
+
 def _evaluate(session: Session) -> Mapping[str, Any]:
     return _engine.evaluate(to_engine_json(session, ()))
 

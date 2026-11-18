@@ -216,11 +216,11 @@ def test_violation_text_for_every_kind():
         ),
         (
             _v("contrast_bg", [a1, bg], 3.917, {"lo": 4.5, "hi": None}, {"metric": "wcag21"}),
-            ("kontrast z tłem", "≥ 4.50", "3.92"),
+            ("kontrast z tłem (akcent 1)", "≥ 4.50", "3.92"),
         ),
         (
             _v("contrast_bg", [fg, bg], 70.04, {"lo": 75.0, "hi": 90.0}, {"metric": "apca"}),
-            ("kontrast z tłem", "75.0–90.0 Lc", "70.0 Lc"),
+            ("kontrast z tłem (tekst)", "75.0–90.0 Lc", "70.0 Lc"),
         ),
         (
             _v(

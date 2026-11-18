@@ -50,6 +50,7 @@ następnym uruchomieniu. Zobacz też: [skróty klawiszowe](help:general.shortcut
 | Ctrl+Z / Ctrl+Y | cofnij / ponów (także Ctrl+Shift+Z) |
 | Ctrl+S / Ctrl+Shift+S | zapisz / zapisz jako |
 | Ctrl+O | wczytaj sesję |
+| Ctrl+Shift+O | motywy z sieci |
 | Ctrl+N | nowa paleta (cofalna przez Ctrl+Z) |
 | Ctrl+E | paleta do schowka dla PaletteBuildera |
 | Ctrl+Shift+E | plik dla PaletteBuildera |

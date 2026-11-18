@@ -468,8 +468,8 @@ class AnalysisTab(QScrollArea):
     def _de_matrix(self, s: Session) -> None:
         g = s.globals
         acc = list(range(2, len(s.slots)))
-        vals = {i: s.slots[i].value for i in acc}
-        bg = s.slots[0].value
+        vals = {i: engine.measured(s.slots[i].value, g.fit_method) for i in acc}
+        bg = engine.measured(s.slots[0].value, g.fit_method)
         self.matrix_title.setText(
             f"ΔE akcentów ({g.delta_e}) — czerwone = poniżej wymaganej odległości; "
             f"ostatnia kolumna: kontrast z tłem ({g.contrast_metric})"
@@ -486,7 +486,7 @@ class AnalysisTab(QScrollArea):
                 if i == j:
                     it = QTableWidgetItem("—")
                 else:
-                    d = col.delta_e(vals[i], vals[j], g.delta_e)
+                    d = engine.pair_delta_e(vals[i], vals[j], s)
                     it = QTableWidgetItem(format(d, fmt))
                     req = pair_requirement(s, i, j)
                     if req is not None and d < req:
@@ -495,14 +495,14 @@ class AnalysisTab(QScrollArea):
                         it.setToolTip(f"wymagane ≥ {req:g}")
                 it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 m.setItem(r, c, it)
-            it = QTableWidgetItem(f"{col.contrast(vals[i], bg, g.contrast_metric):.2f}")
+            it = QTableWidgetItem(f"{engine.pair_contrast(vals[i], bg, s):.2f}")
             it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             m.setItem(r, len(acc), it)
 
     def _contrast_matrix(self, s: Session) -> None:
         g = s.globals
         acc = list(range(2, len(s.slots)))
-        vals = {i: s.slots[i].value for i in acc}
+        vals = {i: engine.measured(s.slots[i].value, g.fit_method) for i in acc}
         self.matrix_title.setText(
             f"Kontrast par akcentów ({g.contrast_metric}) — wiersz = tekst, kolumna = tło"
         )
@@ -513,7 +513,7 @@ class AnalysisTab(QScrollArea):
         self._headers(s, acc, vals)
         for r, i in enumerate(acc):
             for c, j in enumerate(acc):
-                text = "—" if i == j else f"{col.contrast(vals[i], vals[j], g.contrast_metric):.2f}"
+                text = "—" if i == j else f"{engine.pair_contrast(vals[i], vals[j], s):.2f}"
                 it = QTableWidgetItem(text)
                 it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 if i != j:

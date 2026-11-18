@@ -13,9 +13,7 @@ from algopalette.model import (
     ChromaBand,
     ContrastBound,
     HueArc,
-    Role,
     Session,
-    rule_fields_for,
 )
 from algopalette.units import default_distance
 
@@ -64,10 +62,6 @@ def default_for(field: str, session: Session) -> Any:
     if field == "min_distance":
         return default_distance(g.delta_e, float(DEFAULTS[field]))
     return DEFAULTS[field]
-
-
-def fields_for(role: Role) -> list[str]:
-    return list(rule_fields_for(role))
 
 
 def range_spec(field: str, cond_value: Any, session: Session) -> dict[str, Any]:
@@ -281,7 +275,7 @@ def violation_text(v: Violation, session: Session) -> tuple[str, str, str]:
     if kind == "contrast_bg":
         fmt, unit = _contrast_fmt(meta.get("metric", "wcag21"))
         return (
-            "kontrast z tłem",
+            f"kontrast z tłem ({name(0)})",
             _fmt_interval(req["lo"], req["hi"], fmt, unit),
             _with_unit(got, fmt, unit),
         )

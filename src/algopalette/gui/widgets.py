@@ -13,11 +13,12 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 import numpy as np
-from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import (
     QBrush,
     QColor,
     QKeyEvent,
+    QKeySequence,
     QLinearGradient,
     QMouseEvent,
     QPainter,
@@ -288,6 +289,24 @@ class NumEdit(QLineEdit):
         if v != self._value:
             self._value = v
             self.committed.emit(v)
+
+    def event(self, e: QEvent) -> bool:
+        """Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z bez niezatwierdzonej zmiany w polu należą do okna
+        (cofnij sesję), nie do historii tekstu pola — inaczej po Enter cofanie nic nie robiło
+        (przegląd 2026-11-18 I4)."""
+        if (
+            e.type() == QEvent.Type.ShortcutOverride
+            and isinstance(e, QKeyEvent)
+            and (
+                e.matches(QKeySequence.StandardKey.Undo)
+                or e.matches(QKeySequence.StandardKey.Redo)
+                or _is_ctrl_y(e)
+            )
+            and self.text() == ("" if self._value is None else format(self._value, self.fmt))
+        ):
+            e.ignore()
+            return True
+        return super().event(e)
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
         if self.step and e.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
@@ -666,3 +685,8 @@ class RangeSlider(QWidget):
     def _from_bar(self, _k: int, _v: float) -> None:
         self._sync_edits()
         self.changed.emit(*self.bar.values)
+
+
+def _is_ctrl_y(e: QKeyEvent) -> bool:
+    """Ctrl+Y (ponów w programie) — na Linuksie nie jest standardowym „Redo”."""
+    return e.key() == Qt.Key.Key_Y and e.modifiers() == Qt.KeyboardModifier.ControlModifier

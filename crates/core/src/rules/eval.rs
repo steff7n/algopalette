@@ -160,7 +160,8 @@ impl Frame {
             let active = self.active(term);
             let amount = self.violation(term, &active, 0.0);
             objective += term.coefficient(compiled.hard_weight) * amount * amount;
-            if amount > FEASIBLE_EPS {
+            if amount > FEASIBLE_EPS || amount.is_nan() {
+                // NaN też jest naruszeniem — nie może udawać spełnionej zasady (przegląd M3)
                 violations.push(self.describe(compiled, term, &active, amount));
             }
         }

@@ -6,12 +6,10 @@ import pytest
 
 from algopalette.color import contrast, delta_e
 from algopalette.model import (
-    OKLCH,
     RULE_FIELDS,
     Band,
     ChromaBand,
     ContrastBound,
-    FrozenMap,
     History,
     HueArc,
     OptimizerSettings,
@@ -289,15 +287,6 @@ def test_history_push_truncates_redo():
     assert h.redo() is None
     assert h.undo() == a
     assert h.can_redo
-
-
-def test_frozen_map_eq_hash():
-    m = FrozenMap({"a": 1, "b": 2})
-    assert m == {"a": 1, "b": 2}
-    assert m == {"b": 2, "a": 1}
-    assert hash(m) == hash(FrozenMap({"b": 2, "a": 1}))
-    assert len(m) == 2
-    assert OKLCH(0.5, 0.1, 10.0) == OKLCH(0.5, 0.1, 10.0)
 
 
 def test_session_hashable_and_normalized():

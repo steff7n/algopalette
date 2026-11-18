@@ -36,6 +36,9 @@ pub struct DriverOpts {
     pub threads: usize,
 }
 
+/// Część paska postępu na fale po pierwszej (ich wielkości nie znamy z góry).
+pub const LATER_WAVES_SHARE: f64 = 0.2;
+
 /// Sterowanie i postęp generowania, współdzielone między wątkami (wszystko atomowe).
 #[derive(Debug, Default)]
 pub struct Control {
@@ -86,11 +89,17 @@ impl Control {
     }
 
     /// Postęp w [0, 1]. Nie cofa się: dołożenie fali zwiększa plan, ale zwracane jest maksimum
-    /// z dotychczasowych wartości.
+    /// z dotychczasowych wartości. Plan obejmuje tylko fale już zaczęte, więc część paska
+    /// ([`LATER_WAVES_SHARE`]) jest zarezerwowana na kolejne — 1 daje dopiero `finish`
+    /// (przegląd 2026-11-18 M2: pasek stał na ~99 % przez fale 2–3).
     pub fn progress(&self) -> f64 {
         let planned = self.evals_planned();
-        let now =
-            if planned == 0 { 0.0 } else { (self.evals_done() as f64 / planned as f64).min(1.0) };
+        let now = if planned == 0 {
+            0.0
+        } else {
+            let share = self.evals_done() as f64 / planned as f64;
+            (share * (1.0 - LATER_WAVES_SHARE)).min(1.0)
+        };
         let seen = self.progress_bits.fetch_max(now.to_bits(), Ordering::Relaxed);
         f64::from_bits(seen.max(now.to_bits()))
     }

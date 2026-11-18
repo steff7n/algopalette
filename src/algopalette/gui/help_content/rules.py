@@ -194,8 +194,8 @@ zaznacza kolor, Ctrl+spacja dokłada albo odejmuje, Ctrl+A zaznacza wszystkie ak
         "Wiersz na każdą zasadę, która dotyczy wszystkich zaznaczonych kolorów. Zmiana trafia do "
         "każdego z nich.",
         """Przy jednym zaznaczonym kolorze widzisz komplet jego zasad. Przy kilku — zasady, które dotyczą
-**każdego** z nich: tło nie ma kontrastu z tłem, a odległość od innych akcentów, odróżnialność
-i skrajny kontrast mają tylko akcenty. Zaznaczysz tło i akcent — zobaczysz jasność, nasycenie
+**każdego** z nich: tło nie ma kontrastu z tłem, a odległość od innych akcentów i skrajny kontrast
+mają tylko akcenty. Zaznaczysz tło i akcent — zobaczysz jasność, nasycenie
 i odcień.
 
 Stany wiersza:

@@ -3,8 +3,10 @@
 Działa na słownikach (nie odtwarza starych klas modelu). W v1 kolor dziedziczył warunki roli
 (pole ``null`` w slocie = warunek z ``globals.role_defaults``), a odcień miał dwa osobne warunki
 (``hue_range`` i ``hue_target``). W v2 każdy kolor ma komplet własnych zasad i jedną zasadę
-odcienia. Migracja nigdy nie jest cicha: wszystko, co przepada albo zmienia twardość, trafia do
-listy komunikatów (po jednym zdaniu, z nazwą koloru).
+odcienia. Migracja nie jest cicha: wszystko, co przepada albo zmienia twardość, trafia do listy
+komunikatów (po jednym zdaniu, z nazwą koloru). Jedyny wyjątek: ustawienia i zasady daltonizmu
+(``globals.cvd``, ``cvd_min_distance``) przepadają bez komunikatu — tej funkcji program już nie
+ma (usunięta 2026-11-18 na prośbę użytkownika).
 
 Wynik przechodzi jeszcze pełną walidację w ``io.session_from_dict``; tutaj sprawdzane jest tylko
 to, na czym migracja liczy.
@@ -235,6 +237,7 @@ def _optimizer(raw: Any, notes: list[str]) -> dict[str, Any]:
     max_evals = _field(opt, "max_evals", path)
     if isinstance(max_evals, bool) or not isinstance(max_evals, int):
         raise _err(_join(path, "max_evals"), "powinno być liczbą całkowitą")
+    max_evals = min(max_evals, 10**12)  # dzielenie ogromnej liczby → OverflowError (przegląd M16)
     budget = min(max(round(max_evals / BUDGET_DIVISOR), BUDGET_MIN), BUDGET_MAX)
     if not BUDGET_MIN <= max_evals / BUDGET_DIVISOR <= BUDGET_MAX:
         notes.append(

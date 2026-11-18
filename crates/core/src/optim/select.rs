@@ -7,12 +7,15 @@ use crate::objective::Objective;
 use super::Candidate;
 
 /// Porządek wyniku: bez twardych naruszeń najpierw, potem rosnąco wg `total`, remisy wg numeru
-/// przebiegu. `NaN` w `total` trafia na koniec swojej grupy.
+/// przebiegu. `NaN` w `total` (dowolnego znaku) trafia na koniec swojej grupy — samo
+/// `total_cmp` stawia −NaN (typowe 0/0 na x86) NA POCZĄTKU (przegląd 2026-11-18 M3).
 pub fn rank(a: &Candidate, b: &Candidate) -> Ordering {
+    let key = |t: f64| if t.is_nan() { f64::INFINITY } else { t };
     b.score
         .feasible
         .cmp(&a.score.feasible)
-        .then_with(|| a.score.total.total_cmp(&b.score.total))
+        .then_with(|| key(a.score.total).total_cmp(&key(b.score.total)))
+        .then_with(|| a.score.total.is_nan().cmp(&b.score.total.is_nan()))
         .then_with(|| a.run.cmp(&b.run))
 }
 
@@ -86,11 +89,12 @@ mod tests {
             cand(0.0, true, 2.0, 3),
             cand(0.0, false, 0.05, 4),
             cand(0.0, true, f64::NAN, 5),
+            cand(0.0, true, -f64::NAN, 7), // −NaN (0/0 na x86) też na koniec grupy
             cand(0.0, true, 0.0, 6),
         ];
         list.reverse();
         list.sort_by(rank);
-        assert_eq!(runs(&list), [6, 2, 3, 1, 5, 4, 0]);
+        assert_eq!(runs(&list), [6, 2, 3, 1, 5, 7, 4, 0]);
     }
 
     #[test]

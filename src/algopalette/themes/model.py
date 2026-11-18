@@ -10,6 +10,7 @@ from __future__ import annotations
 import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Literal, cast, get_args
 
 from algopalette import color as col
@@ -151,8 +152,14 @@ def is_dark(t: Theme) -> bool | None:
     """Ciemny = L OKLCH tła < 0,5 (jedyne źródło prawdy); ``None`` dla palet bez ról."""
     if not t.has_roles or not t.colors:
         return None
+    return _dark_bg(t.colors[0])
+
+
+@lru_cache(maxsize=16384)
+def _dark_bg(hex_: str) -> bool | None:
+    """Pamięć: ``filter_themes`` pyta o każde tło przy każdym klawiszu (przegląd M18)."""
     try:
-        return _oklch(t.colors[0]).l < 0.5
+        return _oklch(hex_).l < 0.5
     except ThemeError:
         return None
 

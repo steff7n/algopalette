@@ -2,7 +2,7 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0h. PRZEGLĄD CAŁOŚCI + FALA NAPRAW (2026-11-18) — W TOKU na `feat/bez-daltonizmu`
+## 0h. PRZEGLĄD CAŁOŚCI + FALA NAPRAW (2026-11-18) — ZROBIONE: wszystkie 32 znaleziska naprawione, bez re-review (decyzja użytkownika), scalone do `main`
 
 - **Prośba użytkownika:** „uruchom najpierw przegląd, ale nie tylko tej gałęzi, tylko całości aplikacji”.
   Przegląd (Opus xhigh) na `7532aa4`: **3 C / 7 I / 22 M**. Raport (poza gitem):
@@ -18,7 +18,35 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `MAX_SEED/MAX_PROPOSALS/MAX_BUDGET/MAX_THREADS` w `model`, `io._int(maximum=)`, `NumEdit` liczby całkowite
   dokładnie), I5 ☑ (`History.set_current` bez obcinania redo), I6 ☑ (Rust: `time_cap_s == 0` = bez limitu;
   status rozdziela ⏱ i tłumaczy pusty wynik; pomoc), M5 ☑, M6 ☑, M7 ☑, M8 ☑, M9 ☑, M10 ☑ (`NumEdit._commit`
-  ignoruje niezmieniony tekst). Testy: `tests/test_review_2026_11_18.py`, `tests/gui/test_review_2026_11_18.py`.
+  ignoruje niezmieniony tekst). Testy: `tests/test_regressions_2026_11_18.py`, `tests/gui/test_gui_regressions_2026_11_18.py` (NIE ta sama nazwa pliku w `tests/` i `tests/gui/` — kolizja modułów pytest).
+  Dalej: I2 ☑ (`RulesTab.write(…, structural=True)` dla presetu i zmiany tła → edytor od nowa), I3 ☑
+  (`RelationRow._current()` czyta relację z sesji przed zapisem), I4 ☑ (`NumEdit.event`: ShortcutOverride
+  Ctrl+Z/Ctrl+Y/Ctrl+Shift+Z oddawany oknu, gdy pole nie ma niezatwierdzonej zmiany; zwykłe pola tekstowe —
+  wyszukiwarka, nazwa presetu — zostają przy własnym cofaniu tekstu), I7 ☑ (`parsers._has_alias` — dokumenty z aliasami YAML pomijane), M1 ☑ (`problem.unwrap_into_arc`),
+  M2 ☑ (`optim::LATER_WAVES_SHARE = 0.2` — 1.0 daje tylko `finish`), M3 ☑ (NaN = naruszenie; `rank` stawia NaN
+  dowolnego znaku na końcu), M4 ☑ (`engine.measured/pair_delta_e/pair_contrast` w Palecie i Analizie),
+  M11 ☑ (zmiana metryki zależności kontrastu przelicza `value`/`tol`), M12 ☑, M13 ☑ (`_confirm_overwrite` po
+  dopisaniu „.json”), M14 ☑ (`last.prev-<czas>.json`, zostaje `KEEP_PREV = 10`), M15 ☑ („kontrast z tłem
+  (nazwa)”), M16 ☑, M17 ☑ (`os.path.realpath` w `save_session` i `write_pb_file`, PB zachowuje uprawnienia),
+  M18 ☑ (`_MAX_TAR_MEMBERS/_MAX_TAR_BYTES/_MAX_THEMES`, tar w trybie `r|gz`, `is_dark` z pamięcią), M19 ☑
+  (`ensure_ascii=True`), M20 ☑ (`ThemesDialog._selected` = klucz zaznaczonego motywu), M21 ☑ (`failed(str, bool)`;
+  podpowiedź „Sprawdź połączenie” tylko przy błędzie sieci), M22 ☑ (pomoc, Ctrl+Shift+O, docstringi, usunięte
+  `FrozenMap` i `forms.fields_for`, README o kłódce zasad, `rust-version = "1.88"`).
+- **Świadomie NIE zrobione z sugestii reviewera (opcjonalne warianty):** start z autozapisem, który nie przechodzi
+  walidacji, nadal przenosi go do `last.corrupt-*` (zamiast naprawy) — po C3 taki plik nie powstaje, bo
+  `save_session` waliduje; silnik nie oddaje punktu przebiegu przerwanego limitem czasu (I6 rozwiązane statusem,
+  pomocą i „0 = bez limitu”); parsery motywów nie sprawdzają anulowania w pętli (ograniczone limitami M18).
+- **Pułapki z tej fali:** (1) `MainWindow.file_path` to właściwość — przypisanie RETAGUJE blok historii; do
+  „Nowa”/„Wczytaj” używaj `replace_session(…, file_path=…)`; (2) `tests/` nie ma `__init__.py` — te same nazwy
+  plików testów w `tests/` i `tests/gui/` wywracają zbieranie (kosztowało jeden pełny przebieg);
+  (3) limit czasu 0 w starych plikach (np. `manual_avoid_custom.json`) znaczy teraz „bez limitu”.
+  (4) NIE instaluj filtra zdarzeń na `QApplication` (pierwsza wersja I4): każde zdarzenie Qt szło przez Pythona,
+  pełny pytest 40 s → 91 s; (5) Paleta/Analiza: dopasowanie do gamutu (coloraide, wolne) RAZ na kolor
+  (`engine.measured`), `pair_delta_e/pair_contrast` biorą kolory już dopasowane.
+- **Weryfikacja policzona (2026-11-18, po fali):** `pytest -m "not slow"` **1243 passed, 2 skipped** (41,8 s);
+  `-m slow` **438 passed**; `cargo test --workspace` **126 passed**; clippy 0 ostrzeżeń; `cargo fmt --check`,
+  `ruff check`, `ruff format --check`, `ty check` czyste. Re-review NIE było (decyzja użytkownika). Ręcznie
+  w oknie nie klikano.
 
 ## 0g. USUNIĘTY DALTONIZM (2026-11-18) — zrobione na gałęzi `feat/bez-daltonizmu` (od `main` @ `9971497`), NIE scalone
 
@@ -1539,3 +1567,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — Task 20 ☑: pełny zestaw 1537 passed / 2 skipped, cargo 106 + 23, wszystkie lintery czyste, instalacja z czystego klonu w scratchpadzie działa, README z benchmarkiem; PRZEGLĄD 1 (silnik) zlecony.
 - 2026-11-16 — kłódka zasad (§0e): dwa tryby („rules”, „hue” z zamrożeniem celu odcienia), preset i „(zmieniony)” pomijają zablokowane, kombi w zakładce Zasady, temat pomocy `rules.lock`; 1101 passed (bez `slow`), lintery czyste.
 - 2026-11-18 — §0g: daltonizm usunięty w całości (Rust, Python, GUI, pomoc, presety, fixture'y), „Dostępność” scalona z „Podstawowe”; 1205 + 438 slow passed, cargo 125, lintery czyste; gałąź `feat/bez-daltonizmu`, bez scalenia.
+- 2026-11-18 — §0h: przegląd całości (Opus xhigh) 3 C / 7 I / 22 M; wszystkie 32 naprawione sam (bez subagentów, bez re-review — decyzja użytkownika); 1243 + 438 slow passed, cargo 126, lintery czyste; scalone do `main` (bez push).

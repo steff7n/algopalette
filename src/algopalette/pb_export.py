@@ -31,15 +31,16 @@ def default_pb_dir() -> Path:
 
 def write_pb_file(text: str, path: str | os.PathLike[str], overwrite: bool = False) -> None:
     """Zapis atomowy; istniejący plik bez ``overwrite`` → ``FileExistsError`` (plik nietknięty)."""
-    p = Path(path)
+    p = Path(os.path.realpath(path))  # dowiązanie: zapis do celu (przegląd 2026-11-18 M17)
     if p.exists() and not overwrite:
         raise FileExistsError(f"Plik {p} już istnieje.")
     p.parent.mkdir(parents=True, exist_ok=True)
+    mode = p.stat().st_mode & 0o777 if p.exists() else 0o644  # uprawnienia istniejącego zostają
     fd, tmp = tempfile.mkstemp(prefix=f".{p.name}.", suffix=".tmp", dir=p.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(text)
-        os.chmod(tmp, 0o644)
+        os.chmod(tmp, mode)
         os.replace(tmp, p)
     except BaseException:
         Path(tmp).unlink(missing_ok=True)

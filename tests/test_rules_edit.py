@@ -228,9 +228,6 @@ def test_form_labels_cover_rule_fields():
     assert set(forms.DESCRIPTIONS) == set(RULE_FIELDS)
     assert set(forms.DEFAULTS) == set(RULE_FIELDS)
     assert tuple(forms.DISPLAY_ORDER) == RULE_FIELDS
-    assert forms.fields_for("bg") == ["lightness", "chroma", "hue"]
-    assert forms.fields_for("fg") == ["lightness", "chroma", "hue", "contrast_bg"]
-    assert forms.fields_for("accent") == list(RULE_FIELDS)
     for text in (*forms.LABELS.values(), *forms.DESCRIPTIONS.values()):
         assert "dziedzic" not in text
 

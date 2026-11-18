@@ -279,7 +279,7 @@ impl Problem {
         for term in compiled.terms.iter().filter(|t| !is_live(t)) {
             let v = frame.violation(term, &frame.active(term), 0.0);
             const_total += term.coefficient(compiled.hard_weight) * v * v;
-            const_infeasible |= term.hard && v > FEASIBLE_EPS;
+            const_infeasible |= term.hard && (v > FEASIBLE_EPS || v.is_nan());
         }
 
         Problem {
@@ -494,6 +494,19 @@ fn mean_delta_e(a: &[f64], b: &[f64]) -> f64 {
     sum / n as f64
 }
 
+/// Odcień `h` (stopnie) w rozwinięciu łuku `[lo, hi]` (`hi` może przekraczać 360): w łuku —
+/// jego współrzędna rozwinięta; poza łukiem — bliższy po kole koniec.
+fn unwrap_into_arc(h: f64, lo: f64, hi: f64) -> f64 {
+    let u = lo + (h - lo).rem_euclid(360.0);
+    if u <= hi {
+        u
+    } else if u - hi <= lo + 360.0 - u {
+        hi
+    } else {
+        lo
+    }
+}
+
 impl Objective for Problem {
     fn dim(&self) -> usize {
         self.lower.len()
@@ -535,9 +548,10 @@ impl Objective for Problem {
         for (k, c) in self.free.iter().enumerate() {
             let col = &self.base[c.slot];
             let u = if col.maxc > 1e-9 { (col.c / col.maxc).min(1.0) } else { 0.0 };
-            // odcień z granicami (np. 330–380): rozwinięcie do [lo, lo + 360), potem obcięcie
+            // odcień z granicami (np. 330–380): rozwinięcie do [lo, lo + 360); spoza łuku —
+            // BLIŻSZY koniec po kole (łuk 100–200, H 99 → 100, nie 200; przegląd 2026-11-18 M1)
             let h = match c.hue_bounds {
-                Some((lo, _)) => lo + (col.h - lo).rem_euclid(360.0),
+                Some((lo, hi)) => unwrap_into_arc(col.h, lo, hi),
                 None => col.h,
             };
             let raw = [col.l, u, h / HUE_UNIT];
@@ -574,7 +588,7 @@ impl Objective for Problem {
             let term = &self.compiled.terms[index];
             let v = frame.violation(term, &frame.active(term), 0.0);
             total += term.coefficient(self.compiled.hard_weight) * v * v;
-            feasible &= !(term.hard && v > FEASIBLE_EPS);
+            feasible &= !(term.hard && (v > FEASIBLE_EPS || v.is_nan())); // NaN: przegląd M3
         }
         Score { feasible, total }
     }
@@ -600,5 +614,22 @@ impl Objective for Problem {
         let bounds = self.boundaries(x);
         let labs = self.free_labs(x, &bounds);
         self.repel(&labs, others, min_div, &mut Duals::new(x, &bounds), grad)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::unwrap_into_arc;
+
+    #[test]
+    fn current_hue_outside_hard_arc_goes_to_the_nearer_end() {
+        // przegląd 2026-11-18 M1: łuk 100–200°, H 99° startował z 200°
+        assert_eq!(unwrap_into_arc(99.0, 100.0, 200.0), 100.0);
+        assert_eq!(unwrap_into_arc(201.0, 100.0, 200.0), 200.0);
+        assert_eq!(unwrap_into_arc(150.0, 100.0, 200.0), 150.0);
+        // łuk przez 0° (330–380): 20° jest w środku jako 380, 25° bliżej końca 380
+        assert_eq!(unwrap_into_arc(10.0, 330.0, 380.0), 370.0);
+        assert_eq!(unwrap_into_arc(25.0, 330.0, 380.0), 380.0);
+        assert_eq!(unwrap_into_arc(320.0, 330.0, 380.0), 330.0);
     }
 }

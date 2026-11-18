@@ -174,7 +174,7 @@ def test_violations_panel(qtbot):
     assert all(text.startswith("układ odcieni") for text in labels[1:])
     mark, label = p.table.item(0, 0), p.table.item(0, 1)
     assert mark is not None and mark.text() == "✗"
-    assert label is not None and label.text() == "kontrast z tłem"
+    assert label is not None and label.text() == "kontrast z tłem (tekst)"
     p.table.cellClicked.emit(0, 1)
     assert w.rules_tab.strip.selection().ids == (fg.id,)
 

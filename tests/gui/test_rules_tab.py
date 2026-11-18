@@ -129,7 +129,7 @@ def test_clicking_violation_opens_its_rule(win, qtbot):
     win.violations_panel.show_violations(violations, s)
     table = win.violations_panel.table
     assert table.rowCount() == 3
-    assert table.item(0, 1).text() == "kontrast z tłem"
+    assert table.item(0, 1).text() == "kontrast z tłem (akcent 1)"
     win.tabs.setCurrentWidget(win.palette_tab)
     table.cellClicked.emit(0, 1)
     assert win.tabs.currentWidget() is win.rules_tab

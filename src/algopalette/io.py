@@ -125,9 +125,13 @@ def _get(d: dict[str, Any], key: str, path: str) -> Any:
 def _to_num(v: Any, path: str) -> float:
     if isinstance(v, bool) or not isinstance(v, int | float):
         raise _err(path, "powinno być liczbą")
-    if not math.isfinite(v):
+    try:
+        f = float(v)  # liczba całkowita spoza zakresu float → OverflowError (przegląd M16)
+    except OverflowError:
+        raise _err(path, "jest zbyt duża") from None
+    if not math.isfinite(f):
         raise _err(path, "musi być liczbą skończoną")
-    return float(v)
+    return f
 
 
 def _num(d: dict[str, Any], key: str, path: str) -> float:
@@ -549,7 +553,8 @@ def save_session(s: Session, path: str | os.PathLike[str], overwrite: bool = Fal
     ``OSError`` — łapie je warstwa interfejsu. Sesja, której nie dałoby się potem wczytać (np. L
     spoza 0–1), nie jest zapisywana: ``SessionFormatError`` i plik zostaje nietknięty.
     """
-    target = Path(path)
+    # dowiązanie symboliczne: zapis do pliku docelowego, nie w miejsce dowiązania (przegląd M17)
+    target = Path(os.path.realpath(path))
     if target.exists() and not overwrite:
         raise FileExistsError(f"Plik już istnieje: {target}")
     doc = session_to_dict(s)

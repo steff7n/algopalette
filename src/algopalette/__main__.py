@@ -17,16 +17,32 @@ def fresh_session() -> Session:
     return default_session()  # ma już zasady presetu „neutralny”
 
 
+KEEP_PREV = 10  # ile kopii „prev” autozapisu zostaje (najstarsze nadmiarowe znikają)
+
+
 def _keep_autosave(suffix: str) -> str | None:
-    """Przenosi istniejący autozapis obok (żeby pierwsza zmiana go nie nadpisała; przegląd I7)."""
+    """Przenosi istniejący autozapis obok (żeby pierwsza zmiana go nie nadpisała; przegląd I7).
+
+    Nazwa ma znacznik czasu, więc kolejne starty z pliku nie nadpisują wcześniejszej kopii
+    (przegląd 2026-11-18 M14); kopii „prev” zostaje najwyżej ``KEEP_PREV``."""
     path = aio.autosave_path()
     if not path.exists():
         return None
-    target = path.with_name(f"{path.stem}.{suffix}.json")
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    target = path.with_name(f"{path.stem}.{suffix}-{stamp}.json")
+    n = 1
+    while target.exists():
+        n += 1
+        target = path.with_name(f"{path.stem}.{suffix}-{stamp}-{n}.json")
     try:
         path.replace(target)
     except OSError:
         return None
+    if suffix == "prev":
+        old = sorted(path.parent.glob(f"{path.stem}.prev-*.json"))  # nazwa = czas
+        for p in old[:-KEEP_PREV]:
+            with contextlib.suppress(OSError):
+                p.unlink()
     return str(target)
 
 
@@ -66,7 +82,8 @@ def startup_session(file: Path | None, fresh: bool) -> Startup:
     """Sesja startowa, komunikat dla użytkownika, ścieżka otwartego pliku i komunikaty migracji.
 
     Gdy sesja NIE pochodzi z autozapisu, a autozapis istnieje, jest on przenoszony do
-    ``last.prev.json`` (uszkodzony: ``last.corrupt-<czas>.json``) — nic nie ginie. Autozapis
+    ``last.prev-<czas>.json`` (ostatnie ``KEEP_PREV``; uszkodzony: ``last.corrupt-<czas>.json``)
+    — nic nie ginie. Autozapis
     w formacie v1 jest migrowany, a stary plik zostaje obok jako ``last.v1.json``.
     """
     notes: list[str] = []
@@ -87,7 +104,7 @@ def startup_session(file: Path | None, fresh: bool) -> Startup:
             try:
                 session, migration = aio.load_session_ex(path)
             except (aio.SessionFormatError, OSError) as e:
-                kept = _keep_autosave(f"corrupt-{time.strftime('%Y%m%d-%H%M%S')}")
+                kept = _keep_autosave("corrupt")
                 notes.append(f"Autozapis uszkodzony ({e}) — start od nowej palety.")
                 if kept:
                     notes.append(f"Uszkodzony plik zachowano jako {kept}.")

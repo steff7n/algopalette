@@ -149,7 +149,7 @@ def _random_conditions(
     rng: random.Random, base: Any, role: Any, prob: float, metric: str, de: str, hue_kind: Any
 ) -> Any:
     """Zastępuje pola ``base`` z prawdopodobieństwem ``prob``; najwyżej jeden rodzaj odcienia."""
-    from algopalette.forms import fields_for
+    from algopalette.forms import fields_for  # ty: ignore[unresolved-import]
     from algopalette.model import Cond  # ty: ignore[unresolved-import]
 
     changes: dict[str, Any] = {}
