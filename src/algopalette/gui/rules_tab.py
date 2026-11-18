@@ -61,6 +61,10 @@ from algopalette.gui.widgets import (
 )
 from algopalette.model import (
     MAX_ACCENTS,
+    MAX_BUDGET,
+    MAX_PROPOSALS,
+    MAX_SEED,
+    MAX_THREADS,
     MIN_ACCENTS,
     OKLCH,
     ContrastMetric,
@@ -679,11 +683,19 @@ class RulesTab(QWidget):
         box, lay = group("Generowanie", "rules.generation")
         w, fl = form()
 
-        def field(name: str, label: str, integer: bool, minimum: float, key: str) -> NumEdit:
+        def field(
+            name: str,
+            label: str,
+            integer: bool,
+            minimum: float,
+            key: str,
+            maximum: float | None = None,
+        ) -> NumEdit:
             e = NumEdit(
                 getattr(o, name),
                 integer=integer,
                 minimum=minimum,
+                maximum=maximum,
                 width=96,
                 step=1.0 if integer else 0.0,
             )
@@ -693,8 +705,8 @@ class RulesTab(QWidget):
             self.palette_widgets[f"gen.{name}"] = e
             return e
 
-        field("n_proposals", "liczba propozycji", True, 1, "rules.gen.n_proposals")
-        seed = NumEdit(o.seed, integer=True, minimum=0, width=96)
+        field("n_proposals", "liczba propozycji", True, 1, "rules.gen.n_proposals", MAX_PROPOSALS)
+        seed = NumEdit(o.seed, integer=True, minimum=0, maximum=MAX_SEED, width=96)
         seed.committed.connect(lambda v: self._opt("seed", v, True))
         rnd = QPushButton("🎲 losuj")
         rnd.clicked.connect(
@@ -702,11 +714,11 @@ class RulesTab(QWidget):
         )
         fl.addRow("ziarno", keyed(hbox(seed, rnd), "rules.gen.seed", children=True))
         self.palette_widgets.update({"gen.seed": seed, "gen.random": rnd})
-        field("budget", "budżet (oceny na przebieg)", True, 1, "rules.gen.budget")
-        field("time_cap_s", "limit czasu (s)", False, 0, "rules.gen.time_cap")
+        field("budget", "budżet (oceny na przebieg)", True, 1, "rules.gen.budget", MAX_BUDGET)
+        field("time_cap_s", "limit czasu (s, 0 = bez)", False, 0, "rules.gen.time_cap")
         field("min_diversity", "różnorodność ΔE", False, 0, "rules.gen.min_diversity")
         field("hard_weight", "waga twardych", False, 0, "rules.gen.hard_weight")
-        field("threads", "wątki (0 = wszystkie)", True, 0, "rules.gen.threads")
+        field("threads", "wątki (0 = wszystkie)", True, 0, "rules.gen.threads", MAX_THREADS)
         help.attach_form_labels(fl)
         lay.addWidget(w)
         return box

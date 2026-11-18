@@ -184,13 +184,14 @@ class ProposalsTab(QWidget):
             self.win.notify("Generowanie już trwa.")
             return
         self._error = None
-        self.base = self.win.session
+        base = self.win.session
         ids = None if slot_ids is None else set(slot_ids)
         try:
-            self._gen = engine.start(self.base, ids)
+            self._gen = engine.start(base, ids)
         except (ValueError, RuntimeError) as e:  # silnik odrzucił sesję — pokaż, nie wywracaj GUI
             self._failed(str(e))
             return
+        self.base = base  # dopiero po udanym starcie: stara lista zostaje przy starej bazie
         self.running = True
         self.progress.setValue(0)
         self.status.setText("Generowanie…")
@@ -201,6 +202,13 @@ class ProposalsTab(QWidget):
         sid = self.win.selected_slot_id()
         if sid is None:
             self.win.notify("Najpierw zaznacz kolor na zakładce Paleta.")
+            return
+        slot = next(s for s in self.win.session.slots if s.id == sid)
+        if slot.locked:
+            self.win.notify(
+                f"„{slot.name or 'zaznaczony kolor'}” ma kłódkę — nie ma czego liczyć. "
+                "Zdejmij kłódkę albo zaznacz inny kolor."
+            )
             return
         self.start({sid})
 
@@ -240,7 +248,11 @@ class ProposalsTab(QWidget):
         except Exception as e:
             self._failed(str(e))
             return
-        self._done(result, cancelled=state.state == "cancelled")
+        self._done(
+            result,
+            cancelled=state.state == "cancelled",
+            timed_out=bool(getattr(gen, "timed_out", False)),
+        )
 
     def _finish(self) -> None:
         self._timer.stop()
@@ -288,16 +300,28 @@ class ProposalsTab(QWidget):
         if r >= 0:
             self._detail(r)
 
-    def _done(self, result: list[Proposal], *, cancelled: bool = False) -> None:
+    def _done(
+        self, result: list[Proposal], *, cancelled: bool = False, timed_out: bool = False
+    ) -> None:
         self.running = False
         self.proposals = result
         self.progress.setValue(1000)
-        ok = sum(p.ok for p in result)
+        # „bez twardych naruszeń” nie zależy od ⏱ (przegląd 2026-11-18 I6)
+        ok = sum(not any(v.hard for v in p.violations) for p in result)
         note = " (przerwano)" if cancelled else ""
         seed = self.base.globals.optimizer.seed if self.base else "?"
-        self.status.setText(
-            f"{len(result)} propozycji, {ok} bez twardych naruszeń{note}. Ziarno {seed}."
-        )
+        text = f"{len(result)} propozycji, {ok} bez twardych naruszeń{note}. Ziarno {seed}."
+        if timed_out or any(p.timed_out for p in result):
+            cap = self.base.globals.optimizer.time_cap_s if self.base else 0.0
+            if result:
+                text += f" Zadziałał limit czasu ({cap:g} s) — wynik ⏱ niepowtarzalny."
+            else:
+                text = (
+                    f"Limit czasu ({cap:g} s) zadziałał, zanim silnik ukończył choć jeden "
+                    "przebieg — brak propozycji. Zwiększ limit albo ustaw 0 (bez limitu) w "
+                    "Zasady → cała paleta → Generowanie."
+                )
+        self.status.setText(text)
         self._fill()
         self._update_buttons()
 
@@ -380,7 +404,7 @@ class ProposalsTab(QWidget):
 
     def take_whole(self) -> None:
         i = self._current()
-        if i is None:
+        if i is None or self.running:  # dwuklik w trakcie generowania
             return
         p = self.proposals[i]
         # Tylko kolory, które propozycja zmieniała i które nadal są w palecie (paleta mogła się
@@ -395,7 +419,7 @@ class ProposalsTab(QWidget):
     def take_color(self) -> None:
         i = self._current()
         r = self.detail.currentRow()
-        if i is None or r < 0:
+        if i is None or r < 0 or self.running:
             return
         item = self.detail.item(r, 0)
         sid = item.data(Qt.ItemDataRole.UserRole) if item else None

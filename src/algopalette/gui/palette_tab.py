@@ -393,6 +393,10 @@ class SlotEditor(QScrollArea):
         if slot.locked != on:
             self.win.set_session(with_slot(s, replace(slot, locked=on)))
 
+    def _slider_value(self, key: str) -> float | None:
+        sl = self.value_sliders.get(key)
+        return None if sl is None else sl.value()
+
     def _value(self, key: str, x: float | None) -> None:
         if x is None or not self.alive():
             return
@@ -400,7 +404,13 @@ class SlotEditor(QScrollArea):
         v = slot.value
         x = float(x)
         if key.startswith("hsl-"):
-            hh, ss, ll = col.to_hsl(v, s.globals.fit_method)
+            # pozostałe składowe z suwaków edytora, nie z koloru: szary/czarny/biały nie ma
+            # odcienia ani nasycenia, więc H ustawione przed S by przepadło (przegląd M6)
+            stored = col.to_hsl(v, s.globals.fit_method)
+            hh, ss, ll = (
+                float(cur) if (cur := self._slider_value(k)) is not None else fallback
+                for k, fallback in zip(("hsl-h", "hsl-s", "hsl-l"), stored, strict=True)
+            )
             hsl = {"hsl-h": (x, ss, ll), "hsl-s": (hh, x, ll), "hsl-l": (hh, ss, x)}[key]
             new = col.from_hsl(*hsl)
         else:

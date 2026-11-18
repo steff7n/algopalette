@@ -2,6 +2,24 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
+## 0h. PRZEGLĄD CAŁOŚCI + FALA NAPRAW (2026-11-18) — W TOKU na `feat/bez-daltonizmu`
+
+- **Prośba użytkownika:** „uruchom najpierw przegląd, ale nie tylko tej gałęzi, tylko całości aplikacji”.
+  Przegląd (Opus xhigh) na `7532aa4`: **3 C / 7 I / 22 M**. Raport (poza gitem):
+  `.superpowers/sdd/2026-11-18-przeglad-calosci/report.md` — tam numeracja C1…M22, pliki:linie, scenariusze.
+- **Decyzje użytkownika (WIĄŻĄCE):** „nie, nie zlecaj później przeglądu samych poprawek. naprawiasz i scalasz.”
+  + „tylko naprawiasz je sam, bez subagentów” → naprawiam WSZYSTKIE 32 znaleziska sam (bez subagentów), bez
+  re-review, potem scalenie `feat/bez-daltonizmu` → `main` (push NIE zlecony).
+- **Postęp (dopisuj):** C1 ☑ (`units.rules_in_method`; `presets._resolve(delta_e=)`, preset użytkownika zapisuje
+  `delta_e`, stare wpisy = ok; `is_modified` porównuje próg do 9 cyfr; `sources` Charakter/Przeniesienie),
+  C2 ☑ (`History` ma etykiety stanów = ścieżka pliku; `MainWindow.file_path` to właściwość na `history.tag`,
+  setter = `history.retag` bloku dokumentu; `replace_session(…, file_path=)`), C3 ☑ (`from_css` odrzuca L ∉ [0,1];
+  `save_session` waliduje dokument dekoderem przed zapisem), I1 ☑ (`engine_error` → czerwony tytuł panelu; maksima
+  `MAX_SEED/MAX_PROPOSALS/MAX_BUDGET/MAX_THREADS` w `model`, `io._int(maximum=)`, `NumEdit` liczby całkowite
+  dokładnie), I5 ☑ (`History.set_current` bez obcinania redo), I6 ☑ (Rust: `time_cap_s == 0` = bez limitu;
+  status rozdziela ⏱ i tłumaczy pusty wynik; pomoc), M5 ☑, M6 ☑, M7 ☑, M8 ☑, M9 ☑, M10 ☑ (`NumEdit._commit`
+  ignoruje niezmieniony tekst). Testy: `tests/test_review_2026_11_18.py`, `tests/gui/test_review_2026_11_18.py`.
+
 ## 0g. USUNIĘTY DALTONIZM (2026-11-18) — zrobione na gałęzi `feat/bez-daltonizmu` (od `main` @ `9971497`), NIE scalone
 
 - **Prośba (WIĄŻĄCA, nie otwieraj ponownie):** „wywal calkowicie z aplikacji funkcjonalnosci odnoszace sie do

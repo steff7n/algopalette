@@ -156,6 +156,7 @@ class Generation:
     def __init__(self, session: Session, free: tuple[str, ...]) -> None:
         self._session = session
         self._free = free
+        self.timed_out = False  # po ``result()``: czy zadziałał limit czasu
         self._job = _engine.start(to_engine_json(session, free), list(free))
 
     def poll(self) -> Progress:
@@ -176,7 +177,8 @@ class Generation:
         if state.state == "running":
             raise RuntimeError("Generowanie jeszcze trwa.")
         res = self._job.result()
-        return [self._proposal(p, bool(res["timed_out"])) for p in res["proposals"]]
+        self.timed_out = bool(res["timed_out"])
+        return [self._proposal(p, self.timed_out) for p in res["proposals"]]
 
     def _proposal(self, p: Mapping[str, Any], timed_out: bool) -> Proposal:
         s = self._session

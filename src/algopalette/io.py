@@ -21,6 +21,10 @@ from typing import Any, get_args
 from algopalette.color import to_hex
 from algopalette.model import (
     MAX_ACCENTS,
+    MAX_BUDGET,
+    MAX_PROPOSALS,
+    MAX_SEED,
+    MAX_THREADS,
     MIN_ACCENTS,
     OKLCH,
     RULE_FIELDS,
@@ -142,12 +146,21 @@ def _nonneg(d: dict[str, Any], key: str, path: str) -> float:
     return v
 
 
-def _int(d: dict[str, Any], key: str, path: str, *, minimum: int | None = None) -> int:
+def _int(
+    d: dict[str, Any],
+    key: str,
+    path: str,
+    *,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int:
     v = _get(d, key, path)
     if isinstance(v, bool) or not isinstance(v, int):
         raise _err(_join(path, key), "powinno być liczbą całkowitą")
     if minimum is not None and v < minimum:
         raise _err(_join(path, key), f"musi wynosić co najmniej {minimum}")
+    if maximum is not None and v > maximum:
+        raise _err(_join(path, key), f"może wynosić najwyżej {maximum}")
     return v
 
 
@@ -421,13 +434,13 @@ def _enc_optimizer(o: OptimizerSettings) -> dict[str, Any]:
 def _dec_optimizer(v: Any, path: str) -> OptimizerSettings:
     d = _dict(v, path)
     return OptimizerSettings(
-        n_proposals=_int(d, "n_proposals", path, minimum=1),
-        seed=_int(d, "seed", path, minimum=0),
-        budget=_int(d, "budget", path, minimum=1),
+        n_proposals=_int(d, "n_proposals", path, minimum=1, maximum=MAX_PROPOSALS),
+        seed=_int(d, "seed", path, minimum=0, maximum=MAX_SEED),
+        budget=_int(d, "budget", path, minimum=1, maximum=MAX_BUDGET),
         time_cap_s=_nonneg(d, "time_cap_s", path),
         min_diversity=_nonneg(d, "min_diversity", path),
         hard_weight=_nonneg(d, "hard_weight", path),
-        threads=_int(d, "threads", path, minimum=0),
+        threads=_int(d, "threads", path, minimum=0, maximum=MAX_THREADS),
     )
 
 
@@ -533,12 +546,18 @@ def save_session(s: Session, path: str | os.PathLike[str], overwrite: bool = Fal
 
     Istniejący plik bez ``overwrite=True`` → ``FileExistsError`` (plik nietknięty). Brakujące
     katalogi nadrzędne są tworzone. Błędy wejścia/wyjścia (brak uprawnień itp.) lecą jako
-    ``OSError`` — łapie je warstwa interfejsu.
+    ``OSError`` — łapie je warstwa interfejsu. Sesja, której nie dałoby się potem wczytać (np. L
+    spoza 0–1), nie jest zapisywana: ``SessionFormatError`` i plik zostaje nietknięty.
     """
     target = Path(path)
     if target.exists() and not overwrite:
         raise FileExistsError(f"Plik już istnieje: {target}")
-    text = json.dumps(session_to_dict(s), ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+    doc = session_to_dict(s)
+    try:
+        session_from_dict(json.loads(json.dumps(doc, allow_nan=False)))
+    except (SessionFormatError, ValueError) as e:
+        raise SessionFormatError(f"Sesja ma niepoprawne dane, zapis wstrzymany: {e}") from None
+    text = json.dumps(doc, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
     target.parent.mkdir(parents=True, exist_ok=True)
     mode = target.stat().st_mode & 0o777 if target.exists() else 0o644
     fd, tmp_name = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")

@@ -7,7 +7,7 @@ Nie ma dziedziczenia ani wartości wspólnych dla roli — domyślne zasady ról
 import uuid
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, replace
-from typing import Literal
+from typing import Any, Literal
 
 Role = Literal["bg", "fg", "accent"]
 ContrastMetric = Literal["wcag21", "apca"]
@@ -33,6 +33,12 @@ class OKLCH:
 MAX_ACCENTS = 14
 MIN_ACCENTS = 1
 HISTORY_LIMIT = 200
+# Górne granice ustawień generowania (przegląd 2026-11-18 I1): ziarno mieści się w u64 silnika,
+# reszta chroni przed zadaniami bez końca i pulą tysięcy wątków.
+MAX_SEED = 2**64 - 1
+MAX_PROPOSALS = 1024
+MAX_BUDGET = 1_000_000
+MAX_THREADS = 256
 
 RULE_FIELDS: tuple[str, ...] = (
     "lightness",
@@ -447,22 +453,37 @@ def move_slot(session: Session, slot_id: str, new_index: int) -> Session:
     return replace(session, slots=tuple(items))
 
 
+_SAME: Any = object()  # znacznik „etykieta jak w bieżącym stanie” (History.push)
+
+
 class History:
     """Undo/redo sesji. ``limit`` = maks. liczba stanów (łącznie z bieżącym); najstarszy znika.
 
     ``push`` po ``undo`` odcina ogon redo. Stany niezmienne (frozen), więc nie kopiujemy.
+
+    Każdy stan ma etykietę (``tag``) — w oknie to ścieżka pliku sesji, z którego stan pochodzi.
+    Cofnięcie poza „Wczytaj” wraca więc też do poprzedniej ścieżki (przegląd 2026-11-18 C2: inaczej
+    Ctrl+S nadpisywało wczytany plik poprzednią sesją).
     """
 
-    def __init__(self, initial: Session | None = None, limit: int = HISTORY_LIMIT) -> None:
+    def __init__(
+        self, initial: Session | None = None, limit: int = HISTORY_LIMIT, tag: Any = None
+    ) -> None:
         if limit < 1:
             raise ValueError("Limit historii musi wynosić co najmniej 1")
         self.limit = limit
         self._states: list[Session] = [] if initial is None else [initial]
+        self._tags: list[Any] = [] if initial is None else [tag]
         self._pos = len(self._states) - 1
 
     @property
     def current(self) -> Session | None:
         return self._states[self._pos] if self._pos >= 0 else None
+
+    @property
+    def tag(self) -> Any:
+        """Etykieta bieżącego stanu (``None`` przy pustej historii)."""
+        return self._tags[self._pos] if self._pos >= 0 else None
 
     def __len__(self) -> int:
         return len(self._states)
@@ -475,11 +496,17 @@ class History:
     def can_redo(self) -> bool:
         return self._pos < len(self._states) - 1
 
-    def push(self, s: Session) -> None:
+    def push(self, s: Session, tag: Any = _SAME) -> None:
+        """Nowy stan; bez ``tag`` dziedziczy etykietę bieżącego stanu."""
+        tag = self.tag if tag is _SAME else tag
         del self._states[self._pos + 1 :]
+        del self._tags[self._pos + 1 :]
         self._states.append(s)
+        self._tags.append(tag)
         if len(self._states) > self.limit:
-            del self._states[0 : len(self._states) - self.limit]
+            cut = len(self._states) - self.limit
+            del self._states[0:cut]
+            del self._tags[0:cut]
         self._pos = len(self._states) - 1
 
     def replace_current(self, s: Session) -> None:
@@ -488,7 +515,30 @@ class History:
             self.push(s)
             return
         del self._states[self._pos + 1 :]
+        del self._tags[self._pos + 1 :]
         self._states[self._pos] = s
+
+    def set_current(self, s: Session) -> None:
+        """Podmienia bieżący stan BEZ odcinania redo — dla preferencji, które nie są krokiem
+        cofania (widok OKLCH/HSL)."""
+        if self._pos < 0:
+            self.push(s)
+            return
+        self._states[self._pos] = s
+
+    def retag(self, tag: Any) -> None:
+        """Nowa etykieta dla ciągłego bloku stanów wokół bieżącego, które mają jego etykietę
+        (np. „Zapisz jako…” przenosi cały dokument pod nową ścieżkę)."""
+        if self._pos < 0:
+            return
+        old = self._tags[self._pos]
+        lo = hi = self._pos
+        while lo > 0 and self._tags[lo - 1] == old:
+            lo -= 1
+        while hi < len(self._tags) - 1 and self._tags[hi + 1] == old:
+            hi += 1
+        for i in range(lo, hi + 1):
+            self._tags[i] = tag
 
     def undo(self) -> Session | None:
         if not self.can_undo:

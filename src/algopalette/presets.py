@@ -24,6 +24,7 @@ from algopalette import io as aio
 from algopalette.globals_logic import change_metric
 from algopalette.model import (
     ContrastMetric,
+    DeltaEMethod,
     HueScheme,
     Interval,
     Polarity,
@@ -33,6 +34,7 @@ from algopalette.model import (
     role_of,
 )
 from algopalette.presets_builtin import BUILTIN, CATEGORIES, PresetDef
+from algopalette.units import rules_in_method
 
 __all__ = [
     "CATEGORIES",
@@ -121,6 +123,7 @@ def _encode_entry(session: Session, description: str) -> dict[str, Any]:
         "description": description,
         "polarity": g.polarity,
         "contrast_metric": g.contrast_metric,
+        "delta_e": g.delta_e,  # skala progów odległości w „colors” (przegląd 2026-11-18 C1)
         "hue_scheme": aio._enc_hue_scheme(g.hue_scheme),
         "lightness_spread": aio._enc_rule("lightness_spread", g.lightness_spread),
         "colors": [
@@ -129,15 +132,21 @@ def _encode_entry(session: Session, description: str) -> dict[str, Any]:
     }
 
 
-def _decode_entry(name: str, entry: dict[str, Any], n_slots: int) -> _Resolved:
+def _decode_entry(
+    name: str, entry: dict[str, Any], n_slots: int, delta_e: DeltaEMethod
+) -> _Resolved:
+    """Preset użytkownika z progami odległości przeliczonymi na ``delta_e`` sesji (wpisy sprzed
+    2026-11-18 nie mają ``delta_e`` — traktowane jako ``ok``)."""
     try:
         raw = entry["colors"]
         if not isinstance(raw, list) or len(raw) < 3:
             raise aio.SessionFormatError("lista kolorów musi mieć co najmniej 3 pozycje")
+        saved_de = aio._lit(entry, "delta_e", "", aio._DELTA_E) if "delta_e" in entry else "ok"
         colors: list[tuple[SlotRules, bool]] = []
         for i in range(n_slots):
             item = raw[min(i, len(raw) - 1)]  # brakujące akcenty = ostatni zapisany
             rules = aio._dec_rules(item["rules"], f"colors[{i}].rules", role_of(i))
+            rules = rules_in_method(rules, saved_de, delta_e)
             use_scheme = item["use_scheme"]
             if not isinstance(use_scheme, bool):
                 raise aio.SessionFormatError(f"colors[{i}].use_scheme powinno być true/false")
@@ -207,16 +216,22 @@ def supports(name: str, polarity: str) -> bool:
 
 
 def _resolve(
-    name: str, polarity: Polarity, metric: ContrastMetric, n_slots: int, *, strict: bool
+    name: str,
+    polarity: Polarity,
+    metric: ContrastMetric,
+    n_slots: int,
+    *,
+    strict: bool,
+    delta_e: DeltaEMethod = "ok",
 ) -> _Resolved:
     """``strict`` — polaryzacja nieobsługiwana przez preset to błąd; inaczej bierze pierwszą
-    obsługiwaną."""
+    obsługiwaną. Progi odległości wychodzą w skali ``delta_e`` (metoda ΔE sesji)."""
     pdef = _BY_NAME.get(name)
     if pdef is None:
         user = _load_doc()["presets"]
         if name not in user:
             raise ValueError(f"Nie ma presetu „{name}”.")
-        res = _decode_entry(name, user[name], n_slots)
+        res = _decode_entry(name, user[name], n_slots, delta_e)
         if strict and res.polarity != polarity:
             raise ValueError(f"Preset „{name}” zapisano dla innej polaryzacji tła.")
         return res
@@ -237,6 +252,8 @@ def _resolve(
             if override.use_scheme is not None:
                 use_scheme = override.use_scheme
         colors.append((accent, use_scheme))
+    # deklaracje presetów mają progi odległości w skali ΔE ok
+    colors = [(rules_in_method(r, "ok", delta_e), u) for r, u in colors]
     return _Resolved(polarity, metric, rules.hue_scheme, rules.lightness_spread, tuple(colors))
 
 
@@ -249,7 +266,14 @@ def apply_preset(session: Session, name: str, *, polarity: str | None = None) ->
     wanted: Polarity = (
         g.polarity if polarity is None else ("dark" if polarity == "dark" else "light")
     )
-    res = _resolve(name, wanted, g.contrast_metric, len(session.slots), strict=polarity is not None)
+    res = _resolve(
+        name,
+        wanted,
+        g.contrast_metric,
+        len(session.slots),
+        strict=polarity is not None,
+        delta_e=g.delta_e,
+    )
     s = change_metric(session, res.contrast_metric)  # przelicza progi zależności
     g2 = replace(
         s.globals,
@@ -277,7 +301,12 @@ def is_modified(session: Session) -> bool:
     g = session.globals
     try:
         res = _resolve(
-            session.preset, g.polarity, g.contrast_metric, len(session.slots), strict=True
+            session.preset,
+            g.polarity,
+            g.contrast_metric,
+            len(session.slots),
+            strict=True,
+            delta_e=g.delta_e,
         )
     except ValueError:
         return True
@@ -286,10 +315,19 @@ def is_modified(session: Session) -> bool:
     if res.hue_scheme != g.hue_scheme or res.lightness_spread != g.lightness_spread:
         return True
     return any(
-        (slot.rules, slot.use_scheme) != expected
-        for slot, expected in zip(session.slots, res.colors, strict=True)
+        (_comparable(slot.rules), slot.use_scheme) != (_comparable(rules), use_scheme)
+        for slot, (rules, use_scheme) in zip(session.slots, res.colors, strict=True)
         if slot.rules_lock == "off"
     )
+
+
+def _comparable(rules: SlotRules) -> SlotRules:
+    """Próg odległości zaokrąglony do 9 cyfr znaczących: przeliczenia między metodami ΔE
+    (ok → 2000 → hyab) różnią się od przeliczenia wprost o błąd zaokrągleń float."""
+    r = rules.min_distance
+    if r is None:
+        return rules
+    return replace(rules, min_distance=replace(r, value=float(f"{r.value:.9g}")))
 
 
 def change_polarity(session: Session, polarity: str, *, reapply: bool) -> Session:

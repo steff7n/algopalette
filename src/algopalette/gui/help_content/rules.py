@@ -911,12 +911,14 @@ liczył inne, tańsze oceny, więc pliki z nich mają tę wartość przeliczoną
     ),
     "rules.gen.time_cap": Topic(
         "Limit czasu",
-        "Bezpiecznik w sekundach. Po jego zadziałaniu propozycje są oznaczone jako niepowtarzalne.",
-        f"""Domyślnie {_OPT.time_cap_s:g} s na całe generowanie. Pracę ogranicza
+        "Bezpiecznik w sekundach (0 = bez limitu). Po jego zadziałaniu propozycje są oznaczone jako "
+        "niepowtarzalne.",
+        f"""Domyślnie {_OPT.time_cap_s:g} s na całe generowanie; **0 wyłącza limit**. Pracę ogranicza
 [budżet](help:rules.gen.budget); limit czasu chroni tylko przed bardzo długim liczeniem przy
-skrajnych ustawieniach. Gdy zadziała, silnik oddaje to, co zdążył, a **wszystkie** propozycje tej
+skrajnych ustawieniach. Gdy zadziała, silnik oddaje propozycje z przebiegów, które zdążył
+**ukończyć** (przebieg przerwany w połowie nie daje propozycji), a **wszystkie** propozycje tej
 generacji dostają stan ⏱ — wynik zależał od szybkości komputera, więc to samo ziarno może dać
-następnym razem coś innego.""",
+następnym razem coś innego. Zbyt krótki limit może nie dać żadnej propozycji — status to powie.""",
         Z,
     ),
     "rules.gen.min_diversity": Topic(

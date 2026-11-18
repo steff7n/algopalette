@@ -38,6 +38,7 @@ from algopalette.model import (
     default_rules,
     remove_slot,
 )
+from algopalette.units import rules_in_method
 
 MAX_COLORS = MAX_ACCENTS + 2
 TOKEN = re.compile(r"[A-Za-z][\w-]*\([^)]*\)|[^\s,;]+")
@@ -220,7 +221,7 @@ def character_settings(session: Session, profile: Profile) -> CharacterSettings:
     lightness = _widen(profile.lightness, 0.03)
     rel_chroma = _widen(profile.rel_chroma, 0.05)
     accent = replace(
-        default_rules("accent", polarity, metric),
+        rules_in_method(default_rules("accent", polarity, metric), "ok", g.delta_e),
         lightness=Rule(Band(lightness.lo, lightness.hi)),
         chroma=Rule(ChromaBand("rel", rel_chroma.lo, rel_chroma.hi)),
         # poziom kontrastu akcentów jak w źródle (p10), w metryce sesji
@@ -312,7 +313,7 @@ def apply_transfer(
     fg_base = default_rules("fg", pol, metric)
     fg_rules = fg_base if src_fg is None else _transfer_rules(src_fg, src_bg, metric, tol, fg_base)
     slots[1] = replace(slots[1], locked=False, rules=fg_rules, use_scheme=True, rules_lock="off")
-    accent_base = default_rules("accent", pol, metric)
+    accent_base = rules_in_method(default_rules("accent", pol, metric), "ok", g.delta_e)
     for k, c in enumerate(rest):
         slots[2 + k] = replace(
             slots[2 + k],

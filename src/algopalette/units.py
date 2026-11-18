@@ -19,6 +19,7 @@ from algopalette.model import (
     Rule,
     Session,
     Slot,
+    SlotRules,
 )
 
 DE_SCALE: dict[str, float] = {"ok": 1.0, "hyab": 1.3, "2000": 156.0, "itp": 426.0, "cam16": 156.0}
@@ -41,6 +42,18 @@ def convert_contrast(v: float, old: str, new: str) -> float:
 
 def default_distance(method: str, ok_value: float) -> float:
     return ok_value * DE_SCALE[method]
+
+
+def rules_in_method(rules: SlotRules, old: str, new: str) -> SlotRules:
+    """Zasady koloru z progiem odległości przeliczonym z metody ``old`` na ``new``.
+
+    Zasady budowane od zera (``default_rules``, presety wbudowane, tryby Źródła) mają progi
+    w skali ``ok``; trafiają do sesji z inną metodą ΔE tylko przez tę funkcję (przegląd
+    2026-11-18 C1: inaczej 0.08 lądowało jako „0.08 CIEDE2000” i zasada przestawała działać)."""
+    if old == new or rules.min_distance is None:
+        return rules
+    scaled = _scaled(rules.min_distance, lambda v: convert_de(v, old, new))
+    return replace(rules, min_distance=scaled)
 
 
 def _scaled(rule: Rule[float] | None, f: Callable[[float], float]) -> Rule[float] | None:

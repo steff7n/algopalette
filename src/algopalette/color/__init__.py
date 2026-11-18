@@ -102,8 +102,16 @@ def from_css(text: str) -> OKLCH:
     except Exception:  # coloraide zgłasza ValueError, ale i inne błędy parsowania
         raise ValueError(f"Nie można odczytać koloru „{text}”.") from None
     c = _from_color(col)
+    if not all(math.isfinite(v) for v in (c.l, c.c, c.h)):
+        raise ValueError(f"Nie można odczytać koloru „{text}”.")
     # Zaokrąglenie usuwa szum numeryczny (np. 70% vs 0.7, chroma ≈ 1e-17 dla szarości).
-    return OKLCH(round(c.l, 12), round(c.c, 12), round(c.h, 12) % 360.0)
+    l_ = round(c.l, 12)
+    if not 0.0 <= l_ <= 1.0:
+        raise ValueError(
+            f"Kolor „{text}” ma jasność OKLCH {c.l:g} — poza zakresem 0–1 (sRGB ani ekran go nie "
+            "pokażą). W oklch() jasność podaje się jako 0–1 albo 0–100%, np. oklch(0.7 0.1 30)."
+        )
+    return OKLCH(l_, round(c.c, 12), round(c.h, 12) % 360.0)
 
 
 def to_hsl(c: OKLCH, fit: FitMethod) -> tuple[float, float, float]:

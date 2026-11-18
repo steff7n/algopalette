@@ -118,3 +118,17 @@ def test_hsl_roundtrip():
     assert to_hsl(from_css("#808080"), "clip")[1] == pytest.approx(
         0.0, abs=1e-6
     )  # szarość: S = 0, H = 0
+
+
+@pytest.mark.parametrize(
+    "text", ["oklch(70 0.1 30)", "oklch(1.2 0 0)", "lab(110 0 0)", "color(srgb 1.1 1 1)"]
+)
+def test_from_css_rejects_lightness_outside_0_1(text):
+    """Przegląd 2026-11-18 C3: L spoza 0–1 psuło sesję i autozapis."""
+    with pytest.raises(ValueError, match="0–1"):
+        from_css(text)
+
+
+def test_from_css_keeps_extremes_inside():
+    assert from_css("#ffffff").l == 1.0
+    assert from_css("#000000").l == 0.0

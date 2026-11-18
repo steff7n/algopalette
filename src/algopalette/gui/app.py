@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import sys
 import time
 from collections.abc import Sequence
@@ -44,7 +45,9 @@ AUTOSAVE_DELAY_MS = 500
 
 
 PAIR_KINDS = ("pair_distance",)
-PALETTE_KINDS = ("spread", "diversity")
+# próg i lista unikanych kolorów są w ustawieniach całej palety (przegląd 2026-11-18 M5)
+PALETTE_KINDS = ("spread", "diversity", "avoid")
+_KEEP_PATH: Any = object()  # replace_session: plik sesji bez zmian
 
 
 def rule_owners(v: Violation) -> tuple[str, ...]:
@@ -90,12 +93,20 @@ class ViolationsPanel(QWidget):
         if 0 <= row < len(self.shown):
             self.activated.emit(self.shown[row])
 
-    def show_violations(self, violations: list[Violation], session: Session) -> None:
+    def show_violations(
+        self, violations: list[Violation], session: Session, error: str | None = None
+    ) -> None:
+        """``error``: silnik odrzucił sesję — trwały czerwony stan zamiast „✓” (przegląd I1)."""
         hard = [v for v in violations if v.hard]
         soft = [v for v in violations if not v.hard]
         self.shown = [*hard, *soft]
         c = theme.colors()
-        if not violations:
+        if error is not None:
+            self.title.setText(
+                f"<span style='color:{c.hard}'>✗ Silnik nie przyjął zasad — naruszeń nie da się "
+                f"policzyć: {html.escape(error)}</span>"
+            )
+        elif not violations:
             self.title.setText(
                 f"<span style='color:{c.ok}'>✓ Bieżąca paleta spełnia wszystkie zasady</span>"
             )
@@ -137,13 +148,13 @@ class MainWindow(QMainWindow):
         from algopalette.gui.rules_tab import RulesTab
         from algopalette.gui.source_tab import SourceTab
 
-        self.history = History(session)
+        self.history = History(session, tag=file_path)
         self.autosave_enabled = autosave
-        self.file_path = file_path
         self._last_key: str | None = None
         self._last_time = 0.0
         self._autosave_pending = False
         self.violations: list[Violation] = []
+        self.engine_error: str | None = None
         self.migration_notes: tuple[str, ...] = ()
         self._notes_box: QMessageBox | None = None
 
@@ -215,9 +226,26 @@ class MainWindow(QMainWindow):
         self._last_key, self._last_time = coalesce, now
         self.refresh_views(editor=structural)
 
-    def replace_session(self, new: Session) -> None:
-        """Podmiana całej sesji (wczytanie, przejęcie propozycji) — osobny krok cofania."""
-        self.history.push(new)
+    @property
+    def file_path(self) -> Path | None:
+        """Plik sesji bieżącego stanu historii (cofnięcie poza „Wczytaj” wraca do poprzedniego)."""
+        return self.history.tag
+
+    @file_path.setter
+    def file_path(self, path: Path | None) -> None:
+        self.history.retag(path)
+        self._update_title()
+
+    def replace_session(self, new: Session, *, file_path: Any = _KEEP_PATH) -> None:
+        """Podmiana całej sesji (wczytanie, przejęcie propozycji) — osobny krok cofania.
+        ``file_path`` (wczytanie, „Nowa paleta”) zmienia plik sesji tylko dla nowego kroku."""
+        if file_path is _KEEP_PATH:
+            if new == self.session:
+                return  # bez pustych kroków cofania
+            self.history.push(new)
+        else:
+            self.history.push(new, tag=file_path)
+            self._update_title()
         self._last_key = None
         self.refresh_views(editor=True)
 
@@ -225,7 +253,7 @@ class MainWindow(QMainWindow):
         """Widok wartości (OKLCH/HSL) — preferencja widoku, NIE krok cofania."""
         if mode == self.session.view_model:
             return
-        self.history.replace_current(replace(self.session, view_model=mode))
+        self.history.set_current(replace(self.session, view_model=mode))
         self.refresh_views(editor=True)
         self.notify(
             "Widok wartości: " + ("HSL (zasady dalej w OKLCH)" if mode == "hsl" else "OKLCH")
@@ -243,7 +271,7 @@ class MainWindow(QMainWindow):
 
     def _theme_changed(self) -> None:
         """Przemalowanie po zmianie motywu: elementy z kolorami liczonymi przy budowie."""
-        self.violations_panel.show_violations(self.violations, self.session)
+        self.violations_panel.show_violations(self.violations, self.session, self.engine_error)
         self.palette_tab.refresh_from_session(editor=True)
         self.proposals_tab.restyle()
         self._refresh_current_tab()
@@ -254,17 +282,19 @@ class MainWindow(QMainWindow):
 
     def _keep_view(self, mode: ViewModel) -> None:
         if self.session.view_model != mode:
-            self.history.replace_current(replace(self.session, view_model=mode))
+            self.history.set_current(replace(self.session, view_model=mode))
 
     def refresh_views(self, *, editor: bool) -> None:
         """Po każdej zmianie sesji. ``editor``: zmiana przyszła spoza edytowanego właśnie pola
         (cofnij, wczytanie, zmiana struktury) — widoki budują się od nowa."""
         try:
             self.violations = current_violations(self.session)
+            self.engine_error = None
         except ValueError as e:  # silnik odrzucił sesję — pokaż, nie wywracaj okna
             self.violations = []
+            self.engine_error = str(e)
             self.notify(f"Silnik nie przyjął zasad: {e}")
-        self.violations_panel.show_violations(self.violations, self.session)
+        self.violations_panel.show_violations(self.violations, self.session, self.engine_error)
         self.palette_tab.refresh_from_session(editor=editor)
         if self.tabs.currentWidget() is self.rules_tab:
             self.rules_tab.refresh_from_session(force=editor)
@@ -555,6 +585,7 @@ class MainWindow(QMainWindow):
             return
         self._keep_view(mode)
         self._last_key = None
+        self._update_title()
         self.refresh_views(editor=True)
 
     def action_redo(self) -> None:
@@ -564,6 +595,7 @@ class MainWindow(QMainWindow):
             return
         self._keep_view(mode)
         self._last_key = None
+        self._update_title()
         self.refresh_views(editor=True)
 
     def action_new(self) -> None:
@@ -577,9 +609,7 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.No,
         )
         if ans == QMessageBox.StandardButton.Yes:
-            self.file_path = None
-            self._update_title()
-            self.replace_session(fresh_session())
+            self.replace_session(fresh_session(), file_path=None)
 
     # --- pliki ------------------------------------------------------------------------------
     def _pb_text(self) -> str:
@@ -636,7 +666,6 @@ class MainWindow(QMainWindow):
             self.notify(f"Nie udało się zapisać {path}: {msg}", error=True)
             return False
         self.file_path = path
-        self._update_title()
         self.notify(f"Zapisano {path}")
         return True
 
@@ -675,9 +704,7 @@ class MainWindow(QMainWindow):
         except OSError as e:
             self.notify(f"Nie udało się odczytać {path}: {e.strerror or e}", error=True)
             return False
-        self.file_path = path
-        self._update_title()
-        self.replace_session(s)
+        self.replace_session(s, file_path=path)
         self.notify(f"Wczytano {path}")
         self.show_migration_notes(notes)
         return True

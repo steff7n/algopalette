@@ -489,3 +489,16 @@ def test_hue_full_circle_and_wrapping_exclusion_roundtrip():
     rule = s2.slots[2].rules.hue
     assert rule is not None
     assert rule.value.exclude == ((350.0, 10.0),)
+
+
+def test_save_refuses_session_that_could_not_be_loaded(tmp_path):
+    """Przegląd 2026-11-18 C3: zapis nie może tworzyć pliku, którego „Wczytaj” nie otworzy."""
+    s = default_session()
+    bad = replace(s, globals=replace(s.globals, avoid_colors=(OKLCH(70.0, 0.1, 30.0),)))
+    p = tmp_path / "x.json"
+    save_session(s, p)
+    before = p.read_text("utf-8")
+    with pytest.raises(SessionFormatError, match="avoid_colors"):
+        save_session(bad, p, overwrite=True)
+    assert p.read_text("utf-8") == before
+    assert list(tmp_path.iterdir()) == [p]

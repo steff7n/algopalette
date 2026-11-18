@@ -30,14 +30,18 @@ impl Proposal {
 }
 
 /// Parametry sterownika z ustawień optymalizatora sesji. Bez kolorów wolnych wynik to jedna
-/// propozycja (nie ma czego różnicować).
+/// propozycja (nie ma czego różnicować). Limit czasu 0 = bez limitu.
 pub fn driver_opts(session: &Session, problem: &Problem) -> DriverOpts {
     let o = &session.globals.optimizer;
     DriverOpts {
         n: if problem.dim() == 0 { 1 } else { o.n_proposals },
         seed: o.seed,
         budget: o.budget,
-        time_cap: Duration::try_from_secs_f64(o.time_cap_s).unwrap_or(Duration::MAX),
+        time_cap: if o.time_cap_s > 0.0 {
+            Duration::try_from_secs_f64(o.time_cap_s).unwrap_or(Duration::MAX)
+        } else {
+            Duration::MAX
+        },
         min_diversity: o.min_diversity,
         threads: o.threads,
     }

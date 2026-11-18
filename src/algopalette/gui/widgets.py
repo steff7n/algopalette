@@ -257,7 +257,8 @@ class NumEdit(QLineEdit):
         if raw == "":
             return (True, None) if self.allow_none else (False, None)
         try:
-            v = parse_finite(raw)
+            # liczby całkowite dokładnie (ziarno do 2⁶⁴ − 1 nie mieści się w float)
+            v = int(raw) if self.integer and raw.lstrip("+-").isdigit() else parse_finite(raw)
         except ValueError:
             return False, None
         if self.integer:
@@ -274,6 +275,10 @@ class NumEdit(QLineEdit):
         return True, self._clamp(v) if self.wrap else v
 
     def _commit(self) -> None:
+        if self._value is not None and self.text() == format(self._value, self.fmt):
+            # Enter bez zmiany: nie zaokrąglaj wartości do formatu pola (przegląd 2026-11-18 M10)
+            self._bad(False)
+            return
         ok, v = self._parse()
         if not ok:
             self._bad(True)

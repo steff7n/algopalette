@@ -836,8 +836,12 @@ mod tests {
         assert_eq!(list.len(), 1);
         assert!(list[0].values.is_empty());
         assert_eq!(list[0].violations, evaluate(&session).violations);
-        // limit czasu 0 s to natychmiastowy limit: brak propozycji, wynik oznaczony
+        // limit czasu 0 s = bez limitu
         doc["globals"]["optimizer"]["time_cap_s"] = json!(0.0);
+        let session = parse(&doc);
+        assert_eq!(driver_opts(&session, &p).time_cap, Duration::MAX);
+        // limit bliski zera: natychmiastowy limit, brak propozycji, wynik oznaczony
+        doc["globals"]["optimizer"]["time_cap_s"] = json!(1e-9);
         let session = parse(&doc);
         let outcome = generate(&p, &driver_opts(&session, &p), &Control::new());
         assert!(outcome.timed_out && proposals(&p, &outcome, 0.2).is_empty());
