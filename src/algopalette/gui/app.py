@@ -39,7 +39,7 @@ from algopalette.gui.widgets import vbox
 from algopalette.model import History, Session, ViewModel
 from algopalette.pb_export import default_pb_dir, pb_json, write_pb_file
 from algopalette.themes import SOURCES, Palette, Theme, net
-from algopalette.themes.apply import apply_theme
+from algopalette.themes.apply import DEFAULT_SPREAD_DEG, apply_theme
 
 COALESCE_S = 1.5
 AUTOSAVE_DELAY_MS = 500
@@ -702,9 +702,17 @@ class MainWindow(QMainWindow):
         d.raise_()
         d.activateWindow()
 
-    def import_theme(self, t: Theme, palette: Palette, *, keep_settings: bool) -> None:
+    def import_theme(
+        self,
+        t: Theme,
+        palette: Palette,
+        *,
+        keep_settings: bool,
+        spread_deg: float = DEFAULT_SPREAD_DEG,
+    ) -> None:
         """Motyw jako bieżąca sesja (krok cofania); plik sesji bez zmian, nic na dysk."""
-        self.replace_session(apply_theme(self.session, palette, keep_settings=keep_settings))
+        s = apply_theme(self.session, palette, keep_settings=keep_settings, spread_deg=spread_deg)
+        self.replace_session(s)
         self.tabs.setCurrentWidget(self.palette_tab)
         self.notify(f"Wczytano motyw „{t.name}” ({SOURCES[t.source]}). Cofnij: Ctrl+Z.")
 

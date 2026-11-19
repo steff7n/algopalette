@@ -2,6 +2,32 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
+## 0i. IMPORT MOTYWU → WARIANTY PODOBNE DO MOTYWU (2026-11-19) — zrobione na `main` (bez speca-planu, decyzja użytkownika)
+
+- **Prośba (słowa użytkownika, WIĄŻĄCE):** „zaimportowany motyw ma 'ustawiać aplikację pod siebie', i generować
+  motywy różne o np. 10 stopni w każdą stronę. Obecnie jest z tym syf.” + „pewnie że chcę ustawiać, ale domyślnie
+  10 stopni” + „czy plan jest potrzebny? to jest szybka zmiana” → spec krótki
+  `docs/superpowers/specs/2026-11-19-import-motywu-warianty-design.md` (zaakceptowany), planu NIE ma.
+- **Diagnoza „syfu” (dowód: odtworzone na motywie Dracula, 4 propozycje):** stary tryb domyślny używał
+  `sources.character_settings` — układ odcieni „custom” = skupiska posortowane wg WAGI, nie w kolejności akcentów,
+  więc akcent k dostawał cudzy odcień (odchyłki 110–157°); wspólne widełki L/C dla wszystkich akcentów.
+  `character_settings` / `apply_character` z „Palety wyjściowej” NIETKNIĘTE (ta sama wada kolejności tam zostaje —
+  nie zgłaszana przez użytkownika, nie ruszałem).
+- **Co teraz (`themes/apply.py`):** `apply_theme(…, keep_settings, spread_deg=10.0)`; tryb domyślny →
+  `variant_session`: każdy slot bez kłódki zasad dostaje `_variant_rules` wokół swojej wartości z motywu: odcień
+  twardy ± swoboda (brak, gdy C < 0.02 — np. tekst), L ± 0.05·k, chroma ABS ± 0.025·k (akcent) / ± 0.01·k
+  (tło, tekst), k = swoboda/10; kontrast z tłem ≥ kontrast motywu − `TRANSFER_TOL`·k; `min_distance` akcentów
+  miękki ≤ 0.9 × najmniejsza ΔE w motywie (w metodzie sesji, `convert_de`); `use_scheme=False`,
+  `hue_scheme="none"`, `lightness_spread=None`, polaryzacja z tła. Swoboda przycięta do 0–45 (`MAX_SPREAD_DEG`).
+- **Decyzja agenta (odstępstwo od speca):** chroma akcentów BEZWZGLĘDNA, nie względna — względna przy L ≈ 1
+  pozwalała zbielić jasny żółty Dracula do C 0.021 (sprawdzone).
+- **GUI:** `themes_dialog`: `QSpinBox` „Swoboda wariantów” 0–45°, `SPREAD_KEY="themes_spread_deg"` w `gui.json`
+  (`_stored_spread` odrzuca złe wartości), wyszarzony przy „Nie zmieniaj ustawień palety”; `MainWindow.import_theme(…,
+  spread_deg=)`. Pomoc: nowy temat `themes.spread`, przepisany `themes.keep_settings`; README.
+- **Pułapka:** pierwsza propozycja generowania = sam motyw (spełnia wszystkie zasady, optymalizator startuje
+  z bieżących wartości) — to nie błąd.
+- **Weryfikacja:** patrz dziennik sesji 2026-11-19 na końcu. Ręcznie w oknie nie klikano.
+
 ## 0h. PRZEGLĄD CAŁOŚCI + FALA NAPRAW (2026-11-18) — ZROBIONE: wszystkie 32 znaleziska naprawione, bez re-review (decyzja użytkownika), scalone do `main`
 
 - **Prośba użytkownika:** „uruchom najpierw przegląd, ale nie tylko tej gałęzi, tylko całości aplikacji”.
@@ -1568,3 +1594,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-16 — kłódka zasad (§0e): dwa tryby („rules”, „hue” z zamrożeniem celu odcienia), preset i „(zmieniony)” pomijają zablokowane, kombi w zakładce Zasady, temat pomocy `rules.lock`; 1101 passed (bez `slow`), lintery czyste.
 - 2026-11-18 — §0g: daltonizm usunięty w całości (Rust, Python, GUI, pomoc, presety, fixture'y), „Dostępność” scalona z „Podstawowe”; 1205 + 438 slow passed, cargo 125, lintery czyste; gałąź `feat/bez-daltonizmu`, bez scalenia.
 - 2026-11-18 — §0h: przegląd całości (Opus xhigh) 3 C / 7 I / 22 M; wszystkie 32 naprawione sam (bez subagentów, bez re-review — decyzja użytkownika); 1243 + 438 slow passed, cargo 126, lintery czyste; scalone do `main` (bez push).
+- 2026-11-19 — §0i: import motywu w trybie domyślnym = zasady per kolor wokół motywu (odcień ± swoboda, domyślnie 10°, ustawiana w oknie 0–45°); `pytest -m "not slow"` 1248 passed / 2 skipped (42,5 s), ruff + ruff format + ty (0 błędów) czyste; slow i cargo nie uruchamiane (silnik nietknięty); w `main`, bez push.

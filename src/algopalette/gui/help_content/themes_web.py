@@ -96,10 +96,13 @@ a tekstem kolor najbardziej z nim kontrastujący (w metryce kontrastu bieżącej
         "Nie zmieniaj ustawień palety",
         "Zaznaczone: import wymienia tylko kolory. Odznaczone (domyślnie): ustawienia i zasady "
         "dopasowują się do motywu.",
-        """**Odznaczone** — import działa jak tryb [Charakter](help:source.mode): polaryzacja wynika
-z jasności tła motywu, [układ odcieni](help:rules.hues) staje się „własny” z odcieni motywu,
-a tło, tekst i akcenty dostają zasady wyliczone z motywu (jasność, nasycenie, kontrast). Metryka
-kontrastu, ΔE, dopasowanie do gamutu, kolory do unikania i optymalizator zostają.
+        """**Odznaczone** — motyw ustawia paletę „pod siebie”: każdy kolor (tło, tekst, każdy akcent)
+dostaje własne zasady wokół swojej wartości z motywu — odcień w granicach
+[swobody wariantów](help:themes.spread), jasność i nasycenie blisko oryginału, kontrast z tłem nie
+niższy niż w motywie. Polaryzacja wynika z jasności tła, [układ odcieni](help:rules.hues) zostaje
+wyłączony (każdy kolor ma własny łuk odcienia). Generowanie daje więc warianty tego motywu, a sam
+motyw spełnia wszystkie zasady. Metryka kontrastu, ΔE, dopasowanie do gamutu, kolory do unikania
+i optymalizator zostają.
 
 **Zaznaczone** — zmieniają się tylko kolory i ich liczba; ustawienia palety i zasady wszystkich
 kolorów zostają. Jeśli motyw ma inną polaryzację niż paleta, [panel naruszeń](help:window.violations)
@@ -107,11 +110,23 @@ to pokaże.
 
 **W obu trybach** kolory z [kłódką zasad](help:rules.lock) zachowują swoje zasady, przełącznik
 „układ odcieni: stosuj” i zależności — dostają tylko nową wartość. Przy kłódce „zasady” cel
-odcienia dalej wynika z układu odcieni palety, więc może się przesunąć razem z nowym układem
-(tak samo jak przy presetach); kłódka „odcień” ma własny łuk i układ jej nie dotyczy.
+odcienia dalej wynika z układu odcieni palety — po imporcie w trybie domyślnym układ jest wyłączony;
+kłódka „odcień” ma własny łuk i układ jej nie dotyczy.
 
 Zawsze: liczba akcentów dopasowuje się do motywu (akcenty z kłódką zasad nie są usuwane),
 kłódki wartości znikają, a nazwy kolorów biorą się z motywu. Ustawienie jest zapamiętywane.""",
+        G,
+    ),
+    "themes.spread": Topic(
+        "Swoboda wariantów",
+        "O ile stopni odcienia generowane warianty mogą odejść od każdego koloru motywu "
+        "(domyślnie 10°).",
+        """Działa przy odznaczonym [Nie zmieniaj ustawień palety](help:themes.keep_settings). Każdy
+kolor motywu dostaje twardy łuk odcienia „swój odcień ± swoboda”; prawie szare kolory (np. tekst)
+łuku nie dostają, bo ich odcień jest niewidoczny. Razem ze swobodą rosną widełki jasności (±0,05
+na każde 10°) i nasycenia (±0,025 dla akcentów, ±0,01 dla tła i tekstu na każde 10°) oraz
+dopuszczalny spadek kontrastu z tłem. 0° = propozycje praktycznie równe motywowi. Zakres 0–45°;
+ustawienie jest zapamiętywane. Zasady można potem dowolnie zmieniać w zakładce Zasady.""",
         G,
     ),
     "themes.refresh": Topic(

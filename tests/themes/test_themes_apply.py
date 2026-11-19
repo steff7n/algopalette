@@ -3,6 +3,7 @@ from dataclasses import replace
 import pytest
 
 from algopalette import color as col
+from algopalette import engine
 from algopalette.model import OKLCH, Relation, default_session
 from algopalette.rules_edit import set_rules_lock
 from algopalette.themes import Palette
@@ -43,12 +44,62 @@ def test_default_mode_fits_settings_to_theme():
     out = apply_theme(s, palette(5, light=True), keep_settings=False)
     g = out.globals
     assert g.polarity == "light"
-    assert g.hue_scheme.kind == "custom"
+    assert g.hue_scheme.kind == "none"
+    assert g.lightness_spread is None
     assert out.preset is None
     assert g.avoid_colors == s.globals.avoid_colors and g.avoid_distance == 0.07
     assert g.contrast_metric == s.globals.contrast_metric
     assert [sl.name for sl in out.slots] == ["tło", "tekst", "a0", "a1", "a2", "a3", "a4"]
-    assert all(sl.use_scheme for sl in out.slots[2:])
+    assert not any(sl.use_scheme for sl in out.slots)
+
+
+DRACULA = ("#282a36", "#f8f8f2", "#ff5555", "#50fa7b", "#f1fa8c", "#bd93f9", "#ff79c6", "#8be9fd")
+
+
+def dracula() -> Palette:
+    bg, fg, *acc = (col.from_css(h) for h in DRACULA)
+    return Palette(bg, fg, tuple(acc), ("",) * len(acc))
+
+
+def test_theme_itself_satisfies_its_rules():
+    for spread in (0.0, 10.0, 30.0):
+        out = apply_theme(default_session(), dracula(), keep_settings=False, spread_deg=spread)
+        assert engine.current_violations(out) == []
+
+
+@pytest.mark.parametrize("spread", [10.0, 20.0])
+def test_each_color_gets_own_hue_arc(spread):
+    p = dracula()
+    out = apply_theme(default_session(), p, keep_settings=False, spread_deg=spread)
+    for slot, x in zip(out.slots, (p.bg, p.fg, *p.accents), strict=True):
+        if x.c < 0.02:  # szarość (tu: tekst) — bez zasady odcienia
+            assert slot.rules.hue is None
+            continue
+        arc = slot.rules.hue
+        assert arc is not None and arc.hard
+        assert arc.value.lo == pytest.approx((x.h - spread) % 360)
+        assert arc.value.hi == pytest.approx((x.h + spread) % 360)
+        band = slot.rules.lightness
+        assert band is not None
+        lo, hi = band.value.lo, band.value.hi
+        assert lo is not None and hi is not None
+        assert lo <= x.l <= hi
+        assert hi - lo <= 0.1 * spread / 10 + 1e-9
+
+
+def test_generated_variants_stay_near_theme():
+    p = dracula()
+    out = apply_theme(default_session(), p, keep_settings=False)
+    src = (p.bg, p.fg, *p.accents)
+    props = engine.generate(out)
+    assert props
+    for prop in props:
+        assert prop.ok
+        for slot, x in zip(out.slots, src, strict=True):
+            v = prop.values.get(slot.id, slot.value)
+            assert abs(v.l - x.l) <= 0.05 + 1e-6
+            if x.c >= 0.02:
+                assert abs(col.hue_diff(v.h, x.h)) <= 10.0 + 0.5
 
 
 @pytest.mark.parametrize("mode", ["rules", "hue"])

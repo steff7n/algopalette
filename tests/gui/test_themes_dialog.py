@@ -12,7 +12,7 @@ from PySide6.QtCore import Qt
 
 from algopalette.gui import help as gh
 from algopalette.gui import theme
-from algopalette.gui.themes_dialog import KEEP_SETTINGS_KEY, ThemesDialog
+from algopalette.gui.themes_dialog import KEEP_SETTINGS_KEY, SPREAD_KEY, ThemesDialog
 from algopalette.model import add_accent
 from algopalette.themes import Theme, is_dark, net
 
@@ -139,7 +139,7 @@ def test_import_replaces_session_and_undo_restores(win, qtbot):
     assert win.file_path == path_before
     assert win.tabs.currentWidget() is win.palette_tab
     assert len(s.slots) == 10 and s.slots[0].name == "tło"
-    assert s.globals.hue_scheme.kind == "custom"
+    assert s.globals.hue_scheme.kind == "none"
     win.action_undo()
     assert win.session == before
 
@@ -156,6 +156,27 @@ def test_keep_settings_mode_and_persistence(win, qtbot):
     win.themes_dialog = None
     d2 = open_dialog(win, qtbot, Server())
     assert d2.keep_settings.isChecked()
+
+
+def test_spread_default_persistence_and_import(win, qtbot):
+    d = open_dialog(win, qtbot, Server())
+    assert d.spread.value() == 10
+    d.spread.setValue(25)
+    assert theme.read_setting(SPREAD_KEY) == 25
+    d.keep_settings.setChecked(True)
+    assert not d.spread.isEnabled()
+    d.keep_settings.setChecked(False)
+    assert d.spread.isEnabled()
+    d.load.click()
+    arcs = [sl.rules.hue for sl in win.session.slots[2:] if sl.rules.hue is not None]
+    assert arcs
+    for a in arcs:
+        assert (a.value.hi - a.value.lo) % 360 == pytest.approx(50.0)
+    d.close()
+    d.deleteLater()
+    win.themes_dialog = None
+    d2 = open_dialog(win, qtbot, Server())
+    assert d2.spread.value() == 25
 
 
 def test_network_error_without_cache_shows_message(win, qtbot):

@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QListView,
     QProgressBar,
     QPushButton,
+    QSpinBox,
     QSplitter,
     QVBoxLayout,
     QWidget,
@@ -35,6 +36,7 @@ from PySide6.QtWidgets import (
 from algopalette.gui import help, theme
 from algopalette.gui.theme_preview import THEME_ROLE, SwatchDelegate, ThemePreview
 from algopalette.themes import catalog, net
+from algopalette.themes.apply import DEFAULT_SPREAD_DEG, MAX_SPREAD_DEG
 from algopalette.themes.model import (
     FULL_CATALOG_SOURCES,
     SOURCES,
@@ -50,8 +52,19 @@ if TYPE_CHECKING:
     from algopalette.gui.app import MainWindow
 
 KEEP_SETTINGS_KEY = "themes_keep_settings"
+SPREAD_KEY = "themes_spread_deg"
 PAGE_SIZE = 50
 LOSPEC_DEBOUNCE_MS = 400
+
+
+def _stored_spread() -> int:
+    """Zapamiętana swoboda wariantów w stopniach; zła wartość w ``gui.json`` → domyślna."""
+    v = theme.read_setting(SPREAD_KEY, DEFAULT_SPREAD_DEG)
+    if isinstance(v, bool) or not isinstance(v, int | float) or not 0 <= v <= MAX_SPREAD_DEG:
+        v = DEFAULT_SPREAD_DEG
+    return round(v)
+
+
 LOCAL_DEBOUNCE_MS = 150
 CANCELLED = "pobieranie przerwane — kliknij „Odśwież katalogi”"
 LOSPEC_HINT = (
@@ -225,6 +238,16 @@ class ThemesDialog(QDialog):
         self.keep_settings.setChecked(theme.read_setting(KEEP_SETTINGS_KEY, False) is True)
         self.keep_settings.toggled.connect(self._keep_toggled)
         bottom.addWidget(self.keep_settings)
+        self.spread_label = QLabel("Swoboda wariantów:")
+        bottom.addWidget(self.spread_label)
+        self.spread = QSpinBox()
+        self.spread.setRange(0, int(MAX_SPREAD_DEG))
+        self.spread.setSuffix("°")
+        self.spread.setValue(_stored_spread())
+        self.spread.valueChanged.connect(self._spread_changed)
+        self.spread_label.setBuddy(self.spread)
+        bottom.addWidget(self.spread)
+        self._sync_spread_enabled()
         bottom.addStretch(1)
         self.refresh = QPushButton("Odśwież katalogi")
         self.refresh.clicked.connect(self.refresh_catalogs)
@@ -258,6 +281,8 @@ class ThemesDialog(QDialog):
             (self.progress, "themes.status"),
             (self.cancel, "themes.status"),
             (self.keep_settings, "themes.keep_settings"),
+            (self.spread, "themes.spread"),
+            (self.spread_label, "themes.spread"),
             (self.refresh, "themes.refresh"),
             (self.load, "themes.load"),
         ):
@@ -333,8 +358,20 @@ class ThemesDialog(QDialog):
             self._rebuild()
 
     def _keep_toggled(self, on: bool) -> None:
+        self._sync_spread_enabled()
+        self._remember(KEEP_SETTINGS_KEY, on)
+
+    def _sync_spread_enabled(self) -> None:
+        on = not self.keep_settings.isChecked()
+        self.spread.setEnabled(on)
+        self.spread_label.setEnabled(on)
+
+    def _spread_changed(self, value: int) -> None:
+        self._remember(SPREAD_KEY, value)
+
+    def _remember(self, key: str, value: object) -> None:
         try:
-            theme.write_setting(KEEP_SETTINGS_KEY, on)
+            theme.write_setting(key, value)
         except OSError as e:
             self.win.notify(f"Nie udało się zapamiętać ustawienia: {e.strerror or e}", error=True)
 
@@ -620,7 +657,12 @@ class ThemesDialog(QDialog):
         t, p, _msg = self._resolved()
         if t is None or p is None:
             return
-        self.win.import_theme(t, p, keep_settings=self.keep_settings.isChecked())
+        self.win.import_theme(
+            t,
+            p,
+            keep_settings=self.keep_settings.isChecked(),
+            spread_deg=float(self.spread.value()),
+        )
 
     def _error_text(self, key: str) -> str:
         """„Źródło: komunikat” bez podwójnego prefiksu (parsery same zaczynają od nazwy źródła)."""

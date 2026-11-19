@@ -143,8 +143,9 @@ wyszukiwanie po tagu). Lista z próbkami, filtry (nazwa/autor, źródło, ciemne
 i kodu w kolorach motywu.
 
 „Wczytaj” zamienia bieżącą paletę na motyw — jeden krok cofania (Ctrl+Z), nic nie trafia na dysk, otwarty plik
-sesji się nie zmienia. Domyślnie import dopasowuje ustawienia do motywu (jak tryb „charakter”: polaryzacja,
-układ odcieni, zasady kolorów); zaznaczone „Nie zmieniaj ustawień palety” wymienia tylko kolory. W obu trybach
+sesji się nie zmienia. Domyślnie import ustawia paletę „pod motyw”: każdy kolor dostaje
+własne zasady wokół swojej wartości (odcień ± „swoboda wariantów”, domyślnie 10°, jasność i nasycenie blisko
+oryginału), więc generowanie daje warianty motywu; zaznaczone „Nie zmieniaj ustawień palety” wymienia tylko kolory. W obu trybach
 kolory z kłódką zasad zachowują zasady. Katalogi są w `~/.cache/algopalette/themes/` (7 dni, Lospec 1 dzień),
 więc lista działa też bez internetu.
 
