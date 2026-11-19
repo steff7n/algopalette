@@ -99,8 +99,10 @@ Zakazane przedziały są zawsze twarde.
 
 **Ustawienia całej palety** (przycisk „cała paleta” na pasku): metryka kontrastu (WCAG / APCA — APCA trafniej
 ocenia ciemne motywy), metoda ΔE (`ok` i `hyab` w skali 0–1, `2000`/`itp`/`cam16` w skalach ~0–100; zmiana
-przelicza progi), sposób sprowadzania koloru spoza sRGB, układ odcieni (równo po kole, analogiczny,
-dopełniający, rozszczepiony, triada, tetrada, własna lista wybierana na kole; tolerancja, rozrzut losowy),
+przelicza progi), sposób sprowadzania koloru spoza sRGB, układ odcieni (zawsze lista odcieni na kole —
+akcenty biorą je po kolei, licznik ×N przy każdym; przyciski „wstaw” zastępują listę harmonią od zaznaczonego
+punktu: mono, analogiczny, dopełniający, rozszczepiony, triada, kwadrat, prostokąt, równo po kole, z bieżących
+kolorów; „obróć wszystkie”; tolerancja, rozrzut losowy),
 rozrzut jasności akcentów, unikane kolory (lista z wybierakiem), generowanie (liczba propozycji, ziarno, budżet, limit czasu,
 różnorodność, waga twardych, wątki).
 

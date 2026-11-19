@@ -2,7 +2,7 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0j. UKŁAD ODCIENI = LISTA NA KOLE + GENERATORY (2026-11-19) — W TOKU na gałęzi `feat/uklad-odcieni-lista` (od `main` @ `3b6ae15`)
+## 0j. UKŁAD ODCIENI = LISTA NA KOLE + GENERATORY (2026-11-19) — ZROBIONE (Taski 1–4) na gałęzi `feat/uklad-odcieni-lista` (od `main` @ `3b6ae15`), NIE scalone do `main`, bez review (decyzja użytkownika)
 
 - **Prośba (słowa użytkownika):** „po włączeniu czegokolwiek innego niż 'własna lista' koło kolorów znika
   i użytkownik zostaje z niczym. […] 'własna lista' zostaje domyślnym, w zasadzie jedynym trybem, a ustawienia
@@ -37,7 +37,13 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   kontrolki wymagają tematów): `rules.hues` (rodziny, ×N), nowe `rules.hues.generate` (przykład „baza 30°” sprawdzany
   testem z generatorami) i `rules.hues.rotate`; usunięte `rules.hues.kind/rotation/center/spread`; poprawione wzmianki
   w `palette.py`, `source.py`, `themes_web.py`, `rules.count`. `tests/gui/test_hue_list_ui.py` 10 passed; pełny
-  `pytest -m "not slow"` 1489 passed / 2 skipped; ruff, ty (0) czyste; zrzut offscreen ramki obejrzany), Task 4 ☐.
+  `pytest -m "not slow"` 1489 passed / 2 skipped; ruff, ty (0) czyste; zrzut offscreen ramki obejrzany), Task 4 ☑ (README: opis układu odcieni).
+- **Weryfikacja końcowa (2026-11-19):** `pytest -m "not slow"` **1489 passed, 2 skipped**; `pytest -m slow` **438
+  passed** (jakość presetów bez zmian); `cargo test --workspace` **126 passed**, clippy 0, `cargo fmt --check` czyste
+  (Rust nieruszany po Tasku 2); `ruff check`, `ruff format --check` czyste; `ty check` 0 błędów (14 ostrzeżeń bazowych).
+- **Czego NIE zrobiono / nie sprawdzono:** ręcznego klikania przez człowieka (tylko pytest-qt offscreen + zrzut);
+  przeglądu (decyzja użytkownika „bez review”); scalenia do `main` i pusha (nie zlecone). Launcher
+  `~/.local/bin/algopalette` (editable) uruchamia drzewo robocze — teraz ta gałąź, `.so` przebudowane `uv sync`., Task 4 ☐.
 - **O co łatwo się potknąć:** snapshot celów (`tests/fixtures/hue_targets_snapshot.json`) MUSI powstać na
   starym kodzie (Task 1) — po Tasku 2 nie da się go już odtworzyć; po zmianie `crates/` przebuduj rozszerzenie
   przed pytest; `v1_reference/*` nietykalne.
@@ -1635,3 +1641,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-18 — §0g: daltonizm usunięty w całości (Rust, Python, GUI, pomoc, presety, fixture'y), „Dostępność” scalona z „Podstawowe”; 1205 + 438 slow passed, cargo 125, lintery czyste; gałąź `feat/bez-daltonizmu`, bez scalenia.
 - 2026-11-18 — §0h: przegląd całości (Opus xhigh) 3 C / 7 I / 22 M; wszystkie 32 naprawione sam (bez subagentów, bez re-review — decyzja użytkownika); 1243 + 438 slow passed, cargo 126, lintery czyste; scalone do `main` (bez push).
 - 2026-11-19 — §0i: import motywu w trybie domyślnym = zasady per kolor wokół motywu (odcień ± swoboda, domyślnie 10°, ustawiana w oknie 0–45°); `pytest -m "not slow"` 1248 passed / 2 skipped (42,5 s), ruff + ruff format + ty (0 błędów) czyste; slow i cargo nie uruchamiane (silnik nietknięty); w `main`, bez push.
+- 2026-11-19 — §0j: układ odcieni = lista rodzin na kole + generatory (mono, analogiczny, dopełniający, rozszczepiony, triada, kwadrat, prostokąt, równo po kole, z bieżących kolorów), obrót listy, liczniki ×N; model i Rust bez `kind`, stare pliki/presety → identyczne cele (snapshot 231); 1489 + 438 slow passed, cargo 126, lintery czyste; gałąź `feat/uklad-odcieni-lista`, bez scalenia i review.
