@@ -103,8 +103,8 @@ w macierzy ΔE na zakładce Analiza.""",
         """Nowy akcent dostaje kolejny odcień startowy i kopię zasad ostatniego akcentu (bez jego
 zależności) — zmienisz je na zakładce Zasady. To samo robi „+” przy
 [liczbie kolorów](help:rules.count). Kolor wstępny zastąpisz, przejmując propozycję po generowaniu
-(Ctrl+G). Liczba akcentów wpływa na układ odcieni: przy układzie „równo po kole” cele rozkładają się
-na wszystkie akcenty. Ctrl+Z cofa dodanie.""",
+(Ctrl+G). Nowy akcent bierze kolejny odcień z listy układu odcieni (gdy lista się skończyła — od początku);
+sama lista się nie zmienia. Ctrl+Z cofa dodanie.""",
         P,
     ),
     "palette.remove": Topic(

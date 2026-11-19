@@ -134,16 +134,6 @@ def relation_default_value(kind: str, session: Session) -> float:
 
 # --- ustawienia całej palety -------------------------------------------------------------------
 
-SCHEMES = [
-    ("równo po kole", "equal"),
-    ("analogiczny", "analogous"),
-    ("dopełniający", "complementary"),
-    ("rozszczepiony dopełniający", "split"),
-    ("triada", "triad"),
-    ("tetrada", "tetrad"),
-    ("własna lista", "custom"),
-    ("brak (bez celów)", "none"),
-]
 DELTA_E = [
     ("ok (OKLab, 0–1)", "ok"),
     ("hyab (OKLab)", "hyab"),

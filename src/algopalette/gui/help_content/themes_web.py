@@ -110,7 +110,7 @@ to pokaże.
 
 **W obu trybach** kolory z [kłódką zasad](help:rules.lock) zachowują swoje zasady, przełącznik
 „układ odcieni: stosuj” i zależności — dostają tylko nową wartość. Przy kłódce „zasady” cel
-odcienia dalej wynika z układu odcieni palety — po imporcie w trybie domyślnym układ jest wyłączony;
+odcienia dalej wynika z układu odcieni palety — po imporcie w trybie domyślnym lista układu jest pusta;
 kłódka „odcień” ma własny łuk i układ jej nie dotyczy.
 
 Zawsze: liczba akcentów dopasowuje się do motywu (akcenty z kłódką zasad nie są usuwane),

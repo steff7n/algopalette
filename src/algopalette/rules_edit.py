@@ -147,7 +147,7 @@ def set_rules_lock(
     ``"hue"`` zamraża przy tym bieżący cel układu odcieni (``targets``: ``id`` → stopnie, jak
     ``engine.hue_targets``) we własnej zasadzie odcienia akcentu i wyłącza mu ``use_scheme`` — po
     zmianie presetu (i układu) kolor trzyma ten sam odcień. Kolor bez celu (tło, tekst, akcent bez
-    ``use_scheme``, układ „brak”) dostaje samą kłódkę. Zdjęcie kłódki niczego nie przywraca.
+    ``use_scheme``, pusta lista układu) dostaje samą kłódkę. Zdjęcie kłódki niczego nie przywraca.
     """
     scheme = session.globals.hue_scheme
     indices = _indices(session, ids)

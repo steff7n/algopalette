@@ -21,6 +21,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -34,6 +35,7 @@ from PySide6.QtWidgets import (
 
 from algopalette import color as col
 from algopalette import engine, presets, rules_edit
+from algopalette import hue_layouts as hl
 from algopalette.forms import (
     CONTRAST_GLOBAL,
     DELTA_E,
@@ -42,6 +44,7 @@ from algopalette.forms import (
 from algopalette.globals_logic import change_delta_e, change_metric
 from algopalette.gui import help
 from algopalette.gui.colorstrip import ColorStrip, Selection, StripEntry
+from algopalette.gui.hue_layout_params import ask_layout_params
 from algopalette.gui.picker import ListPicker
 from algopalette.gui.relations import RelationsEditor
 from algopalette.gui.rule_rows import RuleRow, SchemeRow, row_signature
@@ -122,6 +125,10 @@ class RulesTab(QWidget):
         self.lock_combo: QComboBox | None = None
         self.hue_box: QGroupBox | None = None
         self.custom_picker: ListPicker | None = None
+        self.gen_buttons: dict[str, QPushButton] = {}
+        self._rot_base: tuple[float, ...] = ()  # lista, względem której liczy „obróć wszystkie”
+        # pytanie o parametry generatora (testy podmieniają): (rodzic, klucz, akcenty) → dict|None
+        self.ask_layout = ask_layout_params
         self.avoid_picker: ListPicker | None = None
         self.palette_widgets: dict[str, QWidget] = {}
 
@@ -283,6 +290,12 @@ class RulesTab(QWidget):
             self._schedule_rebuild()
 
     def _sync(self) -> None:
+        if self.custom_picker is not None:  # zmiana listy, liczby akcentów, „stosuj układ”
+            hues = self.win.session.globals.hue_scheme.hues
+            if self.custom_picker.items() != hues:
+                self._hues_shown(hues)  # zmiana spoza ramki: nowa baza obrotu
+            else:
+                self.custom_picker.set_counts(self._family_counts())
         for row in self.rows.values():
             row.sync()
         if self.scheme_row is not None:
@@ -591,7 +604,25 @@ class RulesTab(QWidget):
         w, fl = form()
         self.custom_picker = ListPicker(h.hues, mode="hue", max_items=MAX_ACCENTS)
         self.custom_picker.changed.connect(self._custom)
+        self.custom_picker.set_counts(self._family_counts())
         fl.addRow("odcienie", keyed(self.custom_picker, "rules.hues.custom", children=True))
+        gen = QWidget()
+        grid = QGridLayout(gen)
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setSpacing(4)
+        self.gen_buttons = {}
+        for k, (label, key) in enumerate(hl.GENERATORS):
+            b = QPushButton(label)
+            b.setAutoDefault(False)
+            b.clicked.connect(lambda _c=False, key=key: self.generate(key))
+            grid.addWidget(b, k // 5, k % 5)
+            self.gen_buttons[key] = b
+        fl.addRow("wstaw", keyed(gen, "rules.hues.generate", children=True))
+        self._rot_base = h.hues
+        rot = ValueSlider(0.0, minimum=-180, maximum=180, step=1, fmt=".0f")
+        rot.changed.connect(self._rotate)
+        fl.addRow("obróć wszystkie °", keyed(rot, "rules.hues.rotate", children=True))
+        self.palette_widgets["hues.rotate"] = rot
         sliders = {
             "tol": ("tolerancja ±°", 0, 90, False, None),
             "jitter": ("rozrzut losowy ±°", 0, 45, False, None),
@@ -732,8 +763,66 @@ class RulesTab(QWidget):
 
     def _custom(self, hues: tuple[float, ...]) -> None:
         self._set(hue_scheme=replace(self.g.hue_scheme, hues=tuple(hues)), coalesce="g:hs-custom")
+        self._hues_shown(tuple(hues))
+
+    def _family_counts(self) -> tuple[int, ...]:
+        s = self.win.session
+        return hl.family_counts(
+            len(s.globals.hue_scheme.hues), [sl.use_scheme for sl in s.slots[2:]]
+        )
+
+    def _hues_shown(self, hues: tuple[float, ...], *, rotating: bool = False) -> None:
+        """Lista po zmianie: koło, liczniki, a poza obrotem — nowa baza obrotu i suwak na 0."""
         if self.custom_picker is not None:
+            if self.custom_picker.items() != hues:
+                self.custom_picker.set_items(hues)
+            self.custom_picker.set_counts(self._family_counts())
             help.attach(self.custom_picker, "rules.hues.custom", children=True)
+        if not rotating:
+            self._rot_base = hues
+            rot = self.palette_widgets.get("hues.rotate")
+            if isinstance(rot, ValueSlider):
+                rot.set_value(0.0)
+
+    def _base_hue(self) -> float:
+        hues = self.g.hue_scheme.hues
+        p = self.custom_picker
+        if p is not None and p.selected is not None and p.selected < len(hues):
+            return hues[p.selected]
+        return hues[0] if hues else hl.BASE_EMPTY
+
+    def generate(self, key: str) -> None:
+        """Przycisk „Wstaw:” — zastępuje listę układem od odcienia bazowego (jeden krok cofania)."""
+        s = self.win.session
+        base = self._base_hue()
+        if key == "current":
+            hues = hl.ordered_clusters([sl.value for sl in s.slots[2:]])
+            if not hues:
+                self.win.notify("Akcenty są szare — nie ma odcieni do wstawienia.")
+                return
+        elif key in ("analogous", "equal"):
+            params = self.ask_layout(self, key, len(s.slots) - 2)
+            if params is None:
+                return
+            n = int(params["n"])
+            if key == "analogous":
+                hues = hl.analogous(base, n, float(params["spread"]))
+            else:
+                hues = hl.equal(base, n)
+        else:
+            hues = hl.SIMPLE_GENERATORS[key](base)
+        hues = hues[:MAX_ACCENTS]
+        self._set(hue_scheme=replace(self.g.hue_scheme, hues=hues))
+        self._hues_shown(hues)
+
+    def _rotate(self, v: float | None) -> None:
+        if v is None:
+            return
+        hues = hl.rotate(self._rot_base, float(v))
+        self._hues_shown(
+            hues, rotating=True
+        )  # przed zapisem: _sync nie może uznać tego za zmianę z zewnątrz
+        self._set(hue_scheme=replace(self.g.hue_scheme, hues=hues), coalesce="g:hs-rotate")
 
     def _avoid(self, colors: tuple[OKLCH, ...]) -> None:
         changes: dict[str, Any] = {"avoid_colors": tuple(colors)}

@@ -7,7 +7,8 @@ from dataclasses import replace
 import pytest
 from PySide6.QtCore import QCoreApplication, QEvent
 
-from algopalette.forms import DELTA_E, DISPLAY_ORDER, FITS, SCHEMES, default_for
+from algopalette import hue_layouts as hl
+from algopalette.forms import DELTA_E, DISPLAY_ORDER, FITS, default_for
 from algopalette.gui import help as gh
 from algopalette.gui.help_content import GROUPS, TOPICS
 from algopalette.gui.relations import RelationRow
@@ -24,7 +25,7 @@ from algopalette.model import (
 from algopalette.presets_builtin import BUILTIN
 
 TERMS_REQUIRED = {
-    "rules.hues.kind",
+    "rules.hues.generate",
     "rules.hues.tol",
     "rules.hues.jitter",
     "rules.spread",
@@ -165,9 +166,24 @@ def test_option_lists_and_presets_described_in_body():
         assert missing == [], (key, missing)
 
     has("rules.preset", [p.name for p in BUILTIN] + [p.description for p in BUILTIN])
-    has("rules.hues.kind", [label.split(" (")[0] for label, _ in SCHEMES])
+    has("rules.hues.generate", [f"**{label}**" for label, _ in hl.GENERATORS])
     has("rules.delta_e", [f"`{v}`" for _, v in DELTA_E])
     has("rules.fit", [f"`{v}`" for _, v in FITS])
+
+
+def test_generator_example_matches_the_program():
+    """Przykład „baza 30°” w pomocy to dokładnie to, co liczą generatory."""
+    body = TOPICS["rules.hues.generate"].body
+
+    def quoted(hues):
+        return ", ".join(f"{h:.0f}°" for h in hues)
+
+    for hues in (
+        *(f(30.0) for f in hl.SIMPLE_GENERATORS.values()),
+        hl.analogous(30.0, 3, 60.0),
+        hl.equal(30.0, 4),
+    ):
+        assert quoted(hues) in body, quoted(hues)
 
 
 def test_defaults_quoted_in_help_come_from_the_program():

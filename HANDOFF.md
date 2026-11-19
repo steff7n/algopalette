@@ -26,7 +26,18 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   `test_scheme_example_matches_the_engine` (przykład z pomocy `rules.hues.kind` — nowy w Tasku 4).
   Weryfikacja: `pytest -m "not slow"` 1478 passed / 2 skipped; `tests/test_hue_list_compat.py` 239 passed (231
   kluczy snapshotu identyczne); cargo 126 passed, clippy 0, fmt czysto; ruff czysto; ty 0 błędów.
-  Rozszerzenie przebudowuje `uv sync` (`maturin` nie ma w venv — `uv run maturin develop` NIE działa)), Task 3 ☐, Task 4 ☐.
+  Rozszerzenie przebudowuje `uv sync` (`maturin` nie ma w venv — `uv run maturin develop` NIE działa)), Task 3 ☑ (`rules_tab._hues_box`: `ListPicker` zawsze +
+  `set_counts` (×N, ×0 wyszarzone; `hue_layouts.family_counts` po INDEKSIE akcentu, liczy tylko `use_scheme`),
+  `gen_buttons` (siatka 5 kolumn wg `hl.GENERATORS`), `generate(key)` (baza: zaznaczony → pierwszy → 25°; jeden krok
+  cofania; „z bieżących kolorów” bez barwnych → zwykły `notify`, lista bez zmian), `ask_layout` (podmienialne w testach;
+  `gui/hue_layout_params.py` — QDialog N 1–14, S 0–360°, domyślnie 3/60° albo N = liczba akcentów), „obróć wszystkie”
+  = `ValueSlider` −180…180 względem `_rot_base`, `coalesce="g:hs-rotate"`. **Pułapka (złapana testem):** `_sync`
+  aktualizuje koło, gdy lista zmieniła się spoza ramki, i wtedy zeruje bazę obrotu — dlatego `_rotate` ustawia koło
+  PRZED `_set`, inaczej każdy krok suwaka zerował bazę. `forms.SCHEMES` usunięte. Pomoc przepisana już tu (nowe
+  kontrolki wymagają tematów): `rules.hues` (rodziny, ×N), nowe `rules.hues.generate` (przykład „baza 30°” sprawdzany
+  testem z generatorami) i `rules.hues.rotate`; usunięte `rules.hues.kind/rotation/center/spread`; poprawione wzmianki
+  w `palette.py`, `source.py`, `themes_web.py`, `rules.count`. `tests/gui/test_hue_list_ui.py` 10 passed; pełny
+  `pytest -m "not slow"` 1489 passed / 2 skipped; ruff, ty (0) czyste; zrzut offscreen ramki obejrzany), Task 4 ☐.
 - **O co łatwo się potknąć:** snapshot celów (`tests/fixtures/hue_targets_snapshot.json`) MUSI powstać na
   starym kodzie (Task 1) — po Tasku 2 nie da się go już odtworzyć; po zmianie `crates/` przebuduj rozszerzenie
   przed pytest; `v1_reference/*` nietykalne.

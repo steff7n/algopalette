@@ -101,7 +101,7 @@ ocenisz je w Analizie.""",
   (lekko poszerzone), kontrast z tłem na poziomie akcentów źródła — bez własnej zasady odcienia, za to
   z celem z układu odcieni;
 - tekst — kontrast jak w źródle; tło — jasność, nasycenie i odcień bliskie tłu źródła;
-- układ odcieni — „własna lista” z dominujących odcieni źródła;
+- układ odcieni — lista dominujących odcieni źródła, w kolejności jego akcentów;
 - oznaczenie presetu znika, kłódki są zdjęte; wartości kolorów i zależności zostają.
 
 Opcja **unikaj kolorów źródła** wpisuje akcenty źródła na listę
@@ -117,7 +117,7 @@ Opcja **unikaj kolorów źródła** wpisuje akcenty źródła na listę
 wokół odcienia ze źródła (tylko dla kolorów z wyraźnym odcieniem, C ≥ 0.02), nasycenie względne
 ± 0.08 i kontrast z nowym tłem równy kontrastowi w źródle ± tolerancja. Zasada jasności zostaje, ale
 wyłączona, bo jasność wynika z kontrastu. Liczba akcentów zostaje dopasowana do źródła, akcenty nie
-biorą celu z układu odcieni (układ dostaje rodzaj „brak”), kłódki i zależności akcentów są zdjęte,
+biorą celu z układu odcieni (lista układu odcieni jest pusta), kłódki i zależności akcentów są zdjęte,
 oznaczenie presetu znika.
 
 **Nowe tło** — jasne albo ciemne. **Tolerancja kontrastu** — puste = automatycznie (0.5 w WCAG,

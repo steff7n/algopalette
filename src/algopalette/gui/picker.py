@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QFrame,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QScrollArea,
@@ -180,8 +181,12 @@ class _Row(QWidget):
         self.remove_button.setText("✕")
         self.remove_button.setAutoRaise(True)
         self.remove_button.setAccessibleName("usuń pozycję")
+        self.count = QLabel()  # ile akcentów bierze ten odcień (tylko gdy ustawione liczniki)
+        self.count.setMinimumWidth(30)
+        self.count.hide()
         lay.addWidget(self.handle)
         lay.addWidget(self.edit)
+        lay.addWidget(self.count)
         lay.addWidget(self.remove_button)
         lay.addStretch(1)
 
@@ -224,6 +229,7 @@ class ListPicker(QWidget):
         self.rows: list[_Row] = []
         self.selected: int | None = None
         self._drag_row: int | None = None
+        self.counts: tuple[int, ...] | None = None
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -292,6 +298,24 @@ class ListPicker(QWidget):
             self.selected = None
         self._refresh()
 
+    def set_counts(self, counts: Sequence[int] | None) -> None:
+        """Liczniki „×N” przy pozycjach (``None`` = bez liczników); pozycja ×0 jest wyszarzona."""
+        self.counts = None if counts is None else tuple(counts)
+        for i, row in enumerate(self.rows):
+            self._show_count(row, i)
+
+    def _show_count(self, row: _Row, i: int) -> None:
+        if self.counts is None:
+            row.count.hide()
+            return
+        n = self.counts[i] if i < len(self.counts) else 0
+        row.count.setText(f"×{n}")
+        row.count.setEnabled(n > 0)
+        row.count.setToolTip(
+            "Żaden akcent nie bierze tego odcienia." if n == 0 else f"Akcentów z tym odcieniem: {n}"
+        )
+        row.count.show()
+
     def _emit(self) -> None:
         self._refresh()
         self.changed.emit(self.items())
@@ -322,6 +346,7 @@ class ListPicker(QWidget):
             row.edit.set_value(float(f"{c.h:.6g}"))
             row.edit._bad(False)
             row.set_selected(i == self.selected)
+            self._show_count(row, i)
         self.hint_label.setVisible(not self._colors)
         full = self._full()
         reason = f"Lista ma już najwięcej pozycji ({self.max_items})." if full else ""

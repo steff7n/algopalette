@@ -164,8 +164,8 @@ podąża za liczbą.
   jako [zerwane](help:rel.broken).
 
 Obie czynności to jeden krok cofania, bez pytania. Dowolny akcent (nie tylko ostatni) usuniesz albo
-przestawisz na zakładce Paleta. Liczba akcentów wpływa na [układ odcieni](help:rules.hues): cele
-rozkładają się na wszystkie akcenty.""",
+przestawisz na zakładce Paleta. Lista [układu odcieni](help:rules.hues) się nie zmienia: nowy akcent
+bierze kolejny odcień z listy (gdy się skończyła — od początku), co widać w licznikach ×N.""",
         Z,
     ),
     "rules.strip": Topic(
@@ -689,67 +689,57 @@ i przykład: [gamut](help:concept.gamut).""",
     ),
     "rules.hues": Topic(
         "Układ odcieni",
-        "Rozkłada cele odcieni dla akcentów: równo po kole, w wachlarzu, parami dopełniającymi "
-        "albo według własnej listy.",
-        """Układ wylicza dla każdego akcentu **cel odcienia** według jego pozycji. Cel obowiązuje akcent,
-gdy ten ma włączone [„układ odcieni: stosuj”](help:rules.scheme_use) — niezależnie od tego, czy ma
-własną zasadę odcienia. Tła i tekstu układ nie dotyczy.
+        "Lista odcieni na kole — cele dla akcentów. Mono, triada, kwadrat i inne harmonie "
+        "wstawiają punkty na tę listę.",
+        """Układ to **lista odcieni** widoczna na kole. Akcenty biorą je po kolei i wracają do początku,
+gdy akcentów jest więcej niż odcieni: przy 3 odcieniach i 8 akcentach odcienie dostają 3, 3 i 2
+akcenty (licznik **×N** przy każdym wierszu). Akcenty jednego odcienia różnią się jasnością
+i nasyceniem. Pusta lista = brak celów.
 
-Pola zależą od [rodzaju](help:rules.hues.kind): [obrót](help:rules.hues.rotation) albo
-[środek](help:rules.hues.center) i [rozpiętość](help:rules.hues.spread), a przy „własnej liście” —
-[wybierak odcieni](help:rules.hues.custom). Wspólne: [tolerancja](help:rules.hues.tol),
+Cel obowiązuje akcent, gdy ten ma włączone [„układ odcieni: stosuj”](help:rules.scheme_use) —
+niezależnie od tego, czy ma własną zasadę odcienia. Tła i tekstu układ nie dotyczy.
+
+Harmonie wstawiasz przyciskami [„wstaw”](help:rules.hues.generate), całość przesuwa
+[„obróć wszystkie”](help:rules.hues.rotate), a pojedyncze punkty zmieniasz w
+[wybieraku](help:rules.hues.custom). Do tego [tolerancja](help:rules.hues.tol),
 [rozrzut losowy](help:rules.hues.jitter) oraz [twardy / waga](help:rules.hues.hard).
 
 Wyliczone cele widać przy każdym akcencie w jego zasadach i na kole w Analizie (pomarańczowy łuk).""",
         Z,
     ),
-    "rules.hues.kind": Topic(
-        "Rodzaj układu",
-        "Jak rozłożyć odcienie akcentów: równo po kole, analogicznie, dopełniająco, w triadzie, "
-        "tetradzie, z własnej listy albo wcale.",
-        """**Co to jest.** Rodzaj układu wyznacza kilka odcieni bazowych; akcenty dostają je po kolei, a gdy
-akcentów jest więcej niż odcieni bazowych, kolejne „obiegi” przesuwają się równo między nie.
+    "rules.hues.generate": Topic(
+        "Wstaw harmonię",
+        "Zastępuje listę układem zbudowanym od odcienia bazowego: zaznaczonego punktu, a bez "
+        "zaznaczenia — pierwszego (pusta lista: 25°).",
+        """**Co to jest.** Jednorazowe wstawienie: przycisk liczy odcienie i zastępuje nimi listę. Lista
+nie pamięta, czym była — dalej możesz przeciągać pojedyncze punkty. Ctrl+Z cofa wstawienie.
 
-**Przykład.** Osiem akcentów:
+**Przykład.** Baza 30°:
 
-- **równo po kole**, obrót 0° → cele co 45°: 0°, 45°, 90°, … 315°;
-- **analogiczny**, środek 220°, rozpiętość 110° → wachlarz od 165° do 275°, co ok. 16°;
-- **dopełniający**, obrót 30° → bazowe 30° i 210°; dalej 75° i 255°, 120° i 300°, 165° i 345°;
-- **rozszczepiony dopełniający**, obrót 30° → bazowe 30°, 180°, 240°;
-- **triada**, obrót 30° → bazowe 30°, 150°, 270°; akcenty 4–6 dostają 70°, 190°, 310°, a 7–8: 110°
-  i 230°;
-- **tetrada**, obrót 30° → bazowe 30°, 120°, 210°, 300°; akcenty 5–8: 75°, 165°, 255°, 345°;
-- **własna lista** → odcienie z listy po kolei;
-- **brak** → żadnych celów.
+- **mono** → 30° (wszystkie akcenty w jednym odcieniu);
+- **analogiczny** (pyta o liczbę punktów i rozpiętość; 3 punkty, 60°) → 0°, 30°, 60°;
+- **dopełniający** → 30°, 210°;
+- **rozszczepiony** (dopełniający) → 30°, 180°, 240°;
+- **triada** → 30°, 150°, 270°;
+- **kwadrat** → 30°, 120°, 210°, 300°;
+- **prostokąt** → 30°, 90°, 210°, 270° (dwie pary dopełniające);
+- **równo po kole** (pyta o liczbę punktów; domyślnie tyle, ile akcentów) → 4 punkty: 30°, 120°,
+  210°, 300°;
+- **z bieżących kolorów** → odcienie obecnych akcentów; bliskie (do 25°) łączą się w jeden punkt,
+  kolejność jak akcentów, szare są pomijane.
 
-**Kiedy użyć.** „Równo po kole” dla palet, w których każdy akcent ma być inny. „Analogiczny” dla
-spójnych, stonowanych (same chłodne, same ciepłe). Dopełniający, triada i tetrada dla wyraźnych
-kontrastów barw w kilku grupach. „Własna lista”, gdy wiesz, jakich odcieni chcesz. „Brak”, gdy
-odcienie mają wynikać wyłącznie z zasad kolorów.""",
+**Kiedy użyć.** Mono i analogiczny dla spójnych, stonowanych palet; dopełniający, triada, kwadrat
+i prostokąt dla wyraźnych kontrastów barw; równo po kole, gdy każdy akcent ma być inny; z bieżących
+kolorów, gdy paleta już ci się podoba i chcesz ją utrwalić jako układ.""",
         Z,
         term=True,
     ),
-    "rules.hues.rotation": Topic(
-        "Obrót",
-        "Odcień, od którego układ zaczyna rozkładać cele.",
-        """Obrót przesuwa wszystkie cele o tę samą liczbę stopni: przy „równo po kole” dla 8 akcentów
-obrót 0° daje 0°, 45°, 90°…, a obrót 20° — 20°, 65°, 110°…. Przy układach dopełniającym, triadzie
-i tetradzie to odcień pierwszej grupy.""",
-        Z,
-    ),
-    "rules.hues.center": Topic(
-        "Środek",
-        "Środkowy odcień wachlarza w układzie analogicznym.",
-        """Cele rozkładają się równo po obu stronach środka, w granicach
-[rozpiętości](help:rules.hues.spread): środek 220° i rozpiętość 110° dają cele od 165° do 275°.""",
-        Z,
-    ),
-    "rules.hues.spread": Topic(
-        "Rozpiętość",
-        "Szerokość wachlarza odcieni w układzie analogicznym, w stopniach.",
-        """Rozpiętość 90° wokół środka 220° daje cele od 175° do 265°. Im mniejsza, tym bardziej
-jednobarwna paleta — przy bardzo małej akcenty będą się różnić głównie jasnością i nasyceniem,
-więc pilnuj zasady [odległości](help:rules.min_distance).""",
+    "rules.hues.rotate": Topic(
+        "Obróć wszystkie",
+        "Przesuwa całą listę odcieni o tę samą liczbę stopni, np. całą triadę.",
+        """Przesunięcie liczy się od listy sprzed obrotu: przy liście 30°, 150°, 270° ustawienie +20 daje
+50°, 170°, 290°, a −40 — 350°, 110°, 230°. Każda inna zmiana listy (wstawienie, klik w koło)
+zeruje suwak. Jeden gest suwaka = jeden krok cofania.""",
         Z,
     ),
     "rules.hues.tol": Topic(
@@ -778,17 +768,18 @@ od −rozrzut do +rozrzut. Losowanie zależy od [ziarna](help:rules.gen.seed).
 
 **Kiedy użyć.** Zostaw 0, gdy chcesz, żeby zmiana ziarna zmieniała tylko dobór kolorów wokół
 stałych celów. Ustaw 5–15°, gdy kolejne ziarna mają dawać palety o wyraźnie innym rozkładzie
-odcieni, bez ręcznego kręcenia obrotem.""",
+odcieni, bez ręcznego obracania listy.""",
         Z,
         term=True,
     ),
     "rules.hues.custom": Topic(
-        "Własna lista odcieni",
+        "Lista odcieni",
         "Odcienie, które układ przydziela akcentom po kolei. Klik w koło dodaje odcień, wiersze "
-        "można przestawiać i usuwać.",
+        "można przestawiać i usuwać; ×N mówi, ile akcentów bierze odcień.",
         f"""Pierwszy akcent dostaje pierwszy odcień z listy, drugi — drugi i tak dalej. Gdy akcentów jest
-więcej niż pozycji, lista zaczyna się od początku z przesunięciem (jak w innych
-[rodzajach układu](help:rules.hues.kind)). Lista mieści najwyżej {MAX_ACCENTS} pozycji.
+więcej niż pozycji, lista zaczyna się od początku (bez przesunięć): 3 odcienie i 8 akcentów →
+×3, ×3, ×2. Pozycja ×0 (lista dłuższa niż liczba akcentów albo akcenty bez „stosuj”) jest
+wyszarzona — zacznie działać po dodaniu akcentu. Lista mieści najwyżej {MAX_ACCENTS} pozycji.
 
 **Obsługa wybieraka**
 

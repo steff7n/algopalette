@@ -9,7 +9,7 @@ bazowego. ``LegacyScheme`` + ``legacy_targets`` rozwijają dawny kształt „rod
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -88,6 +88,16 @@ def equal(base: float, n: int) -> Hues:
 
 def rotate(hues: Sequence[float], delta: float) -> Hues:
     return _wrap([h + delta for h in hues])
+
+
+SIMPLE_GENERATORS: dict[str, Callable[[float], Hues]] = {
+    "mono": mono,
+    "complementary": complementary,
+    "split": split,
+    "triad": triad,
+    "square": square,
+    "rectangle": rectangle,
+}
 
 
 def family_counts(n_hues: int, use_scheme: Sequence[bool]) -> tuple[int, ...]:
