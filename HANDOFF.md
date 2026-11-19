@@ -2,7 +2,7 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
-## 0j. UKŁAD ODCIENI = LISTA NA KOLE + GENERATORY (2026-11-19) — ZROBIONE (Taski 1–4) na gałęzi `feat/uklad-odcieni-lista` (od `main` @ `3b6ae15`), NIE scalone do `main`, bez review (decyzja użytkownika)
+## 0j. UKŁAD ODCIENI = LISTA NA KOLE + GENERATORY (2026-11-19) — ZROBIONE (Taski 1–4) — scalone do `main` (ff) i wypchnięte 2026-11-19 („tak”), bez review (decyzja użytkownika)
 
 - **Prośba (słowa użytkownika):** „po włączeniu czegokolwiek innego niż 'własna lista' koło kolorów znika
   i użytkownik zostaje z niczym. […] 'własna lista' zostaje domyślnym, w zasadzie jedynym trybem, a ustawienia
@@ -1642,3 +1642,4 @@ Po przełączniku HSL: `uv run pytest -q` → **296 passed** (w tle, ~130 s); pe
 - 2026-11-18 — §0h: przegląd całości (Opus xhigh) 3 C / 7 I / 22 M; wszystkie 32 naprawione sam (bez subagentów, bez re-review — decyzja użytkownika); 1243 + 438 slow passed, cargo 126, lintery czyste; scalone do `main` (bez push).
 - 2026-11-19 — §0i: import motywu w trybie domyślnym = zasady per kolor wokół motywu (odcień ± swoboda, domyślnie 10°, ustawiana w oknie 0–45°); `pytest -m "not slow"` 1248 passed / 2 skipped (42,5 s), ruff + ruff format + ty (0 błędów) czyste; slow i cargo nie uruchamiane (silnik nietknięty); w `main`, bez push.
 - 2026-11-19 — §0j: układ odcieni = lista rodzin na kole + generatory (mono, analogiczny, dopełniający, rozszczepiony, triada, kwadrat, prostokąt, równo po kole, z bieżących kolorów), obrót listy, liczniki ×N; model i Rust bez `kind`, stare pliki/presety → identyczne cele (snapshot 231); 1489 + 438 slow passed, cargo 126, lintery czyste; gałąź `feat/uklad-odcieni-lista`, bez scalenia i review.
+- 2026-11-19 — §0j scalone do `main` (ff) i wypchnięte na prośbę użytkownika; gałąź `feat/uklad-odcieni-lista` zostaje (do usunięcia).
