@@ -2,6 +2,23 @@
 
 Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Niżej decyzje, pułapki, mapa, dziennik.
 
+## 0j. UKŁAD ODCIENI = LISTA NA KOLE + GENERATORY (2026-11-19) — W TOKU na gałęzi `feat/uklad-odcieni-lista` (od `main` @ `3b6ae15`)
+
+- **Prośba (słowa użytkownika):** „po włączeniu czegokolwiek innego niż 'własna lista' koło kolorów znika
+  i użytkownik zostaje z niczym. […] 'własna lista' zostaje domyślnym, w zasadzie jedynym trybem, a ustawienia
+  typu tetrada, dopełniający, triada, manipulują kolorami już na tej liście”; brakuje „choćby mono”.
+- **Decyzje (WIĄŻĄCE, nie otwieraj ponownie):** wariant A — lista = RODZINY odcieni (`hues[i mod k]`, bez
+  obiegów); generatory = jednorazowe przyciski bez pamięci układu („tak, jest ok”); stare pliki/presety → te
+  same cele; **wdrożenie „bez subagentów i bez review”** (żadnego przeglądu Opus na koniec — nie zlecaj).
+- **Spec:** `docs/superpowers/specs/2026-11-19-uklad-odcieni-lista-design.md` (zaakceptowany „akceptuję”).
+  **Plan:** `docs/superpowers/plans/2026-11-19-uklad-odcieni-lista.md` + `.tasks.json` (4 zadania, sekwencyjne).
+  Decyzje agenta w specu po builder-checku: `custom` rozwijany do `max(n, k)`; „z bieżących kolorów” = wszystkie
+  akcenty, `slot.value`, skupiska w kolejności wystąpienia (też w `character_settings` — naprawia kolejność).
+- **Stan zadań (dopisuj):** Task 1 ☐, Task 2 ☐, Task 3 ☐, Task 4 ☐.
+- **O co łatwo się potknąć:** snapshot celów (`tests/fixtures/hue_targets_snapshot.json`) MUSI powstać na
+  starym kodzie (Task 1) — po Tasku 2 nie da się go już odtworzyć; po zmianie `crates/` przebuduj rozszerzenie
+  przed pytest; `v1_reference/*` nietykalne.
+
 ## 0i. IMPORT MOTYWU → WARIANTY PODOBNE DO MOTYWU (2026-11-19) — zrobione na `main` (bez speca-planu, decyzja użytkownika)
 
 - **Prośba (słowa użytkownika, WIĄŻĄCE):** „zaimportowany motyw ma 'ustawiać aplikację pod siebie', i generować

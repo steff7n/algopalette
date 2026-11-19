@@ -1,0 +1,40 @@
+{
+ "planPath": "docs/superpowers/plans/2026-11-19-uklad-odcieni-lista.md",
+ "tasks": [
+  {
+   "id": 1,
+   "subject": "Task 1: `hue_layouts.py` — generatory, `LegacyScheme`, `legacy_targets`, snapshot celów",
+   "status": "pending",
+   "blockedBy": [],
+   "description": "**Goal:** Czyste funkcje układów i port starej formuły + zapisany snapshot dzisiejszych celów (przed zmianą modelu).\n\n**Files:**\n- Create: `src/algopalette/hue_layouts.py`\n- Create: `tools/snapshot_hue_targets.py`, `tests/fixtures/hue_targets_snapshot.json`\n- Test: `tests/test_hue_layouts.py`\n\n**Acceptance Criteria:**\n- [ ] Generatory od bazy 30° dają wartości ze spec §5; `rotate` działa mod 360.\n- [ ] `legacy_targets` odtwarza wszystkie przypadki z `hues.rs` testu `targets_match_the_old_engine` + reguły\n      długości z Global Constraints.\n- [ ] `ordered_clusters` (Dracula) zwraca kolejność pierwszego wystąpienia.\n- [ ] Snapshot JSON zawiera cele dla presetów × polaryzacji × {7, 10}, `manual_*.json`, `default_session()`.\n\n**Verify:** `uv run pytest -q tests/test_hue_layouts.py` → all passed\n\n```json:metadata\n{\"files\": [\"src/algopalette/hue_layouts.py\", \"tools/snapshot_hue_targets.py\", \"tests/fixtures/hue_targets_snapshot.json\", \"tests/test_hue_layouts.py\"], \"verifyCommand\": \"uv run pytest -q tests/test_hue_layouts.py\", \"acceptanceCriteria\": [\"generatory wg spec §5\", \"legacy_targets = stary silnik\", \"ordered_clusters kolejność wystąpienia\", \"snapshot zapisany\"], \"modelTier\": \"standard\"}\n```"
+  },
+  {
+   "id": 2,
+   "subject": "Task 2: Model + silnik + zgodność wsteczna (lista zamiast rodzaju)",
+   "status": "pending",
+   "blockedBy": [
+    1
+   ],
+   "description": "**Goal:** `HueScheme(hues, tol, jitter, hard, weight)` w Pythonie i Rust, semantyka rodzin, stare kształty\nrozwijane do identycznych celów; cała reszta kodu (poza nowym UI generatorów) działa na liście.\n\n**Files:**\n- Modify: `crates/core/src/schema.rs:384-396` (+ usunąć `HueSchemeKind`), `crates/core/src/rules/hues.rs`,\n  `crates/core/src/rules/mod.rs` (testy z `kind`), `crates/core/tests/schema_contract.rs`\n- Modify: `src/algopalette/model.py` (`HueScheme`, `default_session`), `io.py` (`_enc/_dec_hue_scheme`,\n  `_HUE_KINDS`, dekoder sesji przekazuje n akcentów), `presets.py` (`_Resolved.hue_scheme` jako lista,\n  `_decode_entry`, `_resolve` rozwija `LegacyScheme`), `presets_builtin.py` (`HueScheme(...)` → `LegacyScheme(...)`,\n  `PresetRules.hue_scheme: LegacyScheme`), `sources.py` (`character_settings` → `ordered_clusters`;\n  `apply_transfer` → `HueScheme()`), `rules_edit.py:160`, `themes/apply.py` (`HueScheme()`),\n  `gui/rule_rows.py:385`, `gui/rules_tab.py` (minimalnie: zawsze `ListPicker`, bez combo i suwaków rodzaju —\n  pełne UI w Task 3), `gui/analysis_tab.py` (jeśli używa usuniętych pól)\n- Regenerate: `tests/fixtures/v2_contract/eval_*.json` (test je odtwarza), `tests/fixtures/bench/w*.json`,\n  `v2_contract/manual_*.json` (zapis nowym koderem, format pliku zachowany); `v1_reference/*` NIETKNIĘTE.\n- Test: `tests/test_hue_list_compat.py` + aktualizacja istniejących testów z `kind=`/`.custom`\n  (`test_model, test_io, test_presets, test_rules_lock, test_sources, tests/gui/test_rules_tab, test_gui_app,\n  test_help_rules, test_gui_regressions_2026_11_18, test_themes_dialog, test_themes_apply`).\n\n**Acceptance Criteria:**\n- [ ] Rust: `scheme_targets([15,140,280], 8)` → `[15,140,280,15,140,280,15,140]`; pusta → `[]`; jitter jak dziś.\n- [ ] `engine.hue_targets` == snapshot z Task 1 dla wszystkich kluczy.\n- [ ] Stary plik v2: `kind=\"none\"` + niepuste `custom` → `hues == ()`; zapis nie zawiera `kind`.\n- [ ] Preset użytkownika ze starym kształtem w `presets.json` nakłada się z celami jak dawniej; nowy zapis = lista.\n- [ ] `set_rules_lock(…, \"hue\")` przy pustej liście → sama kłódka.\n- [ ] Cały `pytest -m \"not slow\"`, `cargo test --workspace` zielone.\n\n**Verify:** `uv run pytest -q tests/test_hue_list_compat.py` → passed; `cargo test --workspace` → ok\n\n```json:metadata\n{\"files\": [\"crates/core/src/schema.rs\", \"crates/core/src/rules/hues.rs\", \"src/algopalette/model.py\", \"src/algopalette/io.py\", \"src/algopalette/presets.py\", \"src/algopalette/presets_builtin.py\", \"src/algopalette/sources.py\", \"src/algopalette/rules_edit.py\", \"tests/test_hue_list_compat.py\"], \"verifyCommand\": \"uv run pytest -q tests/test_hue_list_compat.py && cargo test --workspace\", \"acceptanceCriteria\": [\"rodziny w Rust\", \"cele == snapshot\", \"stare pliki/presety zgodne\", \"pełny zestaw zielony\"], \"modelTier\": \"frontier\"}\n```"
+  },
+  {
+   "id": 3,
+   "subject": "Task 3: GUI — generatory, „obróć wszystkie”, liczniki ×N",
+   "status": "pending",
+   "blockedBy": [
+    2
+   ],
+   "description": "**Goal:** Ramka „Układ odcieni” z kołem + listą zawsze, rząd przycisków generatorów, obrót całej listy,\nlicznik akcentów przy każdym punkcie.\n\n**Files:**\n- Modify: `src/algopalette/gui/rules_tab.py` (`_hues_box`, `SCHEME_FIELDS` usunąć), `src/algopalette/gui/picker.py`\n  (`ListPicker`: `set_counts(counts: Sequence[int] | None)` — tekst `×N` w wierszu, ×0 wyszarzony; zaznaczenie\n  zachowane po `set_items`), `src/algopalette/forms.py` (`SCHEMES` → usunąć/zastąpić `GENERATORS`)\n- Test: `tests/gui/test_hue_list_ui.py`\n\n**Acceptance Criteria:**\n- [ ] Ramka zawsze ma `ListPicker`; brak combo „rodzaj”.\n- [ ] Zaznaczony punkt 40° + „triada” → `hues == (40,160,280)`, jeden krok cofania (Ctrl+Z przywraca).\n- [ ] Pusta lista + „mono” → `(25,)`.\n- [ ] „Analogiczny”/„równo po kole” pytają o N (i S); domyślnie N=3,S=60 / N=liczba akcentów.\n- [ ] „Z bieżących kolorów” bez barwnych akcentów → komunikat (`win.notify`), lista bez zmian.\n- [ ] „Obróć wszystkie” o +30° → każdy odcień +30 mod 360, jeden krok cofania na gest.\n- [ ] 8 akcentów (wszystkie `use_scheme`), 3 punkty → liczniki `(3,3,2)`; akcent 2 z `use_scheme=False` →\n      `(3,2,2)`; lista 14, 8 akcentów → wiersze 9–14 ×0.\n- [ ] `rule_rows` przy pustej liście: „→ układ odcieni jest pusty — brak celów”.\n\n**Verify:** `uv run pytest -q tests/gui/test_hue_list_ui.py` → passed\n\n```json:metadata\n{\"files\": [\"src/algopalette/gui/rules_tab.py\", \"src/algopalette/gui/picker.py\", \"src/algopalette/forms.py\", \"src/algopalette/hue_layouts.py\", \"tests/gui/test_hue_list_ui.py\"], \"verifyCommand\": \"uv run pytest -q tests/gui/test_hue_list_ui.py\", \"acceptanceCriteria\": [\"koło zawsze\", \"generatory jednorazowe z cofaniem\", \"obrót listy\", \"liczniki ×N\"], \"modelTier\": \"standard\"}\n```"
+  },
+  {
+   "id": 4,
+   "subject": "Task 4: Pomoc, README, pełna weryfikacja",
+   "status": "pending",
+   "blockedBy": [
+    3
+   ],
+   "description": "**Goal:** Teksty pomocy i README zgodne z nowym modelem; zielone wszystkie zestawy (także `slow`).\n\n**Files:**\n- Modify: `src/algopalette/gui/help_content/rules.py` (`rules.hues*`: usunąć `kind/rotation/center/spread`,\n  dodać tematy przycisków generatorów, obrotu, liczników; `rules.py:167` nowa semantyka),\n  `help_content/analysis.py:46` (jeśli treść o rodzaju), `help_content/themes_web.py` (wzmianka „układ\n  wyłączony” → „pusta lista”), `README.md`, `HANDOFF.md`\n\n**Acceptance Criteria:**\n- [ ] `test_help_coverage` i testy pomocy zielone; żaden tekst pomocy nie wspomina „rodzaju” układu.\n- [ ] `pytest -m slow` zielony (jakość presetów bez zmian), `cargo test --workspace` zielony, lintery czyste.\n\n**Verify:** `uv run pytest -q -m slow` → passed; `grep -rn \"rules.hues.kind\" src` → brak\n\n```json:metadata\n{\"files\": [\"src/algopalette/gui/help_content/rules.py\", \"README.md\", \"HANDOFF.md\"], \"verifyCommand\": \"uv run pytest -q -m slow\", \"acceptanceCriteria\": [\"pomoc zgodna\", \"slow zielony\", \"cargo zielony\"], \"modelTier\": \"mechanical\"}\n```"
+  }
+ ],
+ "lastUpdated": "2026-11-19"
+}
