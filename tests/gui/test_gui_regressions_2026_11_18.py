@@ -137,12 +137,12 @@ def test_whole_palette_page_follows_preset(win):
     tab.strip.select_palette()
     tab.flush()
     _apply_preset(win, "stonowany")
-    h = win.session.globals.hue_scheme
-    assert tab.palette_widgets["hues.rotation"].value() == h.rotation
+    assert tab.custom_picker is not None
+    assert tab.custom_picker.items() == win.session.globals.hue_scheme.hues
     _apply_preset(win, "zorza")
     _apply_preset(win, "ziemisty")
     assert tab.custom_picker is not None
-    assert tab.custom_picker.items() == win.session.globals.hue_scheme.custom
+    assert tab.custom_picker.items() == win.session.globals.hue_scheme.hues
 
 
 # I3

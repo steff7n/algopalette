@@ -18,6 +18,7 @@ from dataclasses import dataclass, replace
 import numpy as np
 
 from algopalette import color as col
+from algopalette.hue_layouts import ordered_clusters
 from algopalette.model import (
     MAX_ACCENTS,
     OKLCH,
@@ -238,9 +239,9 @@ def character_settings(session: Session, profile: Profile) -> CharacterSettings:
         chroma=Rule(ChromaBand("abs", max(0.0, bg.c - 0.01), bg.c + 0.01)),
         hue=_bg_hue(bg),
     )
-    hues = profile.hues or (0.0,)
-    custom = tuple((list(hues) * MAX_ACCENTS)[:MAX_ACCENTS])
-    g2 = replace(g, polarity=polarity, hue_scheme=HueScheme("custom", custom=custom, tol=15.0))
+    # rodziny w kolejności akcentów źródła (nie wg wagi skupiska) — akcent k bierze własny odcień
+    hues = ordered_clusters(profile.accents) or (0.0,)
+    g2 = replace(g, polarity=polarity, hue_scheme=HueScheme(hues=hues, tol=15.0))
     return CharacterSettings(globals=g2, bg=bg_rules, fg=fg, accent=accent)
 
 
@@ -303,7 +304,7 @@ def apply_transfer(
     g2 = replace(
         g,
         polarity=pol,
-        hue_scheme=HueScheme("none"),
+        hue_scheme=HueScheme(),
         avoid_colors=(),
         avoid_distance=0.0,
     )

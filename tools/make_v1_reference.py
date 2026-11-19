@@ -263,11 +263,12 @@ def random_session(rng: random.Random) -> Any:
         )
     kind = rng.choice(SCHEMES)
     scheme = HueScheme(
-        kind=kind,  # type: ignore[arg-type]
-        rotation=rng.uniform(0.0, 360.0),
-        center=rng.uniform(0.0, 360.0),
-        spread=rng.uniform(30.0, 180.0),
-        custom=tuple(rng.uniform(0.0, 360.0) for _ in range(rng.randint(1, 6)))
+        # kształt modelu z 4b71aeb (patrz docstring modułu) — dziś HueScheme ma tylko ``hues``
+        kind=kind,  # type: ignore[arg-type]  # ty: ignore[unknown-argument]
+        rotation=rng.uniform(0.0, 360.0),  # ty: ignore[unknown-argument]
+        center=rng.uniform(0.0, 360.0),  # ty: ignore[unknown-argument]
+        spread=rng.uniform(30.0, 180.0),  # ty: ignore[unknown-argument]
+        custom=tuple(rng.uniform(0.0, 360.0) for _ in range(rng.randint(1, 6)))  # ty: ignore[unknown-argument]
         if kind == "custom"
         else (),
         tol=rng.uniform(5.0, 30.0),

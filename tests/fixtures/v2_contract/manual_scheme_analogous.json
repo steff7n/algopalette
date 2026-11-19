@@ -8,11 +8,9 @@
     "delta_e": "hyab",
     "fit_method": "clip",
     "hue_scheme": {
-      "kind": "analogous",
-      "rotation": 0.0,
-      "center": 0.0,
-      "spread": 90.0,
-      "custom": [],
+      "hues": [
+        0.0
+      ],
       "tol": 15.0,
       "jitter": 0.0,
       "hard": false,

@@ -42,7 +42,7 @@ def test_default_session_shape():
     g = s.globals
     assert g.polarity == "dark"
     assert not hasattr(g, "role_defaults")
-    assert g.hue_scheme.kind == "equal"
+    assert g.hue_scheme.hues == tuple(45.0 * i for i in range(8))  # równo po kole
     assert (g.contrast_metric, g.delta_e, g.fit_method) == ("wcag21", "ok", "oklch-chroma")
     assert s.preset == "neutralny"
     assert not hasattr(s, "mood")

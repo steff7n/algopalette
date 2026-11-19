@@ -8,11 +8,7 @@
   "delta_e": "2000",
   "fit_method": "oklch-chroma",
   "hue_scheme": {
-   "kind": "none",
-   "rotation": 201.50245470331083,
-   "center": 292.2466689845577,
-   "spread": 99.28740480093082,
-   "custom": [],
+   "hues": [],
    "tol": 15.128175795372227,
    "jitter": 0.0,
    "hard": false,

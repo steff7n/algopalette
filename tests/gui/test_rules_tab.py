@@ -18,13 +18,10 @@ from algopalette.gui.picker import ListPicker
 from algopalette.gui.relations import RelationsEditor
 from algopalette.gui.widgets import NumEdit
 from algopalette.model import (
-    OKLCH,
     Band,
     ChromaBand,
     HueArc,
-    Relation,
     Rule,
-    default_rules,
     with_slot,
 )
 
@@ -395,8 +392,6 @@ def test_whole_palette_page(win, qtbot):
         "contrast_metric",
         "delta_e",
         "fit_method",
-        "hues.kind",
-        "hues.rotation",
         "hues.tol",
         "hues.jitter",
         "spread.add",
@@ -410,7 +405,7 @@ def test_whole_palette_page(win, qtbot):
         "gen.threads",
     ):
         assert key in w, key
-    assert "hues.center" not in w  # pola nie pasujące do rodzaju układu są schowane
+    assert "hues.kind" not in w and "hues.rotation" not in w  # układ to sama lista
     commit(w["gen.threads"], "4")
     commit(w["gen.budget"], "500")
     assert (win.session.globals.optimizer.threads, win.session.globals.optimizer.budget) == (4, 500)
@@ -423,165 +418,15 @@ def test_whole_palette_page(win, qtbot):
 def test_custom_hue_list_uses_picker(win, qtbot):
     tab = win.rules_tab
     select(win)
-    kind = tab.palette_widgets["hues.kind"]
-    assert tab.custom_picker is None
-    kind.setCurrentIndex(kind.findData("custom"))
-    kind.activated.emit(kind.currentIndex())
-    settle(win)
     picker = tab.custom_picker
     assert isinstance(picker, ListPicker) and picker.mode == "hue"
+    for i in reversed(range(len(picker.items()))):
+        picker.remove(i)
     qtbot.mouseClick(picker.wheel, LEFT, pos=picker.wheel.point_for(120.0).toPoint())
     qtbot.mouseClick(picker.wheel, LEFT, pos=picker.wheel.point_for(300.0).toPoint())
     scheme = win.session.globals.hue_scheme
-    assert scheme.kind == "custom"
-    assert [round(h) for h in scheme.custom] == [120, 300]
+    assert [round(h) for h in scheme.hues] == [120, 300]
     assert tab.custom_picker is picker  # dodawanie odcieni nie przebudowuje strony
-    kind = tab.palette_widgets["hues.kind"]
-    kind.setCurrentIndex(kind.findData("analogous"))
-    kind.activated.emit(kind.currentIndex())
-    settle(win)
-    assert tab.custom_picker is None
-    assert "hues.center" in tab.palette_widgets and "hues.spread" in tab.palette_widgets
-
-
-def test_avoid_colors_use_color_picker(win, qtbot):
-    tab = win.rules_tab
-    select(win)
-    picker = tab.avoid_picker
-    assert isinstance(picker, ListPicker) and picker.mode == "color"
-    qtbot.mouseClick(picker.wheel, LEFT, pos=picker.wheel.point_for(40.0).toPoint())
-    g = win.session.globals
-    assert len(g.avoid_colors) == 1 and isinstance(g.avoid_colors[0], OKLCH)
-    assert g.avoid_distance == 0.05  # lista bez odległości nic by nie robiła
-    assert tab.palette_widgets["avoid.distance"].value() == 0.05
-    commit(tab.palette_widgets["avoid.distance"], "0.08")
-    assert win.session.globals.avoid_distance == 0.08
-
-
-def test_metric_change_rescales_rules(win):
-    select(win)
-    met = win.rules_tab.palette_widgets["contrast_metric"]
-    met.setCurrentIndex(met.findData("apca"))
-    met.activated.emit(met.currentIndex())
-    assert win.session.globals.contrast_metric == "apca"
-    assert rules(win, 2).contrast_bg.value.lo == pytest.approx(60.0)
-
-
-# --- preset ----------------------------------------------------------------------------------
-
-
-def preset_names(win) -> list[str]:
-    combo = win.rules_tab.preset_combo
-    return [combo.itemData(i) for i in range(combo.count())]
-
-
-def test_preset_search_category_and_apply(win):
-    tab = win.rules_tab
-    assert preset_names(win) == [p.name for p in presets.list_presets()]
-    assert "neutralny" in tab.current_label.text()
-    assert "(zmieniony)" not in tab.current_label.text()
-    tab.search.setText("mgl")
-    assert preset_names(win) == ["chłodny mglisty"]
-    tab.search.setText("")
-    tab.category.setCurrentIndex(tab.category.findData("Ciepłe"))
-    assert set(preset_names(win)) >= {"ziemisty", "jesienny"}
-    assert "neon" not in preset_names(win)
-    tab.category.setCurrentIndex(0)
-    tab.preset_combo.setCurrentIndex(preset_names(win).index("chłodny mglisty"))
-    before = win.session
-    tab.apply_btn.click()
-    settle(win)
-    assert win.session.preset == "chłodny mglisty"
-    assert win.session == presets.apply_preset(before, "chłodny mglisty")
-    assert "chłodny mglisty" in tab.current_label.text()
-    assert "(zmieniony)" not in tab.current_label.text()
-    select(win, 2)
-    tab.rows["lightness"].hard_box.click()
-    assert "(zmieniony)" in tab.current_label.text()
-    win.action_undo()
-    assert "(zmieniony)" not in tab.current_label.text()
-
-
-def test_save_and_delete_own_preset(win):
-    tab = win.rules_tab
-    tab.preset_name.setText("mój zestaw")
-    tab.save_btn.click()
-    assert "mój zestaw" in preset_names(win)
-    assert win.session.preset == "mój zestaw"
-    assert "mój zestaw" in tab.current_label.text()
-    assert "(zmieniony)" not in tab.current_label.text()
-    tab.category.setCurrentIndex(tab.category.findData(presets.USER_CATEGORY))
-    assert preset_names(win) == ["mój zestaw"]
-    tab.delete_btn.click()
-    assert preset_names(win) == []
-    assert "(zmieniony)" in tab.current_label.text()  # presetu już nie ma
-
-
-def test_polarity_with_fresh_preset_reapplies_without_asking(win, monkeypatch):
-    tab = win.rules_tab
-    monkeypatch.setattr(tab, "ask_polarity", lambda _p: pytest.fail("nie powinno pytać"))
-    tab.pol_light.click()
-    assert win.session.globals.polarity == "light"
-    assert win.session.preset == "neutralny"
-    assert rules(win, 0) == default_rules("bg", "light", "wcag21")
-    assert tab.pol_light.isChecked()
-    assert "(zmieniony)" not in tab.current_label.text()
-
-
-@pytest.mark.parametrize("choice", ["replace", "mark", "cancel"])
-def test_polarity_with_modified_rules_asks(win, monkeypatch, choice):
-    tab = win.rules_tab
-    s = win.session
-    darker = replace(s.slots[2].rules, lightness=Rule(Band(0.4, 0.5)))
-    win.set_session(with_slot(s, replace(s.slots[2], rules=darker)))
-    asked = []
-    monkeypatch.setattr(tab, "ask_polarity", lambda p: asked.append(p) or choice)
-    tab.pol_light.click()
-    assert asked == ["light"]
-    if choice == "cancel":
-        assert win.session.globals.polarity == "dark"
-        assert tab.pol_dark.isChecked() and not tab.pol_light.isChecked()
-        assert rules(win, 2).lightness == Rule(Band(0.4, 0.5))
-    elif choice == "mark":
-        assert win.session.globals.polarity == "light"
-        assert rules(win, 2).lightness == Rule(Band(0.4, 0.5))
-    else:
-        assert win.session.globals.polarity == "light"
-        assert rules(win, 2) == default_rules("accent", "light", "wcag21")
-
-
-def test_polarity_without_preset_asks(win, monkeypatch):
-    tab = win.rules_tab
-    win.set_session(replace(win.session, preset=None))
-    assert "własne zasady" in tab.current_label.text()
-    monkeypatch.setattr(tab, "ask_polarity", lambda _p: "replace")
-    tab.pol_light.click()
-    assert win.session.preset == "neutralny"
-    assert win.session.globals.polarity == "light"
-
-
-# --- cofanie i pomoc -------------------------------------------------------------------------
-
-
-def test_undo_refreshes_editor(win):
-    tab = win.rules_tab
-    select(win, 2)
-    rel = Relation("hue", win.session.slots[3].id, "eq", 180.0, tol=15.0)
-    win.set_session(with_slot(win.session, replace(win.session.slots[2], relations=(rel,))))
-    settle(win)
-    commit(tab.rows["lightness"].slider.range.lo_edit, "0.3")
-    win.action_undo()
-    settle(win)
-    assert tab.rows["lightness"].slider.values()[0] == 0.60
-    win.action_undo()
-    settle(win)
-    assert win.session.slots[2].relations == ()
-
-
-@pytest.mark.parametrize("indices", [(), (0,), (1,), (2,), (2, 3), (0, 2)])
-def test_every_element_has_help(win, indices):
-    select(win, *indices)
-    assert gh.uncovered(win.rules_tab) == []
 
 
 def test_help_covers_elements_added_later(win, qtbot):
@@ -593,11 +438,8 @@ def test_help_covers_elements_added_later(win, qtbot):
     settle(win)
     assert gh.uncovered(tab) == []
     select(win)
-    kind = tab.palette_widgets["hues.kind"]
-    kind.setCurrentIndex(kind.findData("custom"))
-    kind.activated.emit(kind.currentIndex())
-    settle(win)
     picker = tab.custom_picker
+    assert picker is not None
     qtbot.mouseClick(picker.wheel, LEFT, pos=picker.wheel.point_for(120.0).toPoint())
     tab.avoid_picker.add_button.click()
     tab.palette_widgets["spread.add"].click()

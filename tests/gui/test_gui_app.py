@@ -222,7 +222,7 @@ def test_source_character_rules_show_in_rules_tab(win):
     src.apply()
     s = win.session
     assert s.preset is None
-    assert s.globals.hue_scheme.kind == "custom"
+    assert s.globals.hue_scheme.hues  # odcienie źródła w kolejności akcentów
     accent = s.slots[2].rules
     assert accent.chroma is not None and accent.chroma.value.mode == "rel"
     assert all(sl.rules == accent and sl.use_scheme for sl in s.slots[2:])

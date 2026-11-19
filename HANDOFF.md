@@ -14,7 +14,19 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   **Plan:** `docs/superpowers/plans/2026-11-19-uklad-odcieni-lista.md` + `.tasks.json` (4 zadania, sekwencyjne).
   Decyzje agenta w specu po builder-checku: `custom` rozwijany do `max(n, k)`; „z bieżących kolorów” = wszystkie
   akcenty, `slot.value`, skupiska w kolejności wystąpienia (też w `character_settings` — naprawia kolejność).
-- **Stan zadań (dopisuj):** Task 1 ☑ (`hue_layouts.py`: generatory, `family_counts`, `ordered_clusters`, `LegacyScheme` + `legacy_targets`; snapshot 231 kluczy w `tests/fixtures/hue_targets_snapshot.json` z `tools/snapshot_hue_targets.py` na starym kodzie — po Tasku 2 skrypt NIE odtworzy go 1:1, nie uruchamiaj ponownie; `tests/test_hue_layouts.py` 8 passed), Task 2 ☐, Task 3 ☐, Task 4 ☐.
+- **Stan zadań (dopisuj):** Task 1 ☑ (`hue_layouts.py`: generatory, `family_counts`, `ordered_clusters`, `LegacyScheme` + `legacy_targets`; snapshot 231 kluczy w `tests/fixtures/hue_targets_snapshot.json` z `tools/snapshot_hue_targets.py` na starym kodzie — po Tasku 2 skrypt NIE odtworzy go 1:1, nie uruchamiaj ponownie; `tests/test_hue_layouts.py` 8 passed), Task 2 ☑ (`HueScheme(hues, tol, jitter, hard, weight)` w `model.py` i Rust `schema.rs` — `HueSchemeKind`
+  usunięty, `rules/hues.rs::scheme_targets` = `hues[i % k]` + jitter; `io._dec_hue_recipe` czyta oba kształty
+  (stary po kluczu `kind` → `LegacyScheme`), `io._dec_hue_scheme(…, n_accents)` rozwija przez
+  `hue_layouts.to_scheme`; presety wbudowane deklarują `LegacyScheme`, `presets._Resolved.recipe` +
+  `scheme_for(current, n)` — `is_modified` rozwija przepis do DŁUGOŚCI LISTY sesji (dodanie akcentu nie oznacza
+  „(zmieniony)”); `character_settings` → `ordered_clusters` (bez powielania do 14); transfer/import motywu →
+  `HueScheme()`; `rules_tab._hues_box` tymczasowo: zawsze `ListPicker` + tol/jitter/twardy/waga (bez combo);
+  fixture'y `manual_*`/`bench` przepisane (tylko `hue_scheme`), `eval_*` odtworzone; `tools/preset_feasibility.py`
+  na listę, `tools/make_v1_reference.py` tylko `ty: ignore` (narzędzie historyczne). Usunięty test
+  `test_scheme_example_matches_the_engine` (przykład z pomocy `rules.hues.kind` — nowy w Tasku 4).
+  Weryfikacja: `pytest -m "not slow"` 1478 passed / 2 skipped; `tests/test_hue_list_compat.py` 239 passed (231
+  kluczy snapshotu identyczne); cargo 126 passed, clippy 0, fmt czysto; ruff czysto; ty 0 błędów.
+  Rozszerzenie przebudowuje `uv sync` (`maturin` nie ma w venv — `uv run maturin develop` NIE działa)), Task 3 ☐, Task 4 ☐.
 - **O co łatwo się potknąć:** snapshot celów (`tests/fixtures/hue_targets_snapshot.json`) MUSI powstać na
   starym kodzie (Task 1) — po Tasku 2 nie da się go już odtworzyć; po zmianie `crates/` przebuduj rozszerzenie
   przed pytest; `v1_reference/*` nietykalne.

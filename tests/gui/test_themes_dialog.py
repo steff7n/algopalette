@@ -139,7 +139,7 @@ def test_import_replaces_session_and_undo_restores(win, qtbot):
     assert win.file_path == path_before
     assert win.tabs.currentWidget() is win.palette_tab
     assert len(s.slots) == 10 and s.slots[0].name == "tło"
-    assert s.globals.hue_scheme.kind == "none"
+    assert s.globals.hue_scheme.hues == ()
     win.action_undo()
     assert win.session == before
 

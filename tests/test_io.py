@@ -68,7 +68,7 @@ def full_session():
     g = replace(
         s.globals,
         polarity="light",
-        hue_scheme=HueScheme("custom", 10.0, 20.0, 30.0, (1.0, 2.5, 300.0), 5.0, 2.0, True, 0.7),
+        hue_scheme=HueScheme((1.0, 2.5, 300.0), 5.0, 2.0, True, 0.7),
         lightness_spread=Rule(Interval(0.1, None), hard=False),
         contrast_metric="apca",
         delta_e="cam16",
@@ -296,7 +296,7 @@ DELETE = object()
         ),
         (["globals", "polarity"], "gray"),
         (["globals", "contrast_metric"], "wcag3"),
-        (["globals", "hue_scheme", "custom"], ["a"]),
+        (["globals", "hue_scheme", "hues"], ["a"]),
         (["globals", "lightness_spread"], 3),
         (["globals", "optimizer", "seed"], 1.5),
         (["globals", "optimizer", "n_proposals"], 0),

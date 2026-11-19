@@ -139,9 +139,9 @@ def test_character_writes_rules_of_every_color():
     assert not any(sl.locked for sl in s.slots)
     assert s.slots[2].relations == (rel,)
     scheme = s.globals.hue_scheme
-    assert (scheme.kind, scheme.tol, len(scheme.custom)) == ("custom", 15.0, 14)
-    assert scheme.custom[: len(prof.hues)] == prof.hues
-    assert scheme.custom[len(prof.hues)] == prof.hues[0]  # powtórzone do 14
+    assert scheme.tol == 15.0
+    # rodziny = skupiska odcieni źródła w kolejności akcentów (nie powielane — akcenty krążą)
+    assert sorted(scheme.hues) == pytest.approx(sorted(prof.hues))
     assert s.globals.avoid_colors == ()
 
     contrasts = [col.contrast(a, SRC[0], "wcag21") for a in SRC[2:]]
@@ -186,7 +186,7 @@ def test_character_avoids_source():
     s = apply_character(
         default_session(), extract_profile(SRC), avoid_source=True, avoid_distance=0.05
     )
-    assert s.globals.hue_scheme.kind == "custom"
+    assert s.globals.hue_scheme.hues
     p = generate(_one(s))[0]
     assert p.ok, p.violations
     for sl in s.slots[2:]:
@@ -203,7 +203,7 @@ def test_transfer_writes_rules_per_accent():
     assert len(s.slots) == 8  # liczba akcentów = liczba akcentów źródła
     assert s.preset is None
     assert s.globals.polarity == "light"
-    assert s.globals.hue_scheme.kind == "none"
+    assert s.globals.hue_scheme.hues == ()
     assert not any(sl.locked for sl in s.slots)
     defaults = default_rules("accent", "light", "wcag21")
     for k, src in enumerate(SRC[2:]):

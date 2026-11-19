@@ -157,7 +157,7 @@ def set_rules_lock(
         slot = replace(slot, rules_lock=mode)
         target = targets.get(slot.id)
         frozen = mode == "hue" and slot.id in accents and slot.use_scheme
-        if not frozen or scheme.kind == "none" or target is None:
+        if not frozen or not scheme.hues or target is None:
             return slot
         return replace(
             slot,

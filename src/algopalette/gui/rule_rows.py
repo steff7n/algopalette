@@ -382,8 +382,8 @@ class SchemeRow(QFrame):
         self.check.setCheckState(Qt.CheckState.Checked if on else state)
         targets = self.tab.hue_targets()
         mine = [targets[i] for i in ids if i in targets]
-        if s.globals.hue_scheme.kind == "none":
-            text = "→ układ odcieni jest wyłączony (rodzaj „brak”)"
+        if not s.globals.hue_scheme.hues:
+            text = "→ układ odcieni jest pusty — brak celów"
         elif not mine:
             text = "→ cel: —"
         else:

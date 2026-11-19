@@ -8,11 +8,9 @@
     "delta_e": "ok",
     "fit_method": "lch-chroma",
     "hue_scheme": {
-      "kind": "split",
-      "rotation": 0.0,
-      "center": 0.0,
-      "spread": 90.0,
-      "custom": [],
+      "hues": [
+        0.0
+      ],
       "tol": 15.0,
       "jitter": 0.0,
       "hard": false,

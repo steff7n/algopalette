@@ -13,7 +13,8 @@ from algopalette.rules_edit import _intersect, merged_rules_lock, set_rules_lock
 
 def session_with_scheme(tol: float = 4.0, hard: bool = True, weight: float = 2.0):
     s = default_session()
-    scheme = HueScheme("equal", tol=tol, hard=hard, weight=weight)
+    hues = tuple(45.0 * i for i in range(8))
+    scheme = HueScheme(hues, tol=tol, hard=hard, weight=weight)
     return replace(s, globals=replace(s.globals, hue_scheme=scheme))
 
 
@@ -93,7 +94,7 @@ def test_freeze_without_target_only_locks(case):
     elif case == "not_using_scheme":
         s = with_slot(s, replace(slot, use_scheme=False))
     elif case == "scheme_none":
-        s = replace(s, globals=replace(s.globals, hue_scheme=HueScheme("none")))
+        s = replace(s, globals=replace(s.globals, hue_scheme=HueScheme()))
     before = s.slots[idx]
     out = set_rules_lock(s, [slot.id], "hue", targets)
     assert out.slots[idx] == replace(before, rules_lock="hue")

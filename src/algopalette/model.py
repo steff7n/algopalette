@@ -172,13 +172,10 @@ class Slot:
 
 @dataclass(frozen=True)
 class HueScheme:
-    kind: Literal[
-        "equal", "analogous", "complementary", "split", "triad", "tetrad", "custom", "none"
-    ]
-    rotation: float = 0.0
-    center: float = 0.0
-    spread: float = 90.0
-    custom: tuple[float, ...] = ()
+    """Układ odcieni: rodziny ``hues`` — akcent ``i`` dostaje cel ``hues[i mod k]``; pusta lista
+    = brak celów. Harmonie (triada, kwadrat…) to generatory listy w ``hue_layouts``."""
+
+    hues: tuple[float, ...] = ()
     tol: float = 15.0
     jitter: float = 0.0
     hard: bool = False
@@ -283,7 +280,7 @@ def default_session() -> Session:
     """Sesja startowa: ciemna, tło + tekst + 8 akcentów, preset „neutralny”."""
     g = GlobalSettings(
         polarity="dark",
-        hue_scheme=HueScheme(kind="equal"),
+        hue_scheme=HueScheme(hues=tuple(45.0 * i for i in range(8))),  # równo po kole
         lightness_spread=None,
         contrast_metric="wcag21",
         delta_e="ok",

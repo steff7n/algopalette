@@ -38,7 +38,6 @@ from algopalette.forms import (
     CONTRAST_GLOBAL,
     DELTA_E,
     FITS,
-    SCHEMES,
 )
 from algopalette.globals_logic import change_delta_e, change_metric
 from algopalette.gui import help
@@ -85,17 +84,6 @@ if TYPE_CHECKING:
 
 HUE_GRADIENT = channel_gradient(OKLCH(0.75, 0.13, 0.0), "h")
 ALL_CATEGORIES = "wszystkie kategorie"
-# Które pola układu odcieni mają sens dla danego rodzaju (reszty nie pokazujemy).
-SCHEME_FIELDS: dict[str, tuple[str, ...]] = {
-    "equal": ("rotation",),
-    "analogous": ("center", "spread"),
-    "complementary": ("rotation",),
-    "split": ("rotation",),
-    "triad": ("rotation",),
-    "tetrad": ("rotation",),
-    "custom": (),
-    "none": (),
-}
 
 
 def group(title: str, key: str) -> tuple[QGroupBox, Any]:
@@ -266,7 +254,7 @@ class RulesTab(QWidget):
         sel = self.strip.selection()
         if sel.palette:
             g = s.globals
-            return ("palette", g.hue_scheme.kind, g.lightness_spread is None, g.delta_e)
+            return ("palette", g.lightness_spread is None, g.delta_e)
         ids = sel.ids
         fields = rules_edit.applicable_fields(s, ids)
         rows = tuple((f, row_signature(s, ids, f)) for f in fields)
@@ -601,39 +589,28 @@ class RulesTab(QWidget):
         h = g.hue_scheme
         box, lay = group("Układ odcieni — cele dla akcentów, które go stosują", "rules.hues")
         w, fl = form()
-        kind = combo(SCHEMES, h.kind)
-        kind.activated.connect(lambda _i: self._scheme(kind=kind.currentData()))
-        fl.addRow("rodzaj", keyed(kind, "rules.hues.kind"))
-        self.palette_widgets["hues.kind"] = kind
+        self.custom_picker = ListPicker(h.hues, mode="hue", max_items=MAX_ACCENTS)
+        self.custom_picker.changed.connect(self._custom)
+        fl.addRow("odcienie", keyed(self.custom_picker, "rules.hues.custom", children=True))
         sliders = {
-            "rotation": ("obrót °", 0, 360, True, HUE_GRADIENT),
-            "center": ("środek °", 0, 360, True, HUE_GRADIENT),
-            "spread": ("rozpiętość °", 0, 360, False, None),
             "tol": ("tolerancja ±°", 0, 90, False, None),
             "jitter": ("rozrzut losowy ±°", 0, 45, False, None),
         }
-        shown = (*SCHEME_FIELDS[h.kind], *(() if h.kind == "none" else ("tol", "jitter")))
-        for key in shown:
-            label, lo, hi, wrap, grad = sliders[key]
+        for key, (label, lo, hi, wrap, grad) in sliders.items():
             sl = ValueSlider(
                 getattr(h, key), minimum=lo, maximum=hi, step=1, fmt=".0f", wrap=wrap, gradient=grad
             )
             sl.changed.connect(lambda v, key=key: self._scheme_value(key, v))
             fl.addRow(label, keyed(sl, f"rules.hues.{key}", children=True))
             self.palette_widgets[f"hues.{key}"] = sl
-        if h.kind == "custom":
-            self.custom_picker = ListPicker(h.custom, mode="hue", max_items=MAX_ACCENTS)
-            self.custom_picker.changed.connect(self._custom)
-            fl.addRow("własna lista", keyed(self.custom_picker, "rules.hues.custom", children=True))
-        if h.kind != "none":
-            hard = QCheckBox("twardy")
-            hard.setChecked(h.hard)
-            hard.clicked.connect(lambda on: self._scheme(hard=on))
-            weight = NumEdit(h.weight, minimum=0.0, step=0.1, width=56)
-            weight.committed.connect(lambda v: v is not None and self._scheme(weight=v))
-            row = hbox(hard, QLabel("waga"), weight)
-            fl.addRow("", keyed(row, "rules.hues.hard", children=True))
-            self.palette_widgets.update({"hues.hard": hard, "hues.weight": weight})
+        hard = QCheckBox("twardy")
+        hard.setChecked(h.hard)
+        hard.clicked.connect(lambda on: self._scheme(hard=on))
+        weight = NumEdit(h.weight, minimum=0.0, step=0.1, width=56)
+        weight.committed.connect(lambda v: v is not None and self._scheme(weight=v))
+        row = hbox(hard, QLabel("waga"), weight)
+        fl.addRow("", keyed(row, "rules.hues.hard", children=True))
+        self.palette_widgets.update({"hues.hard": hard, "hues.weight": weight})
         help.attach_form_labels(fl)
         lay.addWidget(w)
         return box
@@ -754,7 +731,7 @@ class RulesTab(QWidget):
             self._set(hue_scheme=new, coalesce=f"g:hs-{key}")
 
     def _custom(self, hues: tuple[float, ...]) -> None:
-        self._set(hue_scheme=replace(self.g.hue_scheme, custom=tuple(hues)), coalesce="g:hs-custom")
+        self._set(hue_scheme=replace(self.g.hue_scheme, hues=tuple(hues)), coalesce="g:hs-custom")
         if self.custom_picker is not None:
             help.attach(self.custom_picker, "rules.hues.custom", children=True)
 

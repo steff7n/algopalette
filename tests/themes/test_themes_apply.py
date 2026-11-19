@@ -44,7 +44,7 @@ def test_default_mode_fits_settings_to_theme():
     out = apply_theme(s, palette(5, light=True), keep_settings=False)
     g = out.globals
     assert g.polarity == "light"
-    assert g.hue_scheme.kind == "none"
+    assert g.hue_scheme.hues == ()
     assert g.lightness_spread is None
     assert out.preset is None
     assert g.avoid_colors == s.globals.avoid_colors and g.avoid_distance == 0.07

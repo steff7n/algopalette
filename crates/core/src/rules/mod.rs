@@ -76,8 +76,7 @@ mod tests {
             "globals": {
                 "polarity": "dark", "contrast_metric": "wcag21", "delta_e": "ok",
                 "fit_method": "oklch-chroma",
-                "hue_scheme": {"kind": "none", "rotation": 0.0, "center": 0.0, "spread": 90.0,
-                    "custom": [], "tol": 15.0, "jitter": 0.0, "hard": false, "weight": 1.0},
+                "hue_scheme": {"hues": [], "tol": 15.0, "jitter": 0.0, "hard": false, "weight": 1.0},
                 "lightness_spread": null,
                 "avoid_colors": [], "avoid_distance": 0.0,
                 "optimizer": {"n_proposals": 6, "seed": 0, "budget": 3000, "time_cap_s": 30.0,
@@ -105,7 +104,7 @@ mod tests {
         let mut doc = bare(5);
         doc["globals"]["delta_e"] = json!(delta_e);
         doc["globals"]["contrast_metric"] = json!(metric);
-        doc["globals"]["hue_scheme"]["kind"] = json!("triad");
+        doc["globals"]["hue_scheme"]["hues"] = json!([0.0, 120.0, 240.0, 60.0, 180.0]);
         doc["globals"]["lightness_spread"] = rule(json!({"lo": 0.05, "hi": 0.12}), false);
         doc["globals"]["avoid_colors"] = json!([{"l": 0.7, "c": 0.1, "h": 30.0}]);
         doc["globals"]["avoid_distance"] = json!(0.08);
@@ -349,7 +348,7 @@ mod tests {
     #[test]
     fn scheme_term_follows_use_scheme_independently_of_the_hue_rule() {
         let mut doc = bare(3);
-        doc["globals"]["hue_scheme"]["kind"] = json!("triad");
+        doc["globals"]["hue_scheme"]["hues"] = json!([0.0, 120.0, 240.0]);
         doc["slots"][2]["use_scheme"] = json!(true);
         doc["slots"][2]["rules"]["hue"] =
             rule(json!({"lo": 0.0, "hi": 270.0, "exclude": []}), true);
@@ -588,7 +587,7 @@ mod tests {
     #[test]
     fn hard_ranges_become_bounds_and_free_colors_stay_in_gamut() {
         let mut doc = bare(3);
-        doc["globals"]["hue_scheme"]["kind"] = json!("triad");
+        doc["globals"]["hue_scheme"]["hues"] = json!([0.0, 120.0, 240.0]);
         let a1 = &mut doc["slots"][2]["rules"];
         a1["lightness"] = rule(json!({"lo": 0.6, "hi": 0.85, "exclude": []}), true);
         a1["chroma"] = rule(json!({"mode": "rel", "lo": 0.3, "hi": 0.9, "exclude": []}), true);

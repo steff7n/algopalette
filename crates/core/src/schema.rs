@@ -88,19 +88,6 @@ pub enum FitMethod {
     Scale,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum HueSchemeKind {
-    Equal,
-    Analogous,
-    Complementary,
-    Split,
-    Triad,
-    Tetrad,
-    Custom,
-    None,
-}
-
 /// `abs` = nasycenie C wprost; `rel` = ułamek największego C osiągalnego w sRGB przy (L, H).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -384,11 +371,8 @@ pub struct Slot {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HueScheme {
-    pub kind: HueSchemeKind,
-    pub rotation: f64,
-    pub center: f64,
-    pub spread: f64,
-    pub custom: Vec<f64>,
+    /// Rodziny odcieni: akcent `i` dostaje cel `hues[i mod k]`; pusta lista = brak celów.
+    pub hues: Vec<f64>,
     pub tol: f64,
     pub jitter: f64,
     pub hard: bool,

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from algopalette import color as col
-from algopalette.model import OKLCH
+from algopalette.model import MAX_ACCENTS, OKLCH, HueScheme
 
 Hues = tuple[float, ...]
 LegacyKind = Literal[
@@ -198,3 +198,13 @@ def legacy_targets(s: LegacyScheme, n: int) -> Hues:
     cycles = -(-n // k)
     step = 360.0 / (k * cycles)
     return _wrap([base[i % k] + (i // k) * step for i in range(n)])
+
+
+def to_scheme(recipe: HueScheme | LegacyScheme, n_accents: int) -> HueScheme:
+    """Układ sesji z przepisu: dawny kształt → ``legacy_targets`` dla ``n_accents`` akcentów."""
+    if isinstance(recipe, HueScheme):
+        return recipe
+    hues = legacy_targets(recipe, n_accents)[:MAX_ACCENTS]
+    return HueScheme(
+        hues=hues, tol=recipe.tol, jitter=recipe.jitter, hard=recipe.hard, weight=recipe.weight
+    )

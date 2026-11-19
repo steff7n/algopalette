@@ -2,7 +2,6 @@
 istnieją tekst i każdy akcent w twardych zakresach L/C, z kontrastem w wymaganym przedziale,
 przy odcieniu w tolerancji celu układu."""
 
-import math
 import sys
 from dataclasses import replace
 
@@ -12,30 +11,11 @@ from algopalette.presets import apply_preset
 from algopalette.presets_builtin import BUILTIN
 
 
-def base_hues(sc: HueScheme, n: int) -> list[float]:
-    r = sc.rotation
-    if sc.kind == "equal":
-        return [r + 360.0 * i / n for i in range(n)]
-    if sc.kind == "analogous":
-        lo = sc.center - sc.spread / 2
-        return [sc.center] if n == 1 else [lo + sc.spread * i / (n - 1) for i in range(n)]
-    table = {
-        "complementary": [r, r + 180.0],
-        "split": [r, r + 150.0, r + 210.0],
-        "triad": [r, r + 120.0, r + 240.0],
-        "tetrad": [r, r + 90.0, r + 180.0, r + 270.0],
-        "custom": list(sc.custom),
-    }
-    return table.get(sc.kind, [])
-
-
 def targets(sc: HueScheme, n: int) -> list[float | None]:
-    base = base_hues(sc, n)
-    k = len(base)
+    k = len(sc.hues)
     if k == 0:
         return [None] * n
-    cycles = math.ceil(n / k)
-    return [(base[i % k] + (i // k) * 360.0 / (k * cycles)) % 360.0 for i in range(n)]
+    return [sc.hues[i % k] % 360.0 for i in range(n)]
 
 
 def grid(lo: float, hi: float, n: int) -> list[float]:

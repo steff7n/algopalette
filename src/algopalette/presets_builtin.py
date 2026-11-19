@@ -15,13 +15,13 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
+from algopalette.hue_layouts import LegacyScheme
 from algopalette.model import (
     Band,
     ChromaBand,
     ContrastBound,
     ContrastMetric,
     HueArc,
-    HueScheme,
     Interval,
     Polarity,
     Rule,
@@ -46,7 +46,7 @@ CATEGORIES: tuple[str, ...] = (
 
 SchemeKind = Literal["complementary", "split", "triad", "tetrad", "analogous"]
 
-EQUAL = HueScheme("equal")  # układ presetu, który nie podaje własnego
+EQUAL = LegacyScheme("equal")  # układ presetu, który nie podaje własnego
 
 
 @dataclass(frozen=True)
@@ -63,7 +63,7 @@ class PresetRules:
     fg: SlotRules
     accent: SlotRules  # ten sam zestaw dla każdego akcentu bez nadpisania
     overrides: Mapping[int, AccentOverride] = field(default_factory=dict)  # numer akcentu od 1
-    hue_scheme: HueScheme = EQUAL
+    hue_scheme: LegacyScheme = EQUAL
     lightness_spread: Rule[Interval] | None = None
     use_scheme: bool = True  # czy akcenty bez nadpisania biorą cel z układu odcieni
     contrast_metric: ContrastMetric | None = None  # None = metryka sesji
@@ -140,7 +140,7 @@ def _cool_misty(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         metric,
         bg={"chroma": _abs(0.01, 0.03), "hue": _arc(200.0, 260.0, hard=False)},
         accent={"lightness": _pick(pol, (0.66, 0.80), (0.40, 0.52)), "chroma": _abs(0.03, 0.09)},
-        hue_scheme=HueScheme("analogous", center=220.0, spread=110.0, tol=15.0),
+        hue_scheme=LegacyScheme("analogous", center=220.0, spread=110.0, tol=15.0),
         lightness_spread=Rule(Interval(None, 0.12), hard=False),
     )
 
@@ -151,7 +151,7 @@ def _neon(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         metric,
         bg={"lightness": _pick(pol, (0.08, 0.14), (0.95, 0.99)), "chroma": _abs(0.0, 0.02)},
         accent={"lightness": _pick(pol, (0.66, 0.86), (0.45, 0.60)), "chroma": _rel(0.85, 1.0)},
-        hue_scheme=HueScheme("equal", rotation=330.0, tol=20.0),
+        hue_scheme=LegacyScheme("equal", rotation=330.0, tol=20.0),
     )
 
 
@@ -164,7 +164,7 @@ def _earthy(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         metric,
         bg={"chroma": _abs(0.01, 0.03), "hue": _arc(40.0, 80.0, hard=False)},
         accent={"lightness": _pick(pol, (0.58, 0.78), (0.38, 0.55)), "chroma": _abs(0.04, 0.11)},
-        hue_scheme=HueScheme("custom", custom=EARTH, tol=12.0),
+        hue_scheme=LegacyScheme("custom", custom=EARTH, tol=12.0),
     )
 
 
@@ -173,7 +173,7 @@ def _pastel(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         pol,
         metric,
         accent={"lightness": _pick(pol, (0.84, 0.93), (0.55, 0.65)), "chroma": _rel(0.22, 0.42)},
-        hue_scheme=HueScheme("equal", rotation=10.0, tol=15.0),
+        hue_scheme=LegacyScheme("equal", rotation=10.0, tol=15.0),
     )
 
 
@@ -195,7 +195,7 @@ def _night_contrast(pol: Polarity, metric: ContrastMetric) -> PresetRules:
             "chroma": _abs(0.08, 0.16),
             "contrast_bg": _contrast(metric, 7.0, 75.0),
         },
-        hue_scheme=HueScheme("equal", rotation=20.0, tol=15.0),
+        hue_scheme=LegacyScheme("equal", rotation=20.0, tol=15.0),
     )
 
 
@@ -212,7 +212,7 @@ def _mono_accent(pol: Polarity, metric: ContrastMetric) -> PresetRules:
             "min_distance": Rule(0.04, hard=False),
         },
         # Pierwszy akcent ciepły (35°), reszta w jednym odcieniu 220°.
-        hue_scheme=HueScheme("custom", custom=MONO, tol=10.0, hard=True),
+        hue_scheme=LegacyScheme("custom", custom=MONO, tol=10.0, hard=True),
         lightness_spread=Rule(Interval(0.25, None), hard=False),
     )
 
@@ -242,7 +242,7 @@ def _retro(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         bg={"chroma": _abs(0.01, 0.03), "hue": _around(145.0, 20.0, hard=False)},
         fg={"hue": _around(140.0, 25.0, hard=False)},
         accent={"lightness": _pick(pol, (0.62, 0.86), (0.35, 0.55)), "chroma": _abs(0.08, 0.18)},
-        hue_scheme=HueScheme("custom", custom=PHOSPHOR, tol=10.0),
+        hue_scheme=LegacyScheme("custom", custom=PHOSPHOR, tol=10.0),
     )
 
 
@@ -255,7 +255,7 @@ def _autumn(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         metric,
         bg={"chroma": _abs(0.01, 0.025), "hue": _arc(25.0, 60.0, hard=False)},
         accent={"lightness": _pick(pol, (0.60, 0.80), (0.38, 0.55)), "chroma": _abs(0.08, 0.16)},
-        hue_scheme=HueScheme("custom", custom=AUTUMN, tol=10.0),
+        hue_scheme=LegacyScheme("custom", custom=AUTUMN, tol=10.0),
     )
 
 
@@ -266,12 +266,12 @@ DARK: tuple[Polarity, ...] = ("dark",)
 LIGHT: tuple[Polarity, ...] = ("light",)
 
 
-def _custom(hues: tuple[float, ...], tol: float = 12.0, *, hard: bool = False) -> HueScheme:
-    return HueScheme("custom", custom=hues, tol=tol, hard=hard)
+def _custom(hues: tuple[float, ...], tol: float = 12.0, *, hard: bool = False) -> LegacyScheme:
+    return LegacyScheme("custom", custom=hues, tol=tol, hard=hard)
 
 
-def _fan(center: float, spread: float, tol: float = 12.0) -> HueScheme:
-    return HueScheme("analogous", center=center, spread=spread, tol=tol)
+def _fan(center: float, spread: float, tol: float = 12.0) -> LegacyScheme:
+    return LegacyScheme("analogous", center=center, spread=spread, tol=tol)
 
 
 def _soft(value: Any, weight: float = 1.0) -> Rule[Any]:
@@ -291,7 +291,7 @@ def _muted(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         metric,
         bg={"chroma": _abs(0.0, 0.02)},
         accent={"lightness": _pick(pol, (0.62, 0.80), (0.40, 0.56)), "chroma": _abs(0.04, 0.10)},
-        hue_scheme=HueScheme("equal", rotation=15.0, tol=20.0),
+        hue_scheme=LegacyScheme("equal", rotation=15.0, tol=20.0),
     )
 
 
@@ -300,7 +300,7 @@ def _vivid(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         pol,
         metric,
         accent={"lightness": _pick(pol, (0.64, 0.84), (0.42, 0.58)), "chroma": _rel(0.65, 0.95)},
-        hue_scheme=HueScheme("equal", rotation=20.0, tol=15.0),
+        hue_scheme=LegacyScheme("equal", rotation=20.0, tol=15.0),
     )
 
 
@@ -317,7 +317,7 @@ def _high_contrast(pol: Polarity, metric: ContrastMetric) -> PresetRules:
             "lightness": _pick(pol, (0.72, 0.90), (0.28, 0.45)),
             "contrast_bg": _contrast(metric, 7.0, 75.0),
         },
-        hue_scheme=HueScheme("equal", rotation=35.0, tol=15.0),
+        hue_scheme=LegacyScheme("equal", rotation=35.0, tol=15.0),
     )
 
 
@@ -335,7 +335,7 @@ def _low_contrast(pol: Polarity, metric: ContrastMetric) -> PresetRules:
             "chroma": _abs(0.04, 0.12),
             "contrast_bg": _contrast_band(metric, (3.0, 5.5), (38.0, 62.0)),
         },
-        hue_scheme=HueScheme("equal", rotation=50.0, tol=20.0),
+        hue_scheme=LegacyScheme("equal", rotation=50.0, tol=20.0),
         lightness_spread=_soft(Interval(None, 0.10)),
     )
 
@@ -349,7 +349,7 @@ def _max_distinct(pol: Polarity, metric: ContrastMetric) -> PresetRules:
             "chroma": _rel(0.50, 0.90),
             "min_distance": _soft(0.12, 3.0),
         },
-        hue_scheme=HueScheme("equal", rotation=5.0, tol=10.0),
+        hue_scheme=LegacyScheme("equal", rotation=5.0, tol=10.0),
         lightness_spread=_soft(Interval(0.15, None)),
     )
 
@@ -671,7 +671,7 @@ def _pastel_like(
     pol: Polarity,
     metric: ContrastMetric,
     chroma: Rule[ChromaBand],
-    scheme: HueScheme,
+    scheme: LegacyScheme,
     dark: tuple[float, float],
     light: tuple[float, float],
     **extra: Any,
@@ -700,7 +700,7 @@ def _watercolor(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         pol,
         metric,
         _rel(0.30, 0.55),
-        HueScheme("equal", rotation=40.0, tol=25.0),
+        LegacyScheme("equal", rotation=40.0, tol=25.0),
         (0.74, 0.90),
         (0.48, 0.66),
         lightness_spread=_soft(Interval(0.10, None)),
@@ -797,7 +797,7 @@ def _arcade(pol: Polarity, metric: ContrastMetric) -> PresetRules:
         metric,
         bg={"lightness": _pick(pol, (0.08, 0.14), (0.95, 0.99)), "chroma": _abs(0.0, 0.015)},
         accent={"lightness": _pick(pol, (0.64, 0.82), (0.44, 0.58)), "chroma": _rel(0.85, 1.0)},
-        hue_scheme=HueScheme("tetrad", rotation=25.0, tol=10.0),
+        hue_scheme=LegacyScheme("tetrad", rotation=25.0, tol=10.0),
         lightness_spread=_soft(Interval(None, 0.15)),
     )
 
@@ -934,7 +934,7 @@ def _newspaper(pol: Polarity, metric: ContrastMetric) -> PresetRules:
                 use_scheme=False,
             )
         },
-        hue_scheme=HueScheme("none"),
+        hue_scheme=LegacyScheme("none"),
         use_scheme=False,
         lightness_spread=_soft(Interval(0.22, None)),
     )
@@ -961,7 +961,7 @@ def _gray_accent(pol: Polarity, metric: ContrastMetric) -> PresetRules:
                 use_scheme=False,
             )
         },
-        hue_scheme=HueScheme("none"),
+        hue_scheme=LegacyScheme("none"),
         use_scheme=False,
         lightness_spread=_soft(Interval(0.25, None)),
     )
@@ -1018,7 +1018,7 @@ def _harmony(
     kind: SchemeKind, *, rotation: float = 0.0, center: float = 0.0, spread: float = 90.0
 ) -> Builder:
     def build(pol: Polarity, metric: ContrastMetric) -> PresetRules:
-        scheme = HueScheme(
+        scheme = LegacyScheme(
             kind, rotation=rotation, center=center, spread=spread, tol=12.0, weight=2.0
         )
         return _rules(pol, metric, accent={"chroma": _abs(0.07, 0.17)}, hue_scheme=scheme)
@@ -1122,7 +1122,7 @@ def _apca_reading(pol: Polarity, _metric: ContrastMetric) -> PresetRules:
             "chroma": _abs(0.05, 0.12),
             "contrast_bg": Rule(ContrastBound(None, 65.0, 90.0)),
         },
-        hue_scheme=HueScheme("equal", rotation=25.0, tol=15.0),
+        hue_scheme=LegacyScheme("equal", rotation=25.0, tol=15.0),
         lightness_spread=_soft(Interval(None, 0.14)),
         contrast_metric="apca",
     )

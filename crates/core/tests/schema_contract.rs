@@ -7,7 +7,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use algopalette_core::schema::{self, ChromaMode, HueSchemeKind, RelKind, SchemaError};
+use algopalette_core::schema::{self, ChromaMode, RelKind, SchemaError};
 use serde_json::{Value, json};
 
 fn contract_dir() -> PathBuf {
@@ -71,7 +71,7 @@ fn full_circle_and_integer_numbers_are_accepted() {
     let s = schema::parse(&read("manual_full_circle.json")).unwrap();
     let h = s.slots[2].rules.hue.as_ref().unwrap();
     assert_eq!((h.value.lo, h.value.hi), (0.0, 360.0));
-    assert_eq!(s.globals.hue_scheme.kind, HueSchemeKind::None);
+    assert!(s.globals.hue_scheme.hues.is_empty());
     assert!(!s.slots[3].use_scheme);
 }
 
@@ -124,8 +124,7 @@ fn avoid_colors_and_custom_scheme_are_read() {
     let s = schema::parse(&read("manual_avoid_custom.json")).unwrap();
     assert_eq!(s.globals.avoid_colors.len(), 3);
     assert_eq!(s.globals.avoid_distance, 0.05);
-    assert_eq!(s.globals.hue_scheme.kind, HueSchemeKind::Custom);
-    assert_eq!(s.globals.hue_scheme.custom, vec![15.0, 140.0, 280.0]);
+    assert_eq!(s.globals.hue_scheme.hues[..3], [15.0, 140.0, 280.0]);
     assert!(s.globals.lightness_spread.is_some());
 }
 

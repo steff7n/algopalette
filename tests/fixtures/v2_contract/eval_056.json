@@ -8,11 +8,9 @@
   "delta_e": "hyab",
   "fit_method": "oklch-chroma",
   "hue_scheme": {
-   "kind": "triad",
-   "rotation": 118.40675520474562,
-   "center": 223.21201372965885,
-   "spread": 132.3766595435706,
-   "custom": [],
+   "hues": [
+    118.40675520474562
+   ],
    "tol": 13.983157680561153,
    "jitter": 0.0,
    "hard": false,

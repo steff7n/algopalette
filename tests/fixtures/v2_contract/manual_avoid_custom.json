@@ -8,11 +8,7 @@
     "delta_e": "cam16",
     "fit_method": "raytrace",
     "hue_scheme": {
-      "kind": "custom",
-      "rotation": 12.5,
-      "center": 200.0,
-      "spread": 120.0,
-      "custom": [
+      "hues": [
         15.0,
         140.0,
         280.0

@@ -22,6 +22,7 @@ from typing import Any
 
 from algopalette import io as aio
 from algopalette.globals_logic import change_metric
+from algopalette.hue_layouts import LegacyScheme, to_scheme
 from algopalette.model import (
     ContrastMetric,
     DeltaEMethod,
@@ -76,6 +77,12 @@ class _Resolved:
     hue_scheme: HueScheme
     lightness_spread: Rule[Interval] | None
     colors: tuple[tuple[SlotRules, bool], ...]  # (zasady, use_scheme) według pozycji
+    recipe: HueScheme | LegacyScheme  # układ przed rozwinięciem (zależy od liczby akcentów)
+
+    def scheme_for(self, current: HueScheme, n_accents: int) -> HueScheme:
+        """Układ presetu rozwinięty do długości ``current`` — dodanie akcentu nie zmienia listy,
+        więc nie oznacza presetu jako zmienionego. Pusta lista → dla ``n_accents``."""
+        return to_scheme(self.recipe, len(current.hues) or n_accents)
 
 
 # ---------------------------------------------------------------------------
@@ -151,10 +158,12 @@ def _decode_entry(
             if not isinstance(use_scheme, bool):
                 raise aio.SessionFormatError(f"colors[{i}].use_scheme powinno być true/false")
             colors.append((rules, use_scheme))
+        recipe = aio._dec_hue_recipe(entry["hue_scheme"], "hue_scheme")
         return _Resolved(
+            recipe=recipe,
             polarity=aio._lit(entry, "polarity", "", ("dark", "light")),
             contrast_metric=aio._lit(entry, "contrast_metric", "", ("wcag21", "apca")),
-            hue_scheme=aio._dec_hue_scheme(entry["hue_scheme"], "hue_scheme"),
+            hue_scheme=to_scheme(recipe, n_slots - 2),
             lightness_spread=aio._dec_rule(
                 "lightness_spread", entry["lightness_spread"], "lightness_spread"
             ),
@@ -254,7 +263,10 @@ def _resolve(
         colors.append((accent, use_scheme))
     # deklaracje presetów mają progi odległości w skali ΔE ok
     colors = [(rules_in_method(r, "ok", delta_e), u) for r, u in colors]
-    return _Resolved(polarity, metric, rules.hue_scheme, rules.lightness_spread, tuple(colors))
+    scheme = to_scheme(rules.hue_scheme, n_slots - 2)
+    return _Resolved(
+        polarity, metric, scheme, rules.lightness_spread, tuple(colors), rules.hue_scheme
+    )
 
 
 def apply_preset(session: Session, name: str, *, polarity: str | None = None) -> Session:
@@ -312,7 +324,8 @@ def is_modified(session: Session) -> bool:
         return True
     if res.contrast_metric != g.contrast_metric:
         return True
-    if res.hue_scheme != g.hue_scheme or res.lightness_spread != g.lightness_spread:
+    scheme = res.scheme_for(g.hue_scheme, len(session.slots) - 2)
+    if scheme != g.hue_scheme or res.lightness_spread != g.lightness_spread:
         return True
     return any(
         (_comparable(slot.rules), slot.use_scheme) != (_comparable(rules), use_scheme)

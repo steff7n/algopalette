@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, get_args
 
 from algopalette.color import to_hex
+from algopalette.hue_layouts import LegacyKind, LegacyScheme, to_scheme
 from algopalette.model import (
     MAX_ACCENTS,
     MAX_BUDGET,
@@ -59,7 +60,7 @@ FORMAT_V1 = "algopalette.v1"
 MAX_FILE_BYTES = 16 * 1024 * 1024
 APP_DIR = "algopalette"
 
-_HUE_KINDS = get_args(HueScheme.__dataclass_fields__["kind"].type)
+_HUE_KINDS = get_args(LegacyKind)
 
 
 class SessionFormatError(ValueError):
@@ -408,27 +409,42 @@ def _dec_slot(v: Any, path: str, role: Role) -> Slot:
 
 def _enc_hue_scheme(h: HueScheme) -> dict[str, Any]:
     out = {f.name: getattr(h, f.name) for f in fields(HueScheme)}
-    out["custom"] = list(h.custom)
+    out["hues"] = list(h.hues)
     return out
 
 
-def _dec_hue_scheme(v: Any, path: str) -> HueScheme:
+def _num_list(d: dict[str, Any], key: str, path: str) -> tuple[float, ...]:
+    p = _join(path, key)
+    return tuple(_to_num(x, _join(p, i)) for i, x in enumerate(_list(_get(d, key, path), p)))
+
+
+def _dec_hue_recipe(v: Any, path: str) -> HueScheme | LegacyScheme:
+    """Układ odcieni w nowym kształcie (``hues``) albo dawnym (``kind`` + parametry)."""
     d = _dict(v, path)
-    cp = _join(path, "custom")
-    custom = tuple(
-        _to_num(x, _join(cp, i)) for i, x in enumerate(_list(_get(d, "custom", path), cp))
-    )
-    return HueScheme(
-        kind=_lit(d, "kind", path, _HUE_KINDS),
-        rotation=_num(d, "rotation", path),
-        center=_num(d, "center", path),
-        spread=_num(d, "spread", path),
-        custom=custom,
-        tol=_nonneg(d, "tol", path),
-        jitter=_nonneg(d, "jitter", path),
-        hard=_bool(d, "hard", path),
-        weight=_nonneg(d, "weight", path),
-    )
+    common = {
+        "tol": _nonneg(d, "tol", path),
+        "jitter": _nonneg(d, "jitter", path),
+        "hard": _bool(d, "hard", path),
+        "weight": _nonneg(d, "weight", path),
+    }
+    if "kind" in d:
+        return LegacyScheme(
+            kind=_lit(d, "kind", path, _HUE_KINDS),
+            rotation=_num(d, "rotation", path),
+            center=_num(d, "center", path),
+            spread=_num(d, "spread", path),
+            custom=_num_list(d, "custom", path),
+            **common,
+        )
+    hues = _num_list(d, "hues", path)
+    if len(hues) > MAX_ACCENTS:
+        raise _err(_join(path, "hues"), f"ma {len(hues)} pozycji; najwyżej {MAX_ACCENTS}")
+    return HueScheme(hues=hues, **common)
+
+
+def _dec_hue_scheme(v: Any, path: str, n_accents: int) -> HueScheme:
+    """Dawny kształt rozwinięty do listy z tymi samymi celami dla ``n_accents`` akcentów."""
+    return to_scheme(_dec_hue_recipe(v, path), n_accents)
 
 
 def _enc_optimizer(o: OptimizerSettings) -> dict[str, Any]:
@@ -462,7 +478,7 @@ def _enc_globals(g: GlobalSettings) -> dict[str, Any]:
     }
 
 
-def _dec_globals(v: Any, path: str) -> GlobalSettings:
+def _dec_globals(v: Any, path: str, n_accents: int) -> GlobalSettings:
     d = _dict(v, path)
     ap = _join(path, "avoid_colors")
     avoid = tuple(
@@ -470,7 +486,9 @@ def _dec_globals(v: Any, path: str) -> GlobalSettings:
     )
     return GlobalSettings(
         polarity=_lit(d, "polarity", path, ("dark", "light")),
-        hue_scheme=_dec_hue_scheme(_get(d, "hue_scheme", path), _join(path, "hue_scheme")),
+        hue_scheme=_dec_hue_scheme(
+            _get(d, "hue_scheme", path), _join(path, "hue_scheme"), n_accents
+        ),
         lightness_spread=_dec_rule(
             "lightness_spread", _get(d, "lightness_spread", path), _join(path, "lightness_spread")
         ),
@@ -519,7 +537,7 @@ def session_from_dict(data: Any) -> Session:
     if len({s.id for s in slots}) != len(slots):
         raise _err("slots", "zawiera powtórzone „id” kolorów")
     return Session(
-        globals=_dec_globals(_get(d, "globals", ""), "globals"),
+        globals=_dec_globals(_get(d, "globals", ""), "globals", accents),
         slots=slots,
         preset=_opt_str(d, "preset", ""),
         view_model=_lit(d, "view_model", "", ("oklch", "hsl")) if "view_model" in d else "oklch",

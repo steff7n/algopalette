@@ -8,11 +8,7 @@
   "delta_e": "cam16",
   "fit_method": "oklch-chroma",
   "hue_scheme": {
-   "kind": "custom",
-   "rotation": 178.8872649216678,
-   "center": 104.9488625595677,
-   "spread": 50.554804335656186,
-   "custom": [
+   "hues": [
     172.83293223198817,
     43.37022580648926
    ],

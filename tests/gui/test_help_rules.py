@@ -7,7 +7,6 @@ from dataclasses import replace
 import pytest
 from PySide6.QtCore import QCoreApplication, QEvent
 
-from algopalette import engine
 from algopalette.forms import DELTA_E, DISPLAY_ORDER, FITS, SCHEMES, default_for
 from algopalette.gui import help as gh
 from algopalette.gui.help_content import GROUPS, TOPICS
@@ -15,13 +14,11 @@ from algopalette.gui.relations import RelationRow
 from algopalette.model import (
     ContrastBound,
     HueArc,
-    HueScheme,
     Interval,
     OptimizerSettings,
     Relation,
     Rule,
     SlotRules,
-    default_session,
     with_slot,
 )
 from algopalette.presets_builtin import BUILTIN
@@ -181,30 +178,6 @@ def test_defaults_quoted_in_help_come_from_the_program():
     assert f"— {runs})" in TOPICS["rules.gen.n_proposals"].body
     assert f"wadze {o.hard_weight:g}" in TOPICS["rules.gen.hard_weight"].body
     assert f"różnorodności {o.min_diversity:g}" in TOPICS["rules.gen.min_diversity"].body
-
-
-def test_scheme_example_matches_the_engine():
-    """Cele z przykładu w pomocy to dokładnie to, co dla ośmiu akcentów wylicza silnik."""
-
-    def targets(kind, **kw):
-        s = default_session()
-        s = replace(s, globals=replace(s.globals, hue_scheme=HueScheme(kind, **kw)))
-        got = engine.hue_targets(s)
-        return [got[slot.id] for slot in s.slots[2:]]
-
-    body = TOPICS["rules.hues.kind"].body
-    triad = targets("triad", rotation=30.0)
-    assert triad == [30.0, 150.0, 270.0, 70.0, 190.0, 310.0, 110.0, 230.0]
-    quoted = triad + targets("tetrad", rotation=30.0) + targets("complementary", rotation=30.0)
-    quoted += targets("split", rotation=30.0)[:3]
-    for hue in quoted:
-        assert f"{hue:.0f}°" in body, hue
-    fan = targets("analogous", center=220.0, spread=110.0)
-    assert (fan[0], fan[-1]) == (165.0, 275.0) and round(fan[1] - fan[0]) == 16
-    assert targets("equal", rotation=0.0) == [45.0 * i for i in range(8)]
-
-
-# --- tematy starego modelu zniknęły ----------------------------------------------------------
 
 
 def test_old_model_topics_and_links_are_gone():

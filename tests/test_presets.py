@@ -509,10 +509,10 @@ def test_limited_presets_pin_hues_with_a_hard_scheme():
         assert p.category == "Ograniczone"
         s = applied(p, "dark")
         scheme = s.globals.hue_scheme
-        assert scheme.kind == "custom" and scheme.hard
-        assert len(set(scheme.custom)) == n_hues
+        assert scheme.hard
+        assert len(set(scheme.hues)) == n_hues
         assert all(slot.use_scheme for slot in s.slots[2:])
-    poles = set(applied(by_name("dwa bieguny"), "dark").globals.hue_scheme.custom)
+    poles = set(applied(by_name("dwa bieguny"), "dark").globals.hue_scheme.hues)
     lo, hi = sorted(poles)
     assert hi - lo == 180.0
 

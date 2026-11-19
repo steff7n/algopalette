@@ -8,11 +8,10 @@
   "delta_e": "itp",
   "fit_method": "oklch-chroma",
   "hue_scheme": {
-   "kind": "complementary",
-   "rotation": 271.5106791682599,
-   "center": 164.75592379773147,
-   "spread": 173.65148291505807,
-   "custom": [],
+   "hues": [
+    271.5106791682599,
+    91.51067916825991
+   ],
    "tol": 19.6807238656235,
    "jitter": 0.0,
    "hard": false,

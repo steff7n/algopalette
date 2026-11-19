@@ -145,7 +145,7 @@ def variant_session(
             min_distance=min_d if role == "accent" else None,
         )
         slots.append(replace(slot, rules=rules, use_scheme=False))
-    g2 = replace(g, polarity=polarity, hue_scheme=HueScheme("none"), lightness_spread=None)
+    g2 = replace(g, polarity=polarity, hue_scheme=HueScheme(), lightness_spread=None)
     return replace(s, globals=g2, slots=tuple(slots), preset=None)
 
 
