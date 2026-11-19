@@ -14,7 +14,7 @@ Dla agenta, który przejmie pracę bez tej rozmowy. Sekcja 0 = stan na teraz. Ni
   **Plan:** `docs/superpowers/plans/2026-11-19-uklad-odcieni-lista.md` + `.tasks.json` (4 zadania, sekwencyjne).
   Decyzje agenta w specu po builder-checku: `custom` rozwijany do `max(n, k)`; „z bieżących kolorów” = wszystkie
   akcenty, `slot.value`, skupiska w kolejności wystąpienia (też w `character_settings` — naprawia kolejność).
-- **Stan zadań (dopisuj):** Task 1 ☐, Task 2 ☐, Task 3 ☐, Task 4 ☐.
+- **Stan zadań (dopisuj):** Task 1 ☑ (`hue_layouts.py`: generatory, `family_counts`, `ordered_clusters`, `LegacyScheme` + `legacy_targets`; snapshot 231 kluczy w `tests/fixtures/hue_targets_snapshot.json` z `tools/snapshot_hue_targets.py` na starym kodzie — po Tasku 2 skrypt NIE odtworzy go 1:1, nie uruchamiaj ponownie; `tests/test_hue_layouts.py` 8 passed), Task 2 ☐, Task 3 ☐, Task 4 ☐.
 - **O co łatwo się potknąć:** snapshot celów (`tests/fixtures/hue_targets_snapshot.json`) MUSI powstać na
   starym kodzie (Task 1) — po Tasku 2 nie da się go już odtworzyć; po zmianie `crates/` przebuduj rozszerzenie
   przed pytest; `v1_reference/*` nietykalne.
